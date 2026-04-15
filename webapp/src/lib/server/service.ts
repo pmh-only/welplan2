@@ -196,6 +196,12 @@ class CafeteriaService {
     return cleared
   }
 
+  registerRestaurant(restaurant: Restaurant): void {
+    if (!this.cache.has(restaurant.id)) {
+      this.cache.set(restaurant.id, restaurant)
+    }
+  }
+
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
     const q = query.toLowerCase()
