@@ -125,6 +125,7 @@ export function mapMenuDetails(details: WpMenuDetail[]): MenuComponent[] {
 export function mapMenuNutrients(details: WpMenuNutrient[]): MenuComponent[] {
   return details.map((d) => ({
     name: d.menuName,
+    isMain: d.typicalMenu === 'Y',
     nutrition: {
       calories: parseNum(d.kcal),
       carbohydrates: parseNum(d.totCho),

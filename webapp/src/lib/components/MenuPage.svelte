@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import MenuTable from '$lib/components/MenuTable.svelte'
-  import type { MealTime, Menu, Restaurant } from '$lib/types'
+  import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
 
   type MenuPageData = {
@@ -20,8 +20,68 @@
     kind: 'takein' | 'takeout'
   } = $props()
 
+  let takeInFilterMainOnly = $state(false)
+  let takeInFilterExcludeOptional = $state(true)
+
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
-  const visibleMenus = $derived(data.menus.filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut))
+
+  function isOptionalComponent(component: MenuComponent): boolean {
+    return component.name.includes('추가찬') || component.name.includes('택1')
+  }
+
+  function hasDetailedComponents(menu: Menu): boolean {
+    return menu.components.some((component) => component.nutrition)
+  }
+
+  function componentIsMain(component: MenuComponent): boolean | undefined {
+    return (component as MenuComponent & { isMain?: boolean }).isMain
+  }
+
+  function sumNutrition(components: MenuComponent[]): NutritionInfo | undefined {
+    const withNutrition = components.filter((component) => component.nutrition)
+    if (withNutrition.length === 0) return undefined
+
+    return withNutrition.reduce<NutritionInfo>((totals, component) => ({
+      calories: (totals.calories ?? 0) + (component.nutrition?.calories ?? 0),
+      carbohydrates: (totals.carbohydrates ?? 0) + (component.nutrition?.carbohydrates ?? 0),
+      sugar: (totals.sugar ?? 0) + (component.nutrition?.sugar ?? 0),
+      fat: (totals.fat ?? 0) + (component.nutrition?.fat ?? 0),
+      protein: (totals.protein ?? 0) + (component.nutrition?.protein ?? 0),
+      sodium: (totals.sodium ?? 0) + (component.nutrition?.sodium ?? 0),
+      calcium: (totals.calcium ?? 0) + (component.nutrition?.calcium ?? 0)
+    }), {})
+  }
+
+  function filterTakeInComponents(menu: Menu): MenuComponent[] {
+    if (!hasDetailedComponents(menu)) return menu.components
+
+    let components: MenuComponent[] = menu.components
+
+    if (takeInFilterMainOnly && components.some((component) => componentIsMain(component) != null)) {
+      components = components.filter((component) => componentIsMain(component) === true)
+    }
+
+    if (takeInFilterExcludeOptional) {
+      components = components.filter((component) => !isOptionalComponent(component))
+    }
+
+    return components
+  }
+
+  const visibleMenus = $derived(
+    data.menus
+      .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
+      .map((menu: Menu) => {
+        if (kind !== 'takein') return menu
+
+        const components = filterTakeInComponents(menu)
+        return {
+          ...menu,
+          components,
+          nutrition: sumNutrition(components) ?? menu.nutrition
+        }
+      })
+  )
 
   function routeFor (date: string, time: string): string {
     return `/${kind}/${date}/${time}`
@@ -68,6 +128,22 @@
       </div>
       <div class="date-label">{formatKoreanDate(data.date)}</div>
     </div>
+
+    {#if kind === 'takein'}
+      <div class="filter-box">
+        <div class="filter-title">🎯 필터 옵션</div>
+        <div class="filter-options">
+          <label class="filter-option">
+            <input type="checkbox" bind:checked={takeInFilterMainOnly} />
+            <span>메인 메뉴만</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" bind:checked={takeInFilterExcludeOptional} />
+            <span>추가찬 제외</span>
+          </label>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <div class="section no-padding">
@@ -84,6 +160,7 @@
       date={data.date}
       time={data.time}
       emptyMessage={`${pageLabel} 메뉴가 없습니다`}
+      preferInlineComponents={kind === 'takein'}
     />
   </div>
 {/if}
@@ -107,6 +184,10 @@
   .menu-count { font-size: 12px; color: var(--text-dim); }
 
   .controls-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .filter-box { margin-top: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .filter-title { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+  .filter-options { display: flex; gap: 14px; flex-wrap: wrap; }
+  .filter-option { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group label { font-size: 12px; font-weight: 500; color: #4b5563; }
   .date-row { display: flex; align-items: center; gap: 4px; }

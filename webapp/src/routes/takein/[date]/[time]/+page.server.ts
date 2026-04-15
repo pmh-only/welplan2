@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types'
-import { loadMenusForRoute } from '$lib/server/menu-page'
+import { loadTakeInMenusForRoute } from '$lib/server/menu-page'
 
 export const load: PageServerLoad = async ({ params, parent }) => {
-  return loadMenusForRoute(parent, params.date, params.time)
+  return loadTakeInMenusForRoute(parent, params.date, params.time)
 }

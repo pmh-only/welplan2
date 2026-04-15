@@ -31,6 +31,7 @@ export interface NutritionInfo {
 export interface MenuComponent {
   name: string
   nutrition?: NutritionInfo
+  isMain?: boolean
 }
 
 export interface Menu {

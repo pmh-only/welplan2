@@ -20,6 +20,24 @@ export async function loadMenusForRoute(parent: ParentLoad, date: string, time: 
   return { menus, date, time }
 }
 
+function sumNutrition(components: MenuComponent[]): NutritionInfo | undefined {
+  const withNutrition = components.filter((component) => component.nutrition)
+  if (withNutrition.length === 0) return undefined
+
+  return withNutrition.reduce<NutritionInfo>(
+    (totals, component) => ({
+      calories: (totals.calories ?? 0) + (component.nutrition?.calories ?? 0),
+      carbohydrates: (totals.carbohydrates ?? 0) + (component.nutrition?.carbohydrates ?? 0),
+      sugar: (totals.sugar ?? 0) + (component.nutrition?.sugar ?? 0),
+      fat: (totals.fat ?? 0) + (component.nutrition?.fat ?? 0),
+      protein: (totals.protein ?? 0) + (component.nutrition?.protein ?? 0),
+      sodium: (totals.sodium ?? 0) + (component.nutrition?.sodium ?? 0),
+      calcium: (totals.calcium ?? 0) + (component.nutrition?.calcium ?? 0)
+    }),
+    {}
+  )
+}
+
 function normalizeMenuName(name: string): string {
   return name.replace(/\s*포장$/, '').trim()
 }
@@ -80,6 +98,36 @@ export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string,
       }
     })
   ).then((results) => results.flat())
+
+  return { ...data, menus }
+}
+
+export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, time: string) {
+  const data = await loadMenusForRoute(parent, date, time)
+
+  const menus = await Promise.all(
+    data.menus.map(async (menu) => {
+      if (!(menu.vendor === 'welstory' && !menu.isTakeOut && menu.hallNo && menu.courseType))
+        return menu
+
+      try {
+        const detail = await service.getMenuNutrientDetail(
+          menu.restaurantId,
+          date,
+          time,
+          menu.hallNo,
+          menu.courseType
+        )
+        return {
+          ...menu,
+          components: detail,
+          nutrition: sumNutrition(detail) ?? menu.nutrition
+        }
+      } catch {
+        return menu
+      }
+    })
+  )
 
   return { ...data, menus }
 }

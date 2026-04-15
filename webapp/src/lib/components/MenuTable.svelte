@@ -8,13 +8,15 @@
     restaurants,
     date,
     time,
-    emptyMessage
+    emptyMessage,
+    preferInlineComponents = false
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
     date: string
     time: string
     emptyMessage: string
+    preferInlineComponents?: boolean
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -136,7 +138,9 @@
     expandedMenuId = menu.id
     detail = []
 
-    if (menu.hallNo && menu.courseType) {
+    if (preferInlineComponents && menu.components.length > 0) {
+      detail = menu.components
+    } else if (menu.hallNo && menu.courseType) {
       loadingDetail = true
       try {
         const params = new URLSearchParams({
