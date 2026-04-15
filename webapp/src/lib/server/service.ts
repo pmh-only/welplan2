@@ -9,17 +9,22 @@ import type {
 import { WelstoryPlusClient } from '@welplan2/welstory-plus'
 import { PlaneatChoiceClient } from '@welplan2/planeat-choice'
 import { WELSTORY_USERNAME, WELSTORY_PASSWORD } from '$env/static/private'
+import { db } from './db/index.js'
+import {
+  restaurants as restaurantsTable,
+  mealTimesCache,
+  menusCache,
+  menuDetailCache,
+  menuNutrientDetailCache,
+  userSelectedRestaurants
+} from './db/schema.js'
+import { eq, sql } from 'drizzle-orm'
 
 class CafeteriaService {
   private readonly welstory: WelstoryPlusClient
   private readonly planeat: PlaneatChoiceClient
-  private readonly cache = new Map<string, Restaurant>()
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
-  private readonly mealTimesCache = new Map<string, MealTime[]>()
-  private readonly menusCache = new Map<string, Menu[]>()
-  private readonly menuDetailCache = new Map<string, MenuComponent[]>()
-  private readonly menuNutrientDetailCache = new Map<string, MenuComponent[]>()
 
   constructor() {
     this.welstory = new WelstoryPlusClient({
@@ -33,22 +38,50 @@ class CafeteriaService {
     return vendor === 'welstory' ? this.welstory : this.planeat
   }
 
+  private now(): number {
+    return Date.now()
+  }
+
   private async populateCache(): Promise<void> {
     const [welstoryResult, planeatResult] = await Promise.allSettled([
       this.welstory.getRestaurants(),
       this.planeat.getRestaurants()
     ])
+    const toInsert: (typeof restaurantsTable.$inferInsert)[] = []
     if (welstoryResult.status === 'fulfilled') {
-      for (const r of welstoryResult.value) this.cache.set(r.id, r)
+      for (const r of welstoryResult.value) {
+        toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
+      }
     }
     if (planeatResult.status === 'fulfilled') {
-      for (const r of planeatResult.value) this.cache.set(r.id, r)
+      for (const r of planeatResult.value) {
+        toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
+      }
+    }
+    if (toInsert.length > 0) {
+      db.transaction((tx) => {
+        for (const row of toInsert) {
+          tx.insert(restaurantsTable)
+            .values(row)
+            .onConflictDoUpdate({
+              target: restaurantsTable.id,
+              set: { data: row.data, cachedAt: row.cachedAt }
+            })
+            .run()
+        }
+      })
     }
     this.cacheLoaded = true
   }
 
   private async ensureCache(): Promise<void> {
     if (this.cacheLoaded) return
+    // Check if we already have restaurants in DB
+    const count = this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable))
+    if (count > 0) {
+      this.cacheLoaded = true
+      return
+    }
     if (this.cachePromise) return this.cachePromise
     this.cachePromise = this.populateCache().finally(() => {
       this.cachePromise = null
@@ -58,19 +91,37 @@ class CafeteriaService {
 
   private async resolveRestaurant(id: string): Promise<Restaurant> {
     await this.ensureCache()
-    const restaurant = this.cache.get(id)
-    if (!restaurant) throw new Error(`Restaurant '${id}' not found`)
-    return restaurant
+    const row = db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)).get()
+    if (!row) throw new Error(`Restaurant '${id}' not found`)
+    return JSON.parse(row.data) as Restaurant
   }
 
-  private clone<T>(value: T): T {
-    return structuredClone(value)
+  async getRestaurants(): Promise<Restaurant[]> {
+    await this.ensureCache()
+    return db
+      .select()
+      .from(restaurantsTable)
+      .all()
+      .map((row) => JSON.parse(row.data) as Restaurant)
+  }
+
+  getUserSelectedRestaurants(): Restaurant[] {
+    const selected = db.select().from(userSelectedRestaurants).all()
+    const ids = new Set(selected.map((r) => r.restaurantId))
+    return db
+      .select()
+      .from(restaurantsTable)
+      .all()
+      .map((row) => JSON.parse(row.data) as Restaurant)
+      .filter((r) => ids.has(r.id))
   }
 
   async getAllMealTimes(): Promise<MealTime[]> {
     await this.ensureCache()
+    const rows = db.select().from(restaurantsTable).all()
     const byVendor = new Map<string, Restaurant>()
-    for (const r of this.cache.values()) {
+    for (const row of rows) {
+      const r = JSON.parse(row.data) as Restaurant
       if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
     }
     const results = await Promise.allSettled(
@@ -91,20 +142,29 @@ class CafeteriaService {
   }
 
   async getMealTimes(restaurantId: string): Promise<MealTime[]> {
-    const key = `meal-times:${restaurantId}`
-    const cached = this.mealTimesCache.get(key)
-    if (cached) return this.clone(cached)
+    const cached = db
+      .select()
+      .from(mealTimesCache)
+      .where(eq(mealTimesCache.restaurantId, restaurantId))
+      .get()
+    if (cached) return JSON.parse(cached.data) as MealTime[]
 
     const restaurant = await this.resolveRestaurant(restaurantId)
     const mealTimes = await this.getClient(restaurant.vendor).getMealTimes(restaurant)
-    this.mealTimesCache.set(key, this.clone(mealTimes))
+    db.insert(mealTimesCache)
+      .values({ restaurantId, data: JSON.stringify(mealTimes), cachedAt: this.now() })
+      .onConflictDoUpdate({
+        target: mealTimesCache.restaurantId,
+        set: { data: JSON.stringify(mealTimes), cachedAt: this.now() }
+      })
+      .run()
     return mealTimes
   }
 
   async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
-    const key = `menus:${restaurantId}:${date}:${mealTimeId}`
-    const cached = this.menusCache.get(key)
-    if (cached) return this.clone(cached)
+    const key = `${restaurantId}:${date}:${mealTimeId}`
+    const cached = db.select().from(menusCache).where(eq(menusCache.key, key)).get()
+    if (cached) return JSON.parse(cached.data) as Menu[]
 
     const restaurant = await this.resolveRestaurant(restaurantId)
     const menus = await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
@@ -113,7 +173,13 @@ class CafeteriaService {
         menu.isTakeOut = true
       }
     }
-    this.menusCache.set(key, this.clone(menus))
+    db.insert(menusCache)
+      .values({ key, data: JSON.stringify(menus), cachedAt: this.now() })
+      .onConflictDoUpdate({
+        target: menusCache.key,
+        set: { data: JSON.stringify(menus), cachedAt: this.now() }
+      })
+      .run()
     return menus
   }
 
@@ -124,9 +190,9 @@ class CafeteriaService {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
-    const key = `detail:${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
-    const cached = this.menuDetailCache.get(key)
-    if (cached) return this.clone(cached)
+    const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const cached = db.select().from(menuDetailCache).where(eq(menuDetailCache.key, key)).get()
+    if (cached) return JSON.parse(cached.data) as MenuComponent[]
 
     const restaurant = await this.resolveRestaurant(restaurantId)
     const client = this.getClient(restaurant.vendor)
@@ -134,7 +200,13 @@ class CafeteriaService {
       throw new Error(`Menu detail not supported for vendor '${restaurant.vendor}'`)
     }
     const detail = await client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
-    this.menuDetailCache.set(key, this.clone(detail))
+    db.insert(menuDetailCache)
+      .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
+      .onConflictDoUpdate({
+        target: menuDetailCache.key,
+        set: { data: JSON.stringify(detail), cachedAt: this.now() }
+      })
+      .run()
     return detail
   }
 
@@ -145,9 +217,13 @@ class CafeteriaService {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
-    const key = `nutrient:${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
-    const cached = this.menuNutrientDetailCache.get(key)
-    if (cached) return this.clone(cached)
+    const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const cached = db
+      .select()
+      .from(menuNutrientDetailCache)
+      .where(eq(menuNutrientDetailCache.key, key))
+      .get()
+    if (cached) return JSON.parse(cached.data) as MenuComponent[]
 
     const restaurant = await this.resolveRestaurant(restaurantId)
     const client = this.getClient(restaurant.vendor)
@@ -161,53 +237,80 @@ class CafeteriaService {
       hallNo,
       courseType
     )
-    this.menuNutrientDetailCache.set(key, this.clone(detail))
+    db.insert(menuNutrientDetailCache)
+      .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
+      .onConflictDoUpdate({
+        target: menuNutrientDetailCache.key,
+        set: { data: JSON.stringify(detail), cachedAt: this.now() }
+      })
+      .run()
     return detail
+  }
+
+  private count(query: { get: () => { count: number } | undefined }): number {
+    return query.get()?.count ?? 0
   }
 
   getCacheStatus(): Record<string, number | boolean> {
     return {
       restaurantsLoaded: this.cacheLoaded,
-      restaurants: this.cache.size,
-      mealTimes: this.mealTimesCache.size,
-      menus: this.menusCache.size,
-      menuDetails: this.menuDetailCache.size,
-      menuNutrientDetails: this.menuNutrientDetailCache.size
+      restaurants: this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
+      mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
+      menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
+      menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
+      menuNutrientDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache))
     }
   }
 
   clearCaches(): Record<string, number> {
     const cleared = {
-      restaurants: this.cache.size,
-      mealTimes: this.mealTimesCache.size,
-      menus: this.menusCache.size,
-      menuDetails: this.menuDetailCache.size,
-      menuNutrientDetails: this.menuNutrientDetailCache.size
+      restaurants: this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
+      mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
+      menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
+      menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
+      menuNutrientDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache))
     }
 
-    this.cache.clear()
+    db.delete(restaurantsTable).run()
+    db.delete(mealTimesCache).run()
+    db.delete(menusCache).run()
+    db.delete(menuDetailCache).run()
+    db.delete(menuNutrientDetailCache).run()
+
     this.cacheLoaded = false
     this.cachePromise = null
-    this.mealTimesCache.clear()
-    this.menusCache.clear()
-    this.menuDetailCache.clear()
-    this.menuNutrientDetailCache.clear()
 
     return cleared
   }
 
   registerRestaurant(restaurant: Restaurant): void {
-    if (!this.cache.has(restaurant.id)) {
-      this.cache.set(restaurant.id, restaurant)
+    const existing = db
+      .select()
+      .from(restaurantsTable)
+      .where(eq(restaurantsTable.id, restaurant.id))
+      .get()
+    if (!existing) {
+      db.insert(restaurantsTable)
+        .values({ id: restaurant.id, data: JSON.stringify(restaurant), cachedAt: this.now() })
+        .run()
     }
+    // Record anonymous user selection
+    db.insert(userSelectedRestaurants)
+      .values({ restaurantId: restaurant.id, lastSeenAt: this.now() })
+      .onConflictDoUpdate({
+        target: userSelectedRestaurants.restaurantId,
+        set: { lastSeenAt: this.now() }
+      })
+      .run()
   }
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
     const q = query.toLowerCase()
-    const fromCache = [...this.cache.values()].filter(
-      (r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
-    )
+    const rows = db.select().from(restaurantsTable).all()
+    const fromCache = rows
+      .map((row) => JSON.parse(row.data) as Restaurant)
+      .filter((r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q))
     const fromWelstory = await this.welstory.searchRestaurants(query).catch(() => [])
     const seen = new Set(fromCache.map((r) => r.id))
     return [...fromCache, ...fromWelstory.filter((r) => !seen.has(r.id))]

@@ -15,11 +15,15 @@
     "@welplan2/model": "workspace:*",
     "@welplan2/planeat-choice": "workspace:*",
     "@welplan2/welstory-plus": "workspace:*",
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.0",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5.0.0",
     "vite": "^6.0.0"
   }
