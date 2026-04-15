@@ -299,6 +299,9 @@
               {/if}
               <span class="menu-name">{menu.name}</span>
               {#if menu.isTakeOut}<span class="badge">포장</span>{/if}
+              {#if preferInlineComponents && menu.components.length > 0}
+                <span class="menu-desc">{menu.components.map((c) => c.name).join(' · ')}</span>
+              {/if}
             </td>
             <td class="col-ps" data-label="P-Score">
               {#if ps !== null}
@@ -759,6 +762,7 @@
   .rest-tag { font-size: 11px; color: var(--text-dim); }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
   .menu-name { font-weight: 500; color: var(--text); line-height: 1.4; }
+  .menu-desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
 
   .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; font-family: var(--font-mono); }
