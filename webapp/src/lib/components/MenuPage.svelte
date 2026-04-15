@@ -27,6 +27,7 @@
   let takeInFilterExcludeOptional = $state(true)
   let selectedTakeoutRestaurantId = $state('')
   let takeOutFilterDrinks = $state(true)
+  let viewMode = $state<'scroll' | 'card'>('scroll')
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
 
@@ -202,6 +203,18 @@
         </div>
       </div>
     {/if}
+
+    <div class="view-mode-box">
+      <span class="view-mode-label">📱 모바일 보기</span>
+      <label class="filter-option">
+        <input type="radio" bind:group={viewMode} value="scroll" />
+        <span>스크롤 테이블</span>
+      </label>
+      <label class="filter-option">
+        <input type="radio" bind:group={viewMode} value="card" />
+        <span>카드형</span>
+      </label>
+    </div>
   </div>
 
   <div class="section no-padding">
@@ -219,6 +232,8 @@
       time={data.time}
       emptyMessage={`${pageLabel} 메뉴가 없습니다`}
       preferInlineComponents={kind === 'takein'}
+      enableSelection={kind === 'takeout'}
+      viewMode={viewMode}
     />
   </div>
 {/if}
@@ -249,6 +264,8 @@
   .takeout-options { align-items: flex-end; justify-content: space-between; }
   .takeout-restaurant-select { min-width: min(100%, 280px); }
   .takeout-drink-filter { min-height: 36px; }
+  .view-mode-box { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .view-mode-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group label { font-size: 12px; font-weight: 500; color: #4b5563; }
   .date-row { display: flex; align-items: center; gap: 4px; }

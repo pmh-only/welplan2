@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '$lib/state.svelte'
   import { pScore, pScoreColor, proxyImg } from '$lib/utils'
-  import type { Menu, MenuComponent, Restaurant } from '$lib/types'
+  import type { Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
 
   let {
     menus,
@@ -9,7 +9,9 @@
     date,
     time,
     emptyMessage,
-    preferInlineComponents = false
+    preferInlineComponents = false,
+    enableSelection = false,
+    viewMode = 'scroll'
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -17,6 +19,8 @@
     time: string
     emptyMessage: string
     preferInlineComponents?: boolean
+    enableSelection?: boolean
+    viewMode?: 'scroll' | 'card'
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -24,6 +28,7 @@
   let loadingDetail = $state(false)
   let lightboxSrc = $state<string | null>(null)
   let lightboxAlt = $state('')
+  let selectedMenuIds = $state<string[]>([])
   let sortKey = $state<SortKey | null>(null)
   let sortDirection = $state<'asc' | 'desc'>('asc')
 
@@ -53,6 +58,7 @@
     expandedMenuId = null
     detail = []
     loadingDetail = false
+    selectedMenuIds = []
   })
 
   function restaurantName (id: string): string {
@@ -72,6 +78,26 @@
 
     sortKey = key
     sortDirection = 'asc'
+  }
+
+  function isSelected (menuId: string): boolean {
+    return selectedMenuIds.includes(menuId)
+  }
+
+  function toggleSelection (menuId: string) {
+    if (isSelected(menuId)) {
+      selectedMenuIds = selectedMenuIds.filter((id) => id !== menuId)
+    } else {
+      selectedMenuIds = [...selectedMenuIds, menuId]
+    }
+  }
+
+  function selectAllVisible () {
+    selectedMenuIds = visibleMenus.map((menu) => menu.id)
+  }
+
+  function clearSelection () {
+    selectedMenuIds = []
   }
 
   function sortValueFor (menu: Menu, key: SortKey): SortValue {
@@ -108,6 +134,21 @@
   }
 
   const visibleMenus = $derived([...menus].sort(compareMenus))
+  const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menu.id)))
+  const selectedNutrition = $derived(
+    selectedMenus.reduce(
+      (totals: NutritionInfo, menu) => ({
+        calories: (totals.calories ?? 0) + (menu.nutrition?.calories ?? 0),
+        carbohydrates: (totals.carbohydrates ?? 0) + (menu.nutrition?.carbohydrates ?? 0),
+        sugar: (totals.sugar ?? 0) + (menu.nutrition?.sugar ?? 0),
+        fat: (totals.fat ?? 0) + (menu.nutrition?.fat ?? 0),
+        protein: (totals.protein ?? 0) + (menu.nutrition?.protein ?? 0),
+        sodium: (totals.sodium ?? 0) + (menu.nutrition?.sodium ?? 0)
+      }),
+      {} as NutritionInfo
+    )
+  )
+  const selectedPScore = $derived(selectedMenus.length > 0 ? pScore(selectedNutrition, app.pWeights) : null)
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -164,10 +205,27 @@
 {#if visibleMenus.length === 0}
   <div class="empty-state"><p>{emptyMessage}</p></div>
 {:else}
-  <div class="table-wrap">
+  {#if enableSelection}
+    <div class="selection-bar">
+      <div class="selection-meta">
+        <span class="selection-count">선택 {selectedMenus.length}개</span>
+        {#if selectedMenus.length > 0}
+          <span class="selection-score">합산 P-Score {selectedPScore ?? '—'}</span>
+          <span class="selection-nutrition">{selectedNutrition.calories ?? 0} kcal · 탄 {selectedNutrition.carbohydrates ?? 0}g · 당 {selectedNutrition.sugar ?? 0}g · 지 {selectedNutrition.fat ?? 0}g · 단 {selectedNutrition.protein ?? 0}g</span>
+        {/if}
+      </div>
+      <div class="selection-actions">
+        <button type="button" class="selection-btn" onclick={selectAllVisible}>전체 선택</button>
+        <button type="button" class="selection-btn" onclick={clearSelection}>선택 해제</button>
+      </div>
+    </div>
+  {/if}
+
+  <div class="table-wrap" class:card-view={viewMode === 'card'}>
     <table class="menu-table">
       <thead>
         <tr>
+          {#if enableSelection}<th class="col-check"></th>{/if}
           <th class="col-img"></th>
           <th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>
           <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
@@ -184,11 +242,18 @@
         {#each visibleMenus as menu (menu.id)}
           {@const isExpanded = expandedMenuId === menu.id}
           {@const canExpand = isExpandable(menu)}
+          {@const selected = isSelected(menu.id)}
+          {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
           {@const imgSrc = proxyImg(menu.imageUrl)}
           {@const ps = pScore(n, app.pWeights)}
-          <tr class="menu-row" class:expanded={isExpanded} class:expandable={canExpand} onclick={() => { if (canExpand) toggleMenu(menu) }}>
-            <td class="col-img">
+          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(menu.id); else if (canExpand) toggleMenu(menu) }}>
+            {#if enableSelection}
+              <td class="col-check" data-label="선택">
+                <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(menu.id)} />
+              </td>
+            {/if}
+            <td class="col-img" data-label="이미지">
               {#if imgSrc}
                 <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
                   <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" />
@@ -197,30 +262,33 @@
                 <div class="thumb-placeholder"></div>
               {/if}
             </td>
-            <td class="col-rest hide-sm">
+            <td class="col-rest hide-sm" data-label="식당">
               <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
             </td>
-            <td class="col-name">
+            <td class="col-name" data-label="메뉴">
+              {#if parentName}
+                <span class="menu-parent">{parentName}</span>
+              {/if}
               <span class="menu-name">{menu.name}</span>
               {#if menu.isTakeOut}<span class="badge">포장</span>{/if}
             </td>
-            <td class="col-ps">
+            <td class="col-ps" data-label="P-Score">
               {#if ps !== null}
                 <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
               {:else}
                 <span class="ps-na">—</span>
               {/if}
             </td>
-            <td class="col-num">{n?.calories != null ? `${n.calories.toLocaleString()} kcal` : '—'}</td>
-            <td class="col-num hide-sm">{n?.carbohydrates != null ? `${n.carbohydrates}g` : '—'}</td>
-            <td class="col-num hide-sm">{n?.sugar != null ? `${n.sugar}g` : '—'}</td>
-            <td class="col-num">{n?.fat != null ? `${n.fat}g` : '—'}</td>
-            <td class="col-num">{n?.protein != null ? `${n.protein}g` : '—'}</td>
-            <td class="col-num hide-sm">{n?.sodium != null ? `${n.sodium}mg` : '—'}</td>
+            <td class="col-num" data-label="칼로리">{n?.calories != null ? `${n.calories.toLocaleString()} kcal` : '—'}</td>
+            <td class="col-num hide-sm" data-label="탄수화물">{n?.carbohydrates != null ? `${n.carbohydrates}g` : '—'}</td>
+            <td class="col-num hide-sm" data-label="당">{n?.sugar != null ? `${n.sugar}g` : '—'}</td>
+            <td class="col-num" data-label="지방">{n?.fat != null ? `${n.fat}g` : '—'}</td>
+            <td class="col-num" data-label="단백질">{n?.protein != null ? `${n.protein}g` : '—'}</td>
+            <td class="col-num hide-sm" data-label="나트륨">{n?.sodium != null ? `${n.sodium}mg` : '—'}</td>
           </tr>
           {#if isExpanded}
             <tr class="detail-row">
-              <td colspan="10">
+              <td colspan={enableSelection ? 11 : 10}>
                 {#if loadingDetail}
                   <div class="detail-loading">
                     {#each Array(4) as _}
@@ -327,10 +395,17 @@
   .menu-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .menu-table thead tr { background: var(--surface); border-bottom: 2px solid var(--border); }
   .menu-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 0; flex-wrap: wrap; }
+  .selection-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .selection-count { font-size: 12px; font-weight: 700; color: var(--text); }
+  .selection-score, .selection-nutrition { font-size: 12px; color: var(--text-muted); }
+  .selection-actions { display: flex; gap: 8px; }
+  .selection-btn { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text-muted); font-size: 12px; cursor: pointer; }
   .sort-btn { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .sort-btn-center { text-align: center; }
   .sort-btn-right { text-align: right; }
 
+  .col-check { width: 40px; text-align: center; }
   .col-img { width: 60px; padding: 0 8px; }
   .col-rest { width: 90px; }
   .col-name { min-width: 140px; }
@@ -338,6 +413,7 @@
   .col-num { width: 90px; text-align: right; font-family: var(--font-mono); }
 
   .menu-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .menu-row.selected { background: #f0fdf4; }
   .menu-row.expandable { cursor: pointer; }
   .menu-row.expandable:hover { background: var(--surface); }
   .menu-row.expanded { background: var(--surface); border-bottom-color: transparent; }
@@ -349,6 +425,7 @@
   .thumb-placeholder { width: 52px; height: 52px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
 
   .rest-tag { font-size: 11px; color: var(--text-dim); }
+  .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
   .menu-name { font-weight: 500; color: var(--text); line-height: 1.4; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
 
@@ -389,6 +466,45 @@
   @media (max-width: 640px) {
     .hide-sm { display: none; }
     .detail-row td { padding-left: 12px; }
+
+    .table-wrap.card-view .menu-table thead { display: none; }
+    .table-wrap.card-view .menu-table,
+    .table-wrap.card-view .menu-table tbody,
+    .table-wrap.card-view .menu-table tr,
+    .table-wrap.card-view .menu-table td { display: block; width: 100%; }
+    .table-wrap.card-view .hide-sm { display: block; }
+    .table-wrap.card-view .menu-row {
+      margin: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    .table-wrap.card-view .menu-row td {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    .table-wrap.card-view .menu-row td::before {
+      content: attr(data-label);
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 72px;
+      font-family: var(--font-mono);
+    }
+    .table-wrap.card-view .menu-row .col-img,
+    .table-wrap.card-view .menu-row .col-name { align-items: flex-start; }
+    .table-wrap.card-view .menu-row .col-img::before { display: none; }
+    .table-wrap.card-view .menu-row .col-check { justify-content: flex-start; }
+    .table-wrap.card-view .menu-row .col-check::before { min-width: 40px; }
+    .table-wrap.card-view .menu-row .col-num,
+    .table-wrap.card-view .menu-row .col-ps { text-align: left; }
+    .table-wrap.card-view .menu-row.expandable:hover { background: #fff; }
+    .table-wrap.card-view .detail-row td { padding: 0 12px 14px 12px; }
+    .table-wrap.card-view .selection-bar { padding-top: 0; }
   }
 
   .thumb-clickable { cursor: zoom-in; }
