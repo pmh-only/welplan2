@@ -10,7 +10,7 @@
   let sortBy = $state<'pscore-asc' | 'pscore-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('pscore-asc')
   let zoomedMenu = $state<(Menu & { restaurantIds: string[] }) | null>(null)
 
-  function openZoom (menu: Menu) { zoomedMenu = menu }
+  function openZoom (menu: Menu & { restaurantIds: string[] }) { zoomedMenu = menu }
   function closeZoom () { zoomedMenu = null }
 
   function onKeydown (e: KeyboardEvent) {
