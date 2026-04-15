@@ -1,0 +1,46 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f5;
+  --surface-hover: #ececec;
+  --border: #e0e0e0;
+  --accent: #1a73e8;
+  --accent-dim: #4a90d9;
+  --text: #111111;
+  --text-muted: #555555;
+  --text-dim: #999999;
+  --carb: #4a90d9;
+  --protein: #e07b39;
+  --fat: #d94f4f;
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-serif: 'Noto Serif KR', serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@welplan2/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node --env-file=.env dist/index.js",
+    "dev": "node --env-file=.env --watch dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.0.0",
+    "@welplan2/model": "workspace:*",
+    "@welplan2/planeat-choice": "workspace:*",
+    "@welplan2/welstory-plus": "workspace:*",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,6 @@
+packages:
+  - 'model'
+  - 'welstory_plus'
+  - 'planeat_choice'
+  - 'api'
+  - 'webapp'

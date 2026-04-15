@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./model" },
+    { "path": "./welstory_plus" },
+    { "path": "./planeat_choice" },
+    { "path": "./api" }
+  ]
+}

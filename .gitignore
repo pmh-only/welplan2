@@ -1,0 +1,20 @@
+.env
+
+# dependencies
+.svelte-kit/
+node_modules/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# editor
+.vscode/
+.idea/
+*.suo
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db

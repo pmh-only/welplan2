@@ -1,0 +1,124 @@
+export class WelstoryAuthError extends Error {
+  constructor (
+    message: string,
+    public readonly statusCode?: number
+  ) {
+    super(message)
+    this.name = 'WelstoryAuthError'
+  }
+}
+
+function decodeJwtExp (token: string): number {
+  const parts = token.split('.')
+  if (parts.length < 3) throw new WelstoryAuthError('Invalid JWT format')
+  // Convert base64url to base64 before decoding
+  const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+  const payload = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8')) as Record<string, unknown>
+  if (typeof payload.exp !== 'number') throw new WelstoryAuthError('JWT missing exp claim')
+  return payload.exp
+}
+
+export interface AuthManagerOptions {
+  username: string
+  password: string
+  deviceId: string
+  baseUrl: string
+}
+
+export class AuthManager {
+  private token: string | null = null
+  private tokenExp: number | null = null
+  private pendingAuth: Promise<void> | null = null
+
+  constructor (private readonly options: AuthManagerOptions) {}
+
+  get deviceId (): string {
+    return this.options.deviceId
+  }
+
+  private setToken (token: string): void {
+    this.token = token
+    this.tokenExp = decodeJwtExp(token)
+  }
+
+  private isExpiringSoon (): boolean {
+    if (!this.tokenExp) return true
+    return this.tokenExp - Math.floor(Date.now() / 1000) < 300 // 5-minute threshold
+  }
+
+  private async doLogin (): Promise<void> {
+    const response = await fetch(`${this.options.baseUrl}/login`, {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Welplus',
+        'X-Device-Id': this.options.deviceId,
+        'X-Autologin': 'N',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        username: this.options.username,
+        password: this.options.password,
+        'remember-me': 'false'
+      }).toString()
+    })
+
+    if (!response.ok) {
+      throw new WelstoryAuthError(
+        `Login failed: ${response.status} ${response.statusText}`,
+        response.status
+      )
+    }
+
+    const authHeader = response.headers.get('Authorization')
+    if (!authHeader) throw new WelstoryAuthError('No Authorization header in login response')
+
+    this.setToken(authHeader)
+  }
+
+  private async doRefresh (): Promise<void> {
+    const response = await fetch(`${this.options.baseUrl}/session`, {
+      headers: {
+        'User-Agent': 'Welplus',
+        'X-Device-Id': this.options.deviceId,
+        Authorization: this.token!
+      }
+    })
+
+    if (!response.ok) {
+      // Fallback to full login if session refresh fails
+      await this.doLogin()
+      return
+    }
+
+    const body = await response.json() as { data: string }
+    if (!body.data) throw new WelstoryAuthError('No data field in session refresh response')
+    this.setToken(body.data)
+  }
+
+  async getToken (): Promise<string> {
+    // If an auth operation is already in flight, wait for it
+    if (this.pendingAuth) {
+      await this.pendingAuth
+      return this.token!
+    }
+
+    if (this.token && !this.isExpiringSoon()) return this.token
+
+    const op = this.token ? this.doRefresh() : this.doLogin()
+    this.pendingAuth = op.finally(() => {
+      this.pendingAuth = null
+    })
+    await this.pendingAuth
+    return this.token!
+  }
+
+  async forceLogin (): Promise<string> {
+    this.token = null
+    this.tokenExp = null
+    this.pendingAuth = this.doLogin().finally(() => {
+      this.pendingAuth = null
+    })
+    await this.pendingAuth
+    return this.token!
+  }
+}
