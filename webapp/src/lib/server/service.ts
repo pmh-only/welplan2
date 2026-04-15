@@ -88,7 +88,14 @@ class CafeteriaService {
   }
 
   async searchRestaurants (query: string): Promise<Restaurant[]> {
-    return this.welstory.searchRestaurants(query)
+    await this.ensureCache()
+    const q = query.toLowerCase()
+    const fromCache = [...this.cache.values()].filter((r) =>
+      r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    )
+    const fromWelstory = await this.welstory.searchRestaurants(query).catch(() => [])
+    const seen = new Set(fromCache.map((r) => r.id))
+    return [...fromCache, ...fromWelstory.filter((r) => !seen.has(r.id))]
   }
 }
 

@@ -17,7 +17,7 @@
   --carb: #4a90d9;
   --protein: #e07b39;
   --fat: #d94f4f;
-  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-sans: 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif;
   --font-serif: 'Noto Serif KR', serif;
   --font-mono: 'DM Mono', monospace;
   --radius: 8px;

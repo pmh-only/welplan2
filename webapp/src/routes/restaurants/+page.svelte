@@ -4,24 +4,29 @@
 
   let { data } = $props()
 
+  // Local copy for immediate UI updates; syncs from server data when it changes
+  let restaurants = $state<Restaurant[]>(data.restaurants)
+  $effect(() => { restaurants = data.restaurants })
+
   let query = $state('')
   let searchResults = $state<Restaurant[]>([])
   let searching = $state(false)
   let searchError = $state('')
 
-  const myIds = $derived(new Set(data.restaurants.map((r: Restaurant) => r.id)))
+  const myIds = $derived(new Set(restaurants.map((r: Restaurant) => r.id)))
 
-  function saveRestaurants (restaurants: Restaurant[]) {
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(restaurants))}; path=/; max-age=31536000; SameSite=Lax`
+  function saveRestaurants (next: Restaurant[]) {
+    restaurants = next
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
     invalidateAll()
   }
 
   function addRestaurant (r: Restaurant) {
-    if (!myIds.has(r.id)) saveRestaurants([...data.restaurants, r])
+    if (!myIds.has(r.id)) saveRestaurants([...restaurants, r])
   }
 
   function removeRestaurant (r: Restaurant) {
-    saveRestaurants(data.restaurants.filter((x: Restaurant) => x.id !== r.id))
+    saveRestaurants(restaurants.filter((x: Restaurant) => x.id !== r.id))
   }
 
   async function search () {
@@ -40,27 +45,22 @@
       searching = false
     }
   }
-
-  function onKeydown (e: KeyboardEvent) {
-    if (e.key === 'Enter') search()
-  }
 </script>
 
 <div class="section">
   <div class="section-head">
     <h2>🏪 내 식당</h2>
-    <span class="count">{data.restaurants.length}개</span>
+    <span class="count">{restaurants.length}개</span>
   </div>
 
-  {#if data.restaurants.length === 0}
+  {#if restaurants.length === 0}
     <p class="hint">추가된 식당이 없습니다. 아래에서 검색해 추가하세요.</p>
   {:else}
     <ul class="rest-list">
-      {#each data.restaurants as r (r.id)}
+      {#each restaurants as r (r.id)}
         <li class="rest-item">
           <div class="rest-info">
-            <span class="rest-name">{r.name}</span>
-            <span class="rest-id">{r.id}</span>
+            <span class="rest-name">{r.name}<span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span></span>
           </div>
           <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
         </li>
@@ -78,13 +78,11 @@
     <input
       class="search-input"
       type="text"
-      placeholder="식당 이름 또는 ID 검색..."
+      placeholder="식당 이름 검색..."
       bind:value={query}
-      onkeydown={onKeydown}
+      oninput={search}
     />
-    <button class="search-btn" onclick={search} disabled={searching}>
-      {searching ? '검색 중...' : '검색'}
-    </button>
+    {#if searching}<span class="search-spinner">검색 중...</span>{/if}
   </div>
 
   {#if searchError}
@@ -97,8 +95,7 @@
         {@const added = myIds.has(r.id)}
         <li class="rest-item">
           <div class="rest-info">
-            <span class="rest-name">{r.name}</span>
-            <span class="rest-id">{r.id}</span>
+            <span class="rest-name">{r.name}<span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span></span>
           </div>
           {#if added}
             <span class="added-tag">추가됨</span>
@@ -132,7 +129,10 @@
   .rest-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
   .rest-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; gap: 12px; }
   .rest-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .rest-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .rest-name { font-size: 13px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .vendor-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; letter-spacing: 0.3px; flex-shrink: 0; }
+  .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
+  .vendor-shinsegae { background: #fce7f3; color: #be185d; }
   .rest-id { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
 
   .remove-btn {
@@ -149,16 +149,11 @@
 
   .added-tag { flex-shrink: 0; font-size: 11px; color: #059669; font-weight: 500; }
 
-  .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .search-input {
     flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
     font-size: 13px; font-family: var(--font-sans); color: var(--text); background: var(--bg); outline: none;
   }
   .search-input:focus { border-color: #9ca3af; }
-  .search-btn {
-    padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px;
-    background: #1f2937; color: #f9fafb; font-size: 13px; cursor: pointer; transition: background 0.15s; white-space: nowrap;
-  }
-  .search-btn:hover:not(:disabled) { background: #374151; }
-  .search-btn:disabled { opacity: 0.6; cursor: default; }
+  .search-spinner { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 </style>
