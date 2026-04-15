@@ -136,16 +136,18 @@
 </script>
 
 {#if data.restaurants.length === 0}
-  <div class="section empty-section">
-    <p>👋 <a href="/restaurants">식당 설정</a>에서 식당을 추가하세요</p>
+  <div class="empty-page">
+    <div class="empty-icon">🏪</div>
+    <p class="empty-title">식당이 없습니다</p>
+    <p class="empty-sub"><a href="/restaurants">식당 설정</a>에서 식당을 추가하면 메뉴가 표시됩니다</p>
   </div>
 {:else}
   <div class="section">
     <div class="controls-row">
       <div class="form-group">
-        <label for="date-input">📅 날짜</label>
+        <label for="date-input">날짜</label>
         <div class="date-row">
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)}>‹</button>
+          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">‹</button>
           <input
             id="date-input"
             class="date-input"
@@ -153,11 +155,11 @@
             value={toInputDate(data.date)}
             oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time)}
           />
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)}>›</button>
+          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">›</button>
         </div>
       </div>
       <div class="form-group">
-        <label for="meal-time-select">🕐 식사 시간</label>
+        <label for="meal-time-select">식사 시간</label>
         <select
           id="meal-time-select"
           class="select-input"
@@ -172,58 +174,78 @@
       <div class="date-label">{formatKoreanDate(data.date)}</div>
     </div>
 
-    {#if kind === 'takein'}
-      <div class="filter-box">
-        <div class="filter-title">🎯 필터 옵션</div>
-        <div class="filter-options">
-          <label class="filter-option">
-            <input type="checkbox" bind:checked={takeInFilterMainOnly} />
-            <span>메인 메뉴만</span>
-          </label>
-          <label class="filter-option">
-            <input type="checkbox" bind:checked={takeInFilterExcludeOptional} />
-            <span>추가찬 제외</span>
-          </label>
+    <div class="filter-row">
+      {#if kind === 'takein'}
+        <div class="chip-group">
+          <button
+            type="button"
+            class="chip"
+            class:chip-active={takeInFilterMainOnly}
+            onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
+          >
+            메인 메뉴만
+          </button>
+          <button
+            type="button"
+            class="chip"
+            class:chip-active={takeInFilterExcludeOptional}
+            onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
+          >
+            추가찬 제외
+          </button>
         </div>
-      </div>
-    {:else if kind === 'takeout'}
-      <div class="filter-box">
-        <div class="filter-options takeout-options">
-          <div class="form-group takeout-restaurant-select">
-            <label for="takeout-restaurant-select">🏪 식당 선택</label>
-            <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
-              {#each takeOutRestaurants as restaurant (restaurant.id)}
-                <option value={restaurant.id}>{restaurant.name}</option>
-              {/each}
-            </select>
-          </div>
-          <label class="filter-option takeout-drink-filter">
-            <input type="checkbox" bind:checked={takeOutFilterDrinks} />
-            <span>음료수 제외</span>
-          </label>
+      {:else if kind === 'takeout'}
+        <div class="form-group takeout-restaurant-group">
+          <label for="takeout-restaurant-select">식당</label>
+          <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
+            {#each takeOutRestaurants as restaurant (restaurant.id)}
+              <option value={restaurant.id}>{restaurant.name}</option>
+            {/each}
+          </select>
         </div>
-      </div>
-    {/if}
+        <div class="chip-group">
+          <button
+            type="button"
+            class="chip"
+            class:chip-active={takeOutFilterDrinks}
+            onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
+          >
+            음료수 제외
+          </button>
+        </div>
+      {/if}
 
-    <div class="view-mode-box">
-      <span class="view-mode-label">📱 모바일 보기</span>
-      <label class="filter-option">
-        <input type="radio" bind:group={viewMode} value="scroll" />
-        <span>스크롤 테이블</span>
-      </label>
-      <label class="filter-option">
-        <input type="radio" bind:group={viewMode} value="card" />
-        <span>카드형</span>
-      </label>
+      <div class="view-toggle" title="화면 레이아웃">
+        <button
+          type="button"
+          class="view-btn"
+          class:view-btn-active={viewMode === 'scroll'}
+          onclick={() => { viewMode = 'scroll' }}
+          aria-label="테이블 보기"
+        >
+          ☰ 테이블
+        </button>
+        <button
+          type="button"
+          class="view-btn"
+          class:view-btn-active={viewMode === 'card'}
+          onclick={() => { viewMode = 'card' }}
+          aria-label="카드 보기"
+        >
+          ⊞ 카드
+        </button>
+      </div>
     </div>
   </div>
 
   <div class="section no-padding">
     <div class="section-head">
-      <h2>🍴 {pageLabel}</h2>
-      {#if visibleMenus.length > 0}
-        <span class="menu-count">{visibleMenus.length}개 메뉴 · {data.restaurants.length}개 식당</span>
-      {/if}
+      <div class="section-head-left">
+        <h2>{pageLabel}</h2>
+        {#if visibleMenus.length > 0}
+          <span class="menu-count">{visibleMenus.length}개 · {data.restaurants.length}개 식당</span>
+        {/if}
+      </div>
     </div>
 
     <MenuTable
@@ -245,51 +267,140 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
   }
   .section.no-padding { padding: 0; }
-  .section.empty-section { text-align: center; padding: 32px; color: var(--text-muted); }
-  .section.empty-section a { color: var(--accent); }
 
-  .section-head { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 16px 0; }
-  .section-head h2 { font-size: 1rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 6px; }
-  .section-head h2::before { content: ''; width: 4px; height: 18px; background: #10b981; border-radius: 2px; flex-shrink: 0; }
-  .menu-count { font-size: 12px; color: var(--text-dim); }
+  .empty-page {
+    text-align: center;
+    padding: 64px 24px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; color: var(--text-muted); }
+  .empty-sub a { color: var(--accent); text-decoration: none; }
+  .empty-sub a:hover { text-decoration: underline; }
 
-  .controls-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
-  .filter-box { margin-top: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-  .filter-title { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
-  .filter-options { display: flex; gap: 14px; flex-wrap: wrap; }
-  .filter-option { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
-  .takeout-options { align-items: flex-end; justify-content: space-between; }
-  .takeout-restaurant-select { min-width: min(100%, 280px); }
-  .takeout-drink-filter { min-height: 36px; }
-  .view-mode-box { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
-  .view-mode-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-group label { font-size: 12px; font-weight: 500; color: #4b5563; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-head-left { display: flex; align-items: center; gap: 10px; }
+  .section-head h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    padding-left: 10px;
+    border-left: 3px solid var(--green);
+  }
+  .menu-count { font-size: 12px; color: var(--text-dim); background: var(--surface); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); }
+
+  .controls-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chip-group { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
+  .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }
+
+  .view-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .view-btn {
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: none;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .view-btn:first-child { border-right: 1px solid var(--border); }
+  .view-btn:hover { background: var(--surface); color: var(--text); }
+  .view-btn-active { background: var(--surface-hover); color: var(--text); font-weight: 600; }
+
+  .takeout-restaurant-group { min-width: min(100%, 260px); }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
   .date-row { display: flex; align-items: center; gap: 4px; }
 
   .date-nav-btn {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
-    background: var(--surface); color: var(--text-muted); font-size: 16px;
-    line-height: 1; cursor: pointer; transition: background 0.15s;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.12s;
   }
-  .date-nav-btn:hover { background: var(--surface-hover); }
+  .date-nav-btn:hover { background: var(--surface-hover); color: var(--text); }
 
   .date-input {
-    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 13px; font-family: var(--font-sans); color: var(--text); background: var(--bg); outline: none;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.12s;
   }
-  .date-input:focus { border-color: #9ca3af; }
+  .date-input:focus { border-color: var(--border-focus); }
 
   .select-input {
-    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 13px; font-family: var(--font-sans); color: var(--text);
-    background: var(--bg); outline: none; min-width: 140px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    min-width: 140px;
+    transition: border-color 0.12s;
   }
-  .select-input:focus { border-color: #9ca3af; }
+  .select-input:focus { border-color: var(--border-focus); }
 
-  .date-label { font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); align-self: flex-end; padding-bottom: 2px; }
+  .date-label { font-size: 12px; color: var(--text-dim); align-self: flex-end; padding-bottom: 1px; }
+
+  @media (max-width: 640px) {
+    .filter-row { gap: 8px; }
+    .view-toggle { margin-left: auto; }
+  }
 </style>
