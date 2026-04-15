@@ -1,13 +1,14 @@
 <script lang="ts">
   import '../app.css'
   import { onMount } from 'svelte'
-  import { page, navigating } from '$app/state'
+  import { page } from '$app/state'
   import { app } from '$lib/state.svelte'
 
   let { data, children } = $props()
 
   const navLinks = [
-    { href: '/menu', label: '🍴 메뉴' },
+    { href: '/takein', label: '테이크 인' },
+    { href: '/takeout', label: '테이크 아웃' },
     { href: '/gallery', label: '📸 갤러리' },
     { href: '/restaurants', label: '🏪 식당 설정' },
     { href: '/settings', label: '⚙️ 설정' }
@@ -25,7 +26,7 @@
 <div class="app">
   <header>
     <div class="header-left">
-      <h1>🍽️ Welplan</h1>
+      <h1>🍽️ Welplan v2</h1>
       <p>웰스토리 메뉴보기</p>
     </div>
     <nav class="header-nav">
@@ -36,10 +37,6 @@
       {/each}
     </nav>
   </header>
-
-  {#if navigating}
-    <div class="nav-bar"></div>
-  {/if}
 
   <div class="content">
     {@render children()}
@@ -56,6 +53,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: sticky;
+    top: 0px;
     gap: 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   }
@@ -79,16 +78,6 @@
 
   .tab-btn:hover { color: #e5e7eb; background: rgba(255, 255, 255, 0.08); }
   .tab-btn.active { color: #f9fafb; background: rgba(255, 255, 255, 0.15); }
-
-  .nav-bar {
-    height: 3px;
-    background: linear-gradient(90deg, #10b981, #34d399);
-    animation: nav-progress 1s ease-in-out infinite alternate;
-  }
-  @keyframes nav-progress {
-    from { opacity: 0.6; }
-    to { opacity: 1; }
-  }
 
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; }
 

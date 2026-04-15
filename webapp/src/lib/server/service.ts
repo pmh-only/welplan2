@@ -1,4 +1,11 @@
-import type { CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant, Vendor } from '@welplan2/model'
+import type {
+  CafeteriaClient,
+  MealTime,
+  Menu,
+  MenuComponent,
+  Restaurant,
+  Vendor
+} from '@welplan2/model'
 import { WelstoryPlusClient } from '@welplan2/welstory-plus'
 import { PlaneatChoiceClient } from '@welplan2/planeat-choice'
 import { WELSTORY_USERNAME, WELSTORY_PASSWORD } from '$env/static/private'
@@ -10,16 +17,19 @@ class CafeteriaService {
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
 
-  constructor () {
-    this.welstory = new WelstoryPlusClient({ username: WELSTORY_USERNAME, password: WELSTORY_PASSWORD })
+  constructor() {
+    this.welstory = new WelstoryPlusClient({
+      username: WELSTORY_USERNAME,
+      password: WELSTORY_PASSWORD
+    })
     this.planeat = new PlaneatChoiceClient()
   }
 
-  private getClient (vendor: Vendor): CafeteriaClient {
+  private getClient(vendor: Vendor): CafeteriaClient {
     return vendor === 'welstory' ? this.welstory : this.planeat
   }
 
-  private async populateCache (): Promise<void> {
+  private async populateCache(): Promise<void> {
     const [welstoryResult, planeatResult] = await Promise.allSettled([
       this.welstory.getRestaurants(),
       this.planeat.getRestaurants()
@@ -33,21 +43,23 @@ class CafeteriaService {
     this.cacheLoaded = true
   }
 
-  private async ensureCache (): Promise<void> {
+  private async ensureCache(): Promise<void> {
     if (this.cacheLoaded) return
     if (this.cachePromise) return this.cachePromise
-    this.cachePromise = this.populateCache().finally(() => { this.cachePromise = null })
+    this.cachePromise = this.populateCache().finally(() => {
+      this.cachePromise = null
+    })
     return this.cachePromise
   }
 
-  private async resolveRestaurant (id: string): Promise<Restaurant> {
+  private async resolveRestaurant(id: string): Promise<Restaurant> {
     await this.ensureCache()
     const restaurant = this.cache.get(id)
     if (!restaurant) throw new Error(`Restaurant '${id}' not found`)
     return restaurant
   }
 
-  async getAllMealTimes (): Promise<MealTime[]> {
+  async getAllMealTimes(): Promise<MealTime[]> {
     await this.ensureCache()
     const byVendor = new Map<string, Restaurant>()
     for (const r of this.cache.values()) {
@@ -61,18 +73,21 @@ class CafeteriaService {
     for (const result of results) {
       if (result.status !== 'fulfilled') continue
       for (const t of result.value) {
-        if (!seen.has(t.id)) { seen.add(t.id); merged.push(t) }
+        if (!seen.has(t.id)) {
+          seen.add(t.id)
+          merged.push(t)
+        }
       }
     }
     return merged
   }
 
-  async getMenus (restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
+  async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
     const restaurant = await this.resolveRestaurant(restaurantId)
     return this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
   }
 
-  async getMenuDetail (
+  async getMenuDetail(
     restaurantId: string,
     date: string,
     mealTimeId: string,
@@ -87,11 +102,26 @@ class CafeteriaService {
     return client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
   }
 
-  async searchRestaurants (query: string): Promise<Restaurant[]> {
+  async getMenuNutrientDetail(
+    restaurantId: string,
+    date: string,
+    mealTimeId: string,
+    hallNo: string,
+    courseType: string
+  ): Promise<MenuComponent[]> {
+    const restaurant = await this.resolveRestaurant(restaurantId)
+    const client = this.getClient(restaurant.vendor)
+    if (!client.getMenuNutrientDetail) {
+      throw new Error(`Menu nutrient detail not supported for vendor '${restaurant.vendor}'`)
+    }
+    return client.getMenuNutrientDetail(restaurant, date, mealTimeId, hallNo, courseType)
+  }
+
+  async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
     const q = query.toLowerCase()
-    const fromCache = [...this.cache.values()].filter((r) =>
-      r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    const fromCache = [...this.cache.values()].filter(
+      (r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
     )
     const fromWelstory = await this.welstory.searchRestaurants(query).catch(() => [])
     const seen = new Set(fromCache.map((r) => r.id))

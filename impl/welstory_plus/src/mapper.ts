@@ -1,14 +1,21 @@
-import type { MealTime, MealTypeName, Menu, MenuComponent, NutritionInfo, Restaurant } from '@welplan2/model'
-import type { WpDish, WpMealTime, WpMenuDetail, WpRestaurant } from './types.js'
+import type {
+  MealTime,
+  MealTypeName,
+  Menu,
+  MenuComponent,
+  NutritionInfo,
+  Restaurant
+} from '@welplan2/model'
+import type { WpDish, WpMealTime, WpMenuDetail, WpMenuNutrient, WpRestaurant } from './types.js'
 
 // Nutrition values from the API are strings and may contain commas (e.g. "1,475")
-export function parseNum (val: string | null | undefined): number | undefined {
+export function parseNum(val: string | null | undefined): number | undefined {
   if (!val) return undefined
   const n = parseFloat(val.replace(/,/g, ''))
   return isNaN(n) ? undefined : n
 }
 
-export function mapRestaurant (raw: WpRestaurant): Restaurant {
+export function mapRestaurant(raw: WpRestaurant): Restaurant {
   return {
     id: raw.restaurantId,
     name: raw.restaurantName,
@@ -26,7 +33,7 @@ const MEAL_TYPE_MAP: Record<string, MealTypeName> = {
   6: 'dawn'
 }
 
-export function mapMealTime (raw: WpMealTime): MealTime {
+export function mapMealTime(raw: WpMealTime): MealTime {
   return {
     id: raw.code,
     name: raw.codeNm,
@@ -35,7 +42,7 @@ export function mapMealTime (raw: WpMealTime): MealTime {
 }
 
 // Group a flat list of dishes into courses (by hallNo + menuCourseType)
-export function groupDishesToMenus (dishes: WpDish[], restaurantId: string): Menu[] {
+export function groupDishesToMenus(dishes: WpDish[], restaurantId: string): Menu[] {
   const groups = new Map<string, WpDish[]>()
 
   for (const dish of dishes) {
@@ -51,7 +58,20 @@ export function groupDishesToMenus (dishes: WpDish[], restaurantId: string): Men
   return [...groups.values()].map((group) => mapCourseToMenu(group, restaurantId))
 }
 
-function mapCourseToMenu (dishes: WpDish[], restaurantId: string): Menu {
+function isTakeOutName(name: string): boolean {
+  return (
+    /^\[\d+Coin\]/.test(name) ||
+    /외\s*\d+종$/.test(name) ||
+    name.includes('도시락') ||
+    name.includes('사이드')
+  )
+}
+
+function isTakeOutCourse(dishes: WpDish[]): boolean {
+  return dishes.some((dish) => isTakeOutName(dish.menuName))
+}
+
+function mapCourseToMenu(dishes: WpDish[], restaurantId: string): Menu {
   const first = dishes[0]
   const main = dishes.find((d) => d.typicalMenu === 'Y') ?? first
 
@@ -77,7 +97,7 @@ function mapCourseToMenu (dishes: WpDish[], restaurantId: string): Menu {
     vendor: 'welstory',
     components,
     nutrition,
-    isTakeOut: first.salesType?.startsWith('T') ?? false,
+    isTakeOut: (first.salesType?.startsWith('T') ?? false) || isTakeOutCourse(dishes),
     hallNo: first.hallNo,
     courseType: first.menuCourseType,
     imageUrl: first.photoCd && first.photoUrl ? first.photoUrl + first.photoCd : undefined
@@ -87,7 +107,7 @@ function mapCourseToMenu (dishes: WpDish[], restaurantId: string): Menu {
 // Maps detail response items to MenuComponents.
 // All items share the same course-level tot* totals; attach them to each component's nutrition
 // so callers can read carbs/sugar/etc from detail[0].nutrition.
-export function mapMenuDetails (details: WpMenuDetail[]): MenuComponent[] {
+export function mapMenuDetails(details: WpMenuDetail[]): MenuComponent[] {
   return details.map((d) => ({
     name: d.menuName,
     nutrition: {
@@ -102,8 +122,24 @@ export function mapMenuDetails (details: WpMenuDetail[]): MenuComponent[] {
   }))
 }
 
+export function mapMenuNutrients(details: WpMenuNutrient[]): MenuComponent[] {
+  return details.map((d) => ({
+    name: d.menuName,
+    nutrition: {
+      calories: parseNum(d.kcal),
+      carbohydrates: parseNum(d.totCho),
+      sugar: parseNum(d.totSugar),
+      fiber: parseNum(d.totFib),
+      fat: parseNum(d.totFat),
+      protein: parseNum(d.totProtein),
+      sodium: parseNum(d.totNa),
+      calcium: parseNum(d.totCalcium)
+    }
+  }))
+}
+
 // Extracts course-level nutrition from a detail response (all items share the same tot* values)
-export function mapCourseNutritionFromDetail (details: WpMenuDetail[]): NutritionInfo {
+export function mapCourseNutritionFromDetail(details: WpMenuDetail[]): NutritionInfo {
   const first = details[0]
   return {
     calories: parseNum(first.totKcal),

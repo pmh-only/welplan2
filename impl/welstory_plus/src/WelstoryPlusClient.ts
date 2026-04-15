@@ -7,18 +7,20 @@ import type {
   WpMealListWrapper,
   WpMealTime,
   WpMenuDetail,
+  WpMenuNutrient,
   WpRestaurant
 } from './types.js'
 import {
   groupDishesToMenus,
   mapMealTime,
   mapMenuDetails,
+  mapMenuNutrients,
   mapRestaurant,
   parseNum
 } from './mapper.js'
 
 export class WelstoryPlusError extends Error {
-  constructor (
+  constructor(
     message: string,
     public readonly statusCode?: number
   ) {
@@ -35,7 +37,7 @@ export interface WelstoryPlusClientOptions {
 }
 
 // Unwraps { code, data: T } response envelope; falls through if data is the response itself
-function unwrap<T> (raw: unknown): T {
+function unwrap<T>(raw: unknown): T {
   if (raw !== null && typeof raw === 'object' && 'data' in (raw as object)) {
     return (raw as WpApiResponse<T>).data
   }
@@ -47,17 +49,23 @@ class Semaphore {
   private queue: (() => void)[] = []
   private active = 0
 
-  constructor (private readonly limit: number) {}
+  constructor(private readonly limit: number) {}
 
-  async acquire (): Promise<void> {
-    if (this.active < this.limit) { this.active++; return }
+  async acquire(): Promise<void> {
+    if (this.active < this.limit) {
+      this.active++
+      return
+    }
     return new Promise<void>((resolve) => this.queue.push(resolve))
   }
 
-  release (): void {
+  release(): void {
     this.active--
     const next = this.queue.shift()
-    if (next) { this.active++; next() }
+    if (next) {
+      this.active++
+      next()
+    }
   }
 }
 
@@ -66,7 +74,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
   private readonly auth: AuthManager
   private readonly sem = new Semaphore(1)
 
-  constructor (options: WelstoryPlusClientOptions = {}) {
+  constructor(options: WelstoryPlusClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? 'https://welplus.welstory.com'
 
     const username = options.username ?? process.env.WELSTORY_USERNAME ?? ''
@@ -82,7 +90,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
     this.auth = new AuthManager({ username, password, deviceId, baseUrl: this.baseUrl })
   }
 
-  private async request<T> (path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const buildHeaders = (token: string): Record<string, string> => ({
       'User-Agent': 'Welplus',
       'X-Device-Id': this.auth.deviceId,
@@ -123,20 +131,19 @@ export class WelstoryPlusClient implements CafeteriaClient {
   }
 
   // CafeteriaClient: returns selected restaurants (my-list)
-  async getRestaurants (): Promise<Restaurant[]> {
+  async getRestaurants(): Promise<Restaurant[]> {
     const raw = await this.request<unknown>('/api/mypage/rest-my-list')
-    return (unwrap<WpRestaurant[]>(raw)).map(mapRestaurant)
+    return unwrap<WpRestaurant[]>(raw).map(mapRestaurant)
   }
 
-  async getMealTimes (restaurant: Restaurant): Promise<MealTime[]> {
-    const raw = await this.request<unknown>(
-      '/api/menu/getMealTimeList',
-      { headers: { Cookie: `cafeteriaActiveId=${restaurant.id}` } }
-    )
-    return (unwrap<WpMealTime[]>(raw)).map(mapMealTime)
+  async getMealTimes(restaurant: Restaurant): Promise<MealTime[]> {
+    const raw = await this.request<unknown>('/api/menu/getMealTimeList', {
+      headers: { Cookie: `cafeteriaActiveId=${restaurant.id}` }
+    })
+    return unwrap<WpMealTime[]>(raw).map(mapMealTime)
   }
 
-  async getMenus (restaurant: Restaurant, date: string, mealTimeId: string): Promise<Menu[]> {
+  async getMenus(restaurant: Restaurant, date: string, mealTimeId: string): Promise<Menu[]> {
     const raw = await this.request<unknown>(
       `/api/meal?menuDt=${date}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
     )
@@ -171,7 +178,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
     return menus
   }
 
-  async getMenuDetail (
+  async getMenuDetail(
     restaurant: Restaurant,
     date: string,
     mealTimeId: string,
@@ -185,16 +192,30 @@ export class WelstoryPlusClient implements CafeteriaClient {
     return mapMenuDetails(details)
   }
 
+  async getMenuNutrientDetail(
+    restaurant: Restaurant,
+    date: string,
+    mealTimeId: string,
+    hallNo: string,
+    courseType: string
+  ): Promise<MenuComponent[]> {
+    const raw = await this.request<unknown>(
+      `/api/meal/detail/nutrient?menuDt=${date}&hallNo=${hallNo}&menuCourseType=${courseType}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
+    )
+    const details = unwrap<WpMenuNutrient[]>(raw)
+    return mapMenuNutrients(details)
+  }
+
   // Welstory-specific methods (not in CafeteriaClient)
 
-  async searchRestaurants (query: string): Promise<Restaurant[]> {
+  async searchRestaurants(query: string): Promise<Restaurant[]> {
     const raw = await this.request<unknown>(
       `/api/mypage/rest-list?restaurantName=${encodeURIComponent(query)}`
     )
-    return (unwrap<WpRestaurant[]>(raw)).map(mapRestaurant)
+    return unwrap<WpRestaurant[]>(raw).map(mapRestaurant)
   }
 
-  async addRestaurant (restaurantId: string): Promise<void> {
+  async addRestaurant(restaurantId: string): Promise<void> {
     await this.request('/api/mypage/rest-regi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -208,7 +229,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
     })
   }
 
-  async removeRestaurant (restaurantId: string): Promise<void> {
+  async removeRestaurant(restaurantId: string): Promise<void> {
     await this.request('/api/mypage/rest-delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
