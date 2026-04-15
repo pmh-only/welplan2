@@ -1,10 +1,10 @@
 <script lang="ts">
   import '../app.css'
   import { onMount } from 'svelte'
-  import { page } from '$app/state'
+  import { page, navigating } from '$app/state'
   import { app } from '$lib/state.svelte'
 
-  let { children } = $props()
+  let { data, children } = $props()
 
   const navLinks = [
     { href: '/menu', label: '🍴 메뉴' },
@@ -16,13 +16,6 @@
   onMount(() => {
     app.loadFromStorage()
   })
-
-  // Fetch meal times when restaurants change
-  $effect(() => {
-    const _r = app.restaurants
-    app.fetchMealTimes()
-  })
-
 </script>
 
 <svelte:head>
@@ -43,6 +36,10 @@
       {/each}
     </nav>
   </header>
+
+  {#if navigating}
+    <div class="nav-bar"></div>
+  {/if}
 
   <div class="content">
     {@render children()}
@@ -82,6 +79,16 @@
 
   .tab-btn:hover { color: #e5e7eb; background: rgba(255, 255, 255, 0.08); }
   .tab-btn.active { color: #f9fafb; background: rgba(255, 255, 255, 0.15); }
+
+  .nav-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    animation: nav-progress 1s ease-in-out infinite alternate;
+  }
+  @keyframes nav-progress {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+  }
 
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; }
 

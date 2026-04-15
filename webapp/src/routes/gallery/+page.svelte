@@ -2,13 +2,21 @@
   import { app } from '$lib/state.svelte'
   import { pScore, pScoreColor, proxyImg } from '$lib/utils'
 
+  let { data } = $props()
+
   let showLabels = $state(true)
 
-  let galleryMenus = $derived(
-    app.menus
-      .filter((m) => m.imageUrl)
-      .sort((a, b) => (pScore(a.nutrition, app.pWeights) ?? 9999) - (pScore(b.nutrition, app.pWeights) ?? 9999))
+  const galleryMenus = $derived(
+    data.menus
+      .filter((m: { imageUrl?: string }) => m.imageUrl)
+      .sort((a: { nutrition?: object }, b: { nutrition?: object }) =>
+        (pScore(a.nutrition, app.pWeights) ?? 9999) - (pScore(b.nutrition, app.pWeights) ?? 9999)
+      )
   )
+
+  function restaurantName (id: string): string {
+    return data.restaurants.find((r: { id: string }) => r.id === id)?.name ?? id
+  }
 </script>
 
 <div class="section">
@@ -23,16 +31,10 @@
     </div>
   </div>
 
-  {#if app.restaurants.length === 0}
+  {#if data.restaurants.length === 0}
     <p class="hint"><a href="/restaurants">식당 설정</a>에서 식당을 추가하면 갤러리가 표시됩니다</p>
-  {:else if app.loadingMenus}
-    <div class="gallery-grid">
-      {#each Array(8) as _}
-        <div class="shimmer gallery-shimmer"></div>
-      {/each}
-    </div>
   {:else if galleryMenus.length === 0}
-    <p class="hint">이미지가 있는 메뉴가 없습니다. 메뉴 탭에서 날짜/시간을 선택해 먼저 메뉴를 불러오세요.</p>
+    <p class="hint">이미지가 있는 메뉴가 없습니다.</p>
   {:else}
     <div class="gallery-grid">
       {#each galleryMenus as menu, i (menu.id)}
@@ -49,7 +51,7 @@
                 {#if ps !== null}
                   <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
                 {/if}
-                <span class="gallery-restaurant">{app.restaurantName(menu.restaurantId)}</span>
+                <span class="gallery-restaurant">{restaurantName(menu.restaurantId)}</span>
               </div>
             </div>
           {/if}
@@ -88,9 +90,6 @@
   .medal { position: absolute; top: 6px; left: 6px; font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); z-index: 1; }
 
   .gallery-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-  .gallery-shimmer { aspect-ratio: 1; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   .gallery-info { padding: 8px 10px; background: white; border-top: 1px solid var(--border); }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 6px; line-height: 1.4; }

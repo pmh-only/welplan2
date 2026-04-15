@@ -21,26 +21,27 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
-  api:
+  impl/planeat_choice:
     dependencies:
-      '@hono/node-server':
-        specifier: ^1.0.0
-        version: 1.19.11(hono@4.12.5)
       '@welplan2/model':
         specifier: workspace:*
-        version: link:../model
-      '@welplan2/planeat-choice':
-        specifier: workspace:*
-        version: link:../planeat_choice
-      '@welplan2/welstory-plus':
-        specifier: workspace:*
-        version: link:../welstory_plus
-      hono:
-        specifier: ^4.0.0
-        version: 4.12.5
+        version: link:../../model
     devDependencies:
       '@types/node':
         specifier: ^25.0.0
+        version: 25.3.5
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  impl/welstory_plus:
+    dependencies:
+      '@welplan2/model':
+        specifier: workspace:*
+        version: link:../../model
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
         version: 25.3.5
       typescript:
         specifier: ^5.0.0
@@ -48,19 +49,6 @@ importers:
 
   model:
     devDependencies:
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
-  planeat_choice:
-    dependencies:
-      '@welplan2/model':
-        specifier: workspace:*
-        version: link:../model
-    devDependencies:
-      '@types/node':
-        specifier: ^25.0.0
-        version: 25.3.5
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -73,6 +61,15 @@ importers:
       '@sveltejs/kit':
         specifier: ^2.0.0
         version: 2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5))
+      '@welplan2/model':
+        specifier: workspace:*
+        version: link:../model
+      '@welplan2/planeat-choice':
+        specifier: workspace:*
+        version: link:../impl/planeat_choice
+      '@welplan2/welstory-plus':
+        specifier: workspace:*
+        version: link:../impl/welstory_plus
       svelte:
         specifier: ^5.0.0
         version: 5.53.7
@@ -89,19 +86,6 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@25.3.5)
-
-  welstory_plus:
-    dependencies:
-      '@welplan2/model':
-        specifier: workspace:*
-        version: link:../model
-    devDependencies:
-      '@types/node':
-        specifier: ^25.3.5
-        version: 25.3.5
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
 
 packages:
 
@@ -307,12 +291,6 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@hono/node-server@1.19.11':
-    resolution: {integrity: sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g==}
-    engines: {node: '>=18.14.1'}
-    peerDependencies:
-      hono: ^4
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -1208,10 +1186,6 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.12.5:
-    resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
-    engines: {node: '>=16.9.0'}
-
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
@@ -1973,10 +1947,6 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
-
-  '@hono/node-server@1.19.11(hono@4.12.5)':
-    dependencies:
-      hono: 4.12.5
 
   '@humanfs/core@0.19.1': {}
 
@@ -2986,8 +2956,6 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
-
-  hono@4.12.5: {}
 
   ignore@5.3.2: {}
 

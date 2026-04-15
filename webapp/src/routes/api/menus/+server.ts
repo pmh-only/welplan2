@@ -1,6 +1,5 @@
 import type { RequestHandler } from './$types'
-
-const API_BASE = process.env.API_URL ?? 'http://localhost:3000'
+import { service } from '$lib/server/service'
 
 export const GET: RequestHandler = async ({ url }) => {
   const ids = url.searchParams.getAll('id')
@@ -13,12 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
   const results = await Promise.all(
     ids.map((id) =>
-      fetch(
-        `${API_BASE}/restaurants/${encodeURIComponent(id)}/menus?date=${date}&mealTimeId=${mealTimeId}`
-      )
-        .then((r) => r.json())
-        .then((data) => (Array.isArray(data) ? data : []))
-        .catch(() => [])
+      service.getMenus(id, date, mealTimeId).catch(() => [])
     )
   )
 

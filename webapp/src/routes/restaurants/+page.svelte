@@ -1,11 +1,28 @@
 <script lang="ts">
-  import { app } from '$lib/state.svelte'
+  import { invalidateAll } from '$app/navigation'
   import type { Restaurant } from '$lib/types'
+
+  let { data } = $props()
 
   let query = $state('')
   let searchResults = $state<Restaurant[]>([])
   let searching = $state(false)
   let searchError = $state('')
+
+  const myIds = $derived(new Set(data.restaurants.map((r: Restaurant) => r.id)))
+
+  function saveRestaurants (restaurants: Restaurant[]) {
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(restaurants))}; path=/; max-age=31536000; SameSite=Lax`
+    invalidateAll()
+  }
+
+  function addRestaurant (r: Restaurant) {
+    if (!myIds.has(r.id)) saveRestaurants([...data.restaurants, r])
+  }
+
+  function removeRestaurant (r: Restaurant) {
+    saveRestaurants(data.restaurants.filter((x: Restaurant) => x.id !== r.id))
+  }
 
   async function search () {
     const q = query.trim()
@@ -32,20 +49,20 @@
 <div class="section">
   <div class="section-head">
     <h2>🏪 내 식당</h2>
-    <span class="count">{app.restaurants.length}개</span>
+    <span class="count">{data.restaurants.length}개</span>
   </div>
 
-  {#if app.restaurants.length === 0}
+  {#if data.restaurants.length === 0}
     <p class="hint">추가된 식당이 없습니다. 아래에서 검색해 추가하세요.</p>
   {:else}
     <ul class="rest-list">
-      {#each app.restaurants as r (r.id)}
+      {#each data.restaurants as r (r.id)}
         <li class="rest-item">
           <div class="rest-info">
             <span class="rest-name">{r.name}</span>
             <span class="rest-id">{r.id}</span>
           </div>
-          <button class="remove-btn" onclick={() => app.removeRestaurant(r)}>삭제</button>
+          <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
         </li>
       {/each}
     </ul>
@@ -77,7 +94,7 @@
   {:else if searchResults.length > 0}
     <ul class="rest-list">
       {#each searchResults as r (r.id)}
-        {@const added = app.myIds.has(r.id)}
+        {@const added = myIds.has(r.id)}
         <li class="rest-item">
           <div class="rest-info">
             <span class="rest-name">{r.name}</span>
@@ -86,7 +103,7 @@
           {#if added}
             <span class="added-tag">추가됨</span>
           {:else}
-            <button class="add-btn" onclick={() => app.addRestaurant(r)}>추가</button>
+            <button class="add-btn" onclick={() => addRestaurant(r)}>추가</button>
           {/if}
         </li>
       {/each}

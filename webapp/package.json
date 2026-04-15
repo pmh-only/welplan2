@@ -12,6 +12,9 @@
   "dependencies": {
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
+    "@welplan2/model": "workspace:*",
+    "@welplan2/planeat-choice": "workspace:*",
+    "@welplan2/welstory-plus": "workspace:*",
     "svelte": "^5.0.0"
   },
   "devDependencies": {

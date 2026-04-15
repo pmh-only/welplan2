@@ -1,12 +1,10 @@
 import type { RequestHandler } from './$types'
-
-const API_BASE = process.env.API_URL ?? 'http://localhost:3000'
+import { service } from '$lib/server/service'
 
 export const GET: RequestHandler = async () => {
   try {
-    const res = await fetch(`${API_BASE}/restaurants/meal-times`)
-    const body = await res.text()
-    return new Response(body, { headers: { 'Content-Type': 'application/json' } })
+    const times = await service.getAllMealTimes()
+    return Response.json(times)
   } catch {
     return Response.json([])
   }

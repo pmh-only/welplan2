@@ -20,28 +20,31 @@
 
   function closeLightbox () { lightboxSrc = null }
 
-  // Re-run whenever URL params OR restaurants change (restaurants load async from localStorage)
+  // Reset expanded state when menus change (navigation)
   $effect(() => {
-    const _r = app.restaurants
-    app.date = data.date
-    app.selectedMealTimeId = data.time
-    app.fetchMenus()
+    const _m = data.menus
+    expandedMenuId = null
+    detail = []
   })
 
-  function navigate (date: string, time: string | null) {
-    if (date && time) goto(`/menu/${date}/${time}`)
+  function navigate (date: string, time: string) {
+    goto(`/menu/${date}/${time}`)
   }
 
-  async function toggleMenu (menu: ReturnType<typeof app.menus>[number]) {
+  function restaurantName (id: string): string {
+    return data.restaurants.find((r) => r.id === id)?.name ?? id
+  }
+
+  async function toggleMenu (menu: (typeof data.menus)[number]) {
     if (expandedMenuId === menu.id) { expandedMenuId = null; return }
     expandedMenuId = menu.id
     detail = []
-    if (menu.hallNo && menu.courseType && app.selectedMealTimeId) {
+    if (menu.hallNo && menu.courseType) {
       loadingDetail = true
       try {
         const params = new URLSearchParams({
-          date: app.date,
-          mealTimeId: app.selectedMealTimeId,
+          date: data.date,
+          mealTimeId: data.time,
           hallNo: menu.hallNo,
           courseType: menu.courseType
         })
@@ -54,15 +57,9 @@
       detail = menu.components
     }
   }
-
-  $effect(() => {
-    const _m = app.menus
-    expandedMenuId = null
-    detail = []
-  })
 </script>
 
-{#if app.restaurants.length === 0}
+{#if data.restaurants.length === 0}
   <div class="section empty-section">
     <p>👋 <a href="/restaurants">식당 설정</a>에서 식당을 추가하세요</p>
   </div>
@@ -85,20 +82,16 @@
       </div>
       <div class="form-group">
         <label for="meal-time-select">🕐 식사 시간</label>
-        {#if app.loadingMealTimes}
-          <div class="shimmer" style="height:36px; border-radius:6px; width:160px"></div>
-        {:else}
-          <select
-            id="meal-time-select"
-            class="select-input"
-            value={data.time}
-            onchange={(e) => navigate(data.date, e.currentTarget.value)}
-          >
-            {#each app.allMealTimes as mt (mt.id)}
-              <option value={mt.id}>{mt.name}</option>
-            {/each}
-          </select>
-        {/if}
+        <select
+          id="meal-time-select"
+          class="select-input"
+          value={data.time}
+          onchange={(e) => navigate(data.date, e.currentTarget.value)}
+        >
+          {#each data.mealTimes as mt (mt.id)}
+            <option value={mt.id}>{mt.name}</option>
+          {/each}
+        </select>
       </div>
       <div class="date-label">{formatKoreanDate(data.date)}</div>
     </div>
@@ -107,18 +100,12 @@
   <div class="section no-padding">
     <div class="section-head">
       <h2>🍴 메뉴</h2>
-      {#if !app.loadingMenus && app.menus.length > 0}
-        <span class="menu-count">{app.menus.length}개 메뉴 · {app.restaurants.length}개 식당</span>
+      {#if data.menus.length > 0}
+        <span class="menu-count">{data.menus.length}개 메뉴 · {data.restaurants.length}개 식당</span>
       {/if}
     </div>
 
-    {#if app.loadingMenus}
-      <div class="table-shimmer">
-        {#each Array(5) as _}
-          <div class="shimmer table-shimmer-row"></div>
-        {/each}
-      </div>
-    {:else if app.menus.length === 0}
+    {#if data.menus.length === 0}
       <div class="empty-state"><p>메뉴가 없습니다</p></div>
     {:else}
       <div class="table-wrap">
@@ -138,7 +125,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each app.menus as menu (menu.id)}
+            {#each data.menus as menu (menu.id)}
               {@const isExpanded = expandedMenuId === menu.id}
               {@const n = menu.nutrition}
               {@const imgSrc = proxyImg(menu.imageUrl)}
@@ -152,7 +139,7 @@
                   {/if}
                 </td>
                 <td class="col-rest hide-sm">
-                  <span class="rest-tag">{app.restaurantName(menu.restaurantId)}</span>
+                  <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
                 </td>
                 <td class="col-name">
                   <span class="menu-name">{menu.name}</span>
@@ -315,8 +302,6 @@
 
   .shimmer { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-  .table-shimmer { overflow: hidden; }
-  .table-shimmer-row { height: 62px; border-bottom: 1px solid var(--border); }
   .empty-state { text-align: center; padding: 48px 20px; color: var(--text-dim); font-size: 13px; }
 
   @media (max-width: 640px) {
