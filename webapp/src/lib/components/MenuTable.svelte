@@ -22,6 +22,21 @@
   let loadingDetail = $state(false)
   let lightboxSrc = $state<string | null>(null)
   let lightboxAlt = $state('')
+  let sortKey = $state<SortKey | null>(null)
+  let sortDirection = $state<'asc' | 'desc'>('asc')
+
+  type SortKey =
+    | 'restaurant'
+    | 'name'
+    | 'pscore'
+    | 'calories'
+    | 'carbohydrates'
+    | 'sugar'
+    | 'fat'
+    | 'protein'
+    | 'sodium'
+
+  type SortValue = number | string | null
 
   function openLightbox (src: string, alt: string, e: MouseEvent) {
     e.stopPropagation()
@@ -41,6 +56,56 @@
   function restaurantName (id: string): string {
     return restaurants.find((restaurant) => restaurant.id === id)?.name ?? id
   }
+
+  function sortArrow (key: SortKey): string {
+    if (sortKey !== key) return ''
+    return sortDirection === 'asc' ? '↑' : '↓'
+  }
+
+  function toggleSort (key: SortKey) {
+    if (sortKey === key) {
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+      return
+    }
+
+    sortKey = key
+    sortDirection = 'asc'
+  }
+
+  function sortValueFor (menu: Menu, key: SortKey): SortValue {
+    const nutrition = menu.nutrition
+
+    switch (key) {
+      case 'restaurant': return restaurantName(menu.restaurantId)
+      case 'name': return menu.name
+      case 'pscore': return pScore(nutrition, app.pWeights)
+      case 'calories': return nutrition?.calories ?? null
+      case 'carbohydrates': return nutrition?.carbohydrates ?? null
+      case 'sugar': return nutrition?.sugar ?? null
+      case 'fat': return nutrition?.fat ?? null
+      case 'protein': return nutrition?.protein ?? null
+      case 'sodium': return nutrition?.sodium ?? null
+    }
+  }
+
+  function compareMenus (a: Menu, b: Menu): number {
+    if (!sortKey) return 0
+
+    const aValue = sortValueFor(a, sortKey)
+    const bValue = sortValueFor(b, sortKey)
+
+    if (aValue == null && bValue == null) return 0
+    if (aValue == null) return 1
+    if (bValue == null) return -1
+
+    const comparison = typeof aValue === 'string' && typeof bValue === 'string'
+      ? aValue.localeCompare(bValue, 'ko')
+      : Number(aValue) - Number(bValue)
+
+    return sortDirection === 'asc' ? comparison : -comparison
+  }
+
+  const visibleMenus = $derived([...menus].sort(compareMenus))
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -92,7 +157,7 @@
   }
 </script>
 
-{#if menus.length === 0}
+{#if visibleMenus.length === 0}
   <div class="empty-state"><p>{emptyMessage}</p></div>
 {:else}
   <div class="table-wrap">
@@ -100,19 +165,19 @@
       <thead>
         <tr>
           <th class="col-img"></th>
-          <th class="col-rest hide-sm">식당</th>
-          <th class="col-name">메뉴</th>
-          <th class="col-ps">P-Score</th>
-          <th class="col-num">칼로리</th>
-          <th class="col-num hide-sm">탄수화물</th>
-          <th class="col-num hide-sm">당</th>
-          <th class="col-num">지방</th>
-          <th class="col-num">단백질</th>
-          <th class="col-num hide-sm">나트륨</th>
+          <th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>
+          <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
+          <th class="col-ps"><button type="button" class="sort-btn sort-btn-center" onclick={() => toggleSort('pscore')}>P-Score {sortArrow('pscore')}</button></th>
+          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('calories')}>칼로리 {sortArrow('calories')}</button></th>
+          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('carbohydrates')}>탄수화물 {sortArrow('carbohydrates')}</button></th>
+          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('sugar')}>당 {sortArrow('sugar')}</button></th>
+          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('fat')}>지방 {sortArrow('fat')}</button></th>
+          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('protein')}>단백질 {sortArrow('protein')}</button></th>
+          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('sodium')}>나트륨 {sortArrow('sodium')}</button></th>
         </tr>
       </thead>
       <tbody>
-        {#each menus as menu (menu.id)}
+        {#each visibleMenus as menu (menu.id)}
           {@const isExpanded = expandedMenuId === menu.id}
           {@const canExpand = isExpandable(menu)}
           {@const n = menu.nutrition}
@@ -258,6 +323,9 @@
   .menu-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .menu-table thead tr { background: var(--surface); border-bottom: 2px solid var(--border); }
   .menu-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .sort-btn { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .sort-btn-center { text-align: center; }
+  .sort-btn-right { text-align: right; }
 
   .col-img { width: 60px; padding: 0 8px; }
   .col-rest { width: 90px; }
