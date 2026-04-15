@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css'
   import { onMount } from 'svelte'
-  import { page } from '$app/state'
+  import { navigating, page } from '$app/state'
   import { app } from '$lib/state.svelte'
 
   let { data, children } = $props()
@@ -13,6 +13,30 @@
     { href: '/restaurants', label: '식당 설정', icon: '🏪' },
     { href: '/settings', label: '설정', icon: '⚙️' }
   ]
+
+  const isNavigating = $derived(navigating.to !== null)
+  let showLoading = $state(false)
+  let loadingTimer: ReturnType<typeof setTimeout> | undefined
+
+  $effect(() => {
+    if (isNavigating) {
+      if (!showLoading && !loadingTimer) {
+        loadingTimer = setTimeout(() => {
+          showLoading = true
+          loadingTimer = undefined
+        }, 120)
+      }
+
+      return () => {
+        if (loadingTimer) {
+          clearTimeout(loadingTimer)
+          loadingTimer = undefined
+        }
+      }
+    }
+
+    showLoading = false
+  })
 
   onMount(() => {
     app.loadFromStorage()
@@ -42,9 +66,16 @@
         {/each}
       </nav>
     </div>
+
+    {#if showLoading}
+      <div class="route-progress" role="status" aria-label="페이지 불러오는 중">
+        <div class="route-progress-bar route-progress-bar-secondary" aria-hidden="true"></div>
+        <div class="route-progress-bar route-progress-bar-primary" aria-hidden="true"></div>
+      </div>
+    {/if}
   </header>
 
-  <div class="content">
+  <div class="content" class:content-loading={showLoading} aria-busy={showLoading}>
     {@render children()}
   </div>
 </div>
@@ -59,6 +90,39 @@
     top: 0;
     z-index: 100;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  .route-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+    background: rgba(148, 163, 184, 0.14);
+  }
+
+  .route-progress-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 999px;
+    transform-origin: left center;
+    will-change: transform;
+  }
+
+  .route-progress-bar-primary {
+    width: 38%;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, #38bdf8 24%, #10b981 100%);
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.28);
+    animation: route-progress-primary 1.35s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .route-progress-bar-secondary {
+    width: 56%;
+    opacity: 0.42;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0) 0%, rgba(16, 185, 129, 0.45) 30%, rgba(56, 189, 248, 0.78) 100%);
+    animation: route-progress-secondary 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
   }
 
   .header-inner {
@@ -117,7 +181,41 @@
     border-radius: 2px;
   }
 
-  .content { max-width: 1200px; margin: 0 auto; padding: 20px 16px; }
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 16px;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+  }
+
+  .content-loading {
+    opacity: 0.88;
+    filter: saturate(0.96);
+  }
+
+  @keyframes route-progress-primary {
+    0% { transform: translateX(-130%) scaleX(0.72); }
+    55% { transform: translateX(55%) scaleX(1); }
+    100% { transform: translateX(240%) scaleX(0.86); }
+  }
+
+  @keyframes route-progress-secondary {
+    0% { transform: translateX(-170%) scaleX(0.35); }
+    60% { transform: translateX(35%) scaleX(0.82); }
+    100% { transform: translateX(210%) scaleX(0.52); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .route-progress-bar-primary,
+    .route-progress-bar-secondary {
+      animation: none;
+      transform: none;
+    }
+
+    .route-progress-bar-primary { width: 58%; }
+    .route-progress-bar-secondary { display: none; }
+    .content { transition: none; }
+  }
 
   @media (max-width: 640px) {
     .header-inner { height: auto; padding: 10px 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
