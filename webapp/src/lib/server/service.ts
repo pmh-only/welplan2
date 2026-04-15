@@ -16,6 +16,10 @@ class CafeteriaService {
   private readonly cache = new Map<string, Restaurant>()
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
+  private readonly mealTimesCache = new Map<string, MealTime[]>()
+  private readonly menusCache = new Map<string, Menu[]>()
+  private readonly menuDetailCache = new Map<string, MenuComponent[]>()
+  private readonly menuNutrientDetailCache = new Map<string, MenuComponent[]>()
 
   constructor() {
     this.welstory = new WelstoryPlusClient({
@@ -59,6 +63,10 @@ class CafeteriaService {
     return restaurant
   }
 
+  private clone<T>(value: T): T {
+    return structuredClone(value)
+  }
+
   async getAllMealTimes(): Promise<MealTime[]> {
     await this.ensureCache()
     const byVendor = new Map<string, Restaurant>()
@@ -66,7 +74,7 @@ class CafeteriaService {
       if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
     }
     const results = await Promise.allSettled(
-      [...byVendor.values()].map((r) => this.getClient(r.vendor).getMealTimes(r))
+      [...byVendor.values()].map((r) => this.getMealTimes(r.id))
     )
     const seen = new Set<string>()
     const merged: MealTime[] = []
@@ -82,9 +90,26 @@ class CafeteriaService {
     return merged
   }
 
-  async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
+  async getMealTimes(restaurantId: string): Promise<MealTime[]> {
+    const key = `meal-times:${restaurantId}`
+    const cached = this.mealTimesCache.get(key)
+    if (cached) return this.clone(cached)
+
     const restaurant = await this.resolveRestaurant(restaurantId)
-    return this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
+    const mealTimes = await this.getClient(restaurant.vendor).getMealTimes(restaurant)
+    this.mealTimesCache.set(key, this.clone(mealTimes))
+    return mealTimes
+  }
+
+  async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
+    const key = `menus:${restaurantId}:${date}:${mealTimeId}`
+    const cached = this.menusCache.get(key)
+    if (cached) return this.clone(cached)
+
+    const restaurant = await this.resolveRestaurant(restaurantId)
+    const menus = await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
+    this.menusCache.set(key, this.clone(menus))
+    return menus
   }
 
   async getMenuDetail(
@@ -94,12 +119,18 @@ class CafeteriaService {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
+    const key = `detail:${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const cached = this.menuDetailCache.get(key)
+    if (cached) return this.clone(cached)
+
     const restaurant = await this.resolveRestaurant(restaurantId)
     const client = this.getClient(restaurant.vendor)
     if (!client.getMenuDetail) {
       throw new Error(`Menu detail not supported for vendor '${restaurant.vendor}'`)
     }
-    return client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
+    const detail = await client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
+    this.menuDetailCache.set(key, this.clone(detail))
+    return detail
   }
 
   async getMenuNutrientDetail(
@@ -109,12 +140,55 @@ class CafeteriaService {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
+    const key = `nutrient:${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const cached = this.menuNutrientDetailCache.get(key)
+    if (cached) return this.clone(cached)
+
     const restaurant = await this.resolveRestaurant(restaurantId)
     const client = this.getClient(restaurant.vendor)
     if (!client.getMenuNutrientDetail) {
       throw new Error(`Menu nutrient detail not supported for vendor '${restaurant.vendor}'`)
     }
-    return client.getMenuNutrientDetail(restaurant, date, mealTimeId, hallNo, courseType)
+    const detail = await client.getMenuNutrientDetail(
+      restaurant,
+      date,
+      mealTimeId,
+      hallNo,
+      courseType
+    )
+    this.menuNutrientDetailCache.set(key, this.clone(detail))
+    return detail
+  }
+
+  getCacheStatus(): Record<string, number | boolean> {
+    return {
+      restaurantsLoaded: this.cacheLoaded,
+      restaurants: this.cache.size,
+      mealTimes: this.mealTimesCache.size,
+      menus: this.menusCache.size,
+      menuDetails: this.menuDetailCache.size,
+      menuNutrientDetails: this.menuNutrientDetailCache.size
+    }
+  }
+
+  clearCaches(): Record<string, number> {
+    const cleared = {
+      restaurants: this.cache.size,
+      mealTimes: this.mealTimesCache.size,
+      menus: this.menusCache.size,
+      menuDetails: this.menuDetailCache.size,
+      menuNutrientDetails: this.menuNutrientDetailCache.size
+    }
+
+    this.cache.clear()
+    this.cacheLoaded = false
+    this.cachePromise = null
+    this.mealTimesCache.clear()
+    this.menusCache.clear()
+    this.menuDetailCache.clear()
+    this.menuNutrientDetailCache.clear()
+
+    return cleared
   }
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {

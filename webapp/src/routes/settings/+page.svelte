@@ -4,6 +4,9 @@
 
   const EXAMPLE_NUTRITION = { calories: 650, carbohydrates: 80, sugar: 8, fat: 20, protein: 30 }
   let exampleScore = $derived(pScore(EXAMPLE_NUTRITION, app.pWeights))
+  let cacheStatus = $state<Record<string, number | boolean> | null>(null)
+  let cacheMessage = $state('')
+  let cacheLoading = $state(false)
 
   const FIELDS: { key: keyof typeof DEFAULT_WEIGHTS; label: string; desc: string }[] = [
     { key: 'cal', label: '칼로리', desc: '칼로리(kcal) 가중치' },
@@ -12,6 +15,36 @@
     { key: 'fat', label: '지방', desc: '지방(g) 가중치' },
     { key: 'protein', label: '단백질', desc: '단백질(g) 가중치 — P-Score에서 차감 (높을수록 이득)' }
   ]
+
+  async function loadCacheStatus () {
+    cacheLoading = true
+    cacheMessage = ''
+    try {
+      const res = await fetch('/api/cache/status')
+      if (!res.ok) throw new Error('캐시 상태 조회 실패')
+      cacheStatus = await res.json()
+    } catch (error) {
+      cacheMessage = error instanceof Error ? error.message : String(error)
+    } finally {
+      cacheLoading = false
+    }
+  }
+
+  async function clearCache () {
+    cacheLoading = true
+    cacheMessage = ''
+    try {
+      const res = await fetch('/api/cache/clear', { method: 'POST' })
+      if (!res.ok) throw new Error('캐시 삭제 실패')
+      const payload = await res.json()
+      cacheStatus = payload.status
+      cacheMessage = payload.message
+    } catch (error) {
+      cacheMessage = error instanceof Error ? error.message : String(error)
+    } finally {
+      cacheLoading = false
+    }
+  }
 </script>
 
 <div class="section">
@@ -54,6 +87,34 @@
   </div>
 </div>
 
+<div class="section">
+  <div class="section-head">
+    <h2>🗃️ 캐시 상태</h2>
+  </div>
+
+  <p class="desc">서버 메모리에 저장된 식당, 식사 시간, 메뉴, 상세 메뉴 캐시를 확인하거나 비울 수 있습니다.</p>
+
+  <div class="actions">
+    <button class="reset-btn" onclick={loadCacheStatus} disabled={cacheLoading}>캐시 상태</button>
+    <button class="reset-btn" onclick={clearCache} disabled={cacheLoading}>캐시 삭제</button>
+  </div>
+
+  {#if cacheMessage}
+    <p class="cache-message">{cacheMessage}</p>
+  {/if}
+
+  {#if cacheStatus}
+    <div class="cache-grid">
+      {#each Object.entries(cacheStatus) as [key, value]}
+        <div class="cache-card">
+          <span class="cache-key">{key}</span>
+          <span class="cache-value">{String(value)}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
+
 <style>
   .section {
     background: #fff;
@@ -93,4 +154,11 @@
   .example-score.green { color: #16a34a; }
   .example-score.yellow { color: #ca8a04; }
   .example-score.red { color: #dc2626; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cache-message { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+  .cache-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .cache-card { padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+  .cache-key { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .cache-value { font-size: 16px; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
 </style>
