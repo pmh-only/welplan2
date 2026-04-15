@@ -108,6 +108,11 @@ class CafeteriaService {
 
     const restaurant = await this.resolveRestaurant(restaurantId)
     const menus = await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
+    for (const menu of menus) {
+      if (!menu.isTakeOut && (menu.nutrition?.calories ?? 0) > 2000) {
+        menu.isTakeOut = true
+      }
+    }
     this.menusCache.set(key, this.clone(menus))
     return menus
   }

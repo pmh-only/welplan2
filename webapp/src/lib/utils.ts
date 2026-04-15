@@ -5,7 +5,7 @@ function pad (n: number): string {
 }
 
 export function todayStr (): string {
-  const d = new Date()
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
 }
 
@@ -31,15 +31,17 @@ export function shiftDate (s: string, delta: number): string {
 
 export function autoSelectMealTime (times: MealTime[]): string | null {
   if (!times.length) return null
-  const h = new Date().getHours()
+  const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })).getHours()
   const order =
     h < 9
       ? ['breakfast', 'dawn']
-      : h < 13
+      : h < 14
         ? ['lunch', 'breakfast']
         : h < 17
           ? ['dinner', 'lunch']
-          : ['supper', 'dinner']
+          : h < 19
+            ? ['dinner', 'supper']
+            : ['supper', 'dinner']
   for (const type of order) {
     const m = times.find((t) => t.type === type)
     if (m) return m.id

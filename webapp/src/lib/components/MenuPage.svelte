@@ -113,6 +113,7 @@
       .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
+      .filter((menu: Menu) => (menu.nutrition?.calories ?? 1) !== 0)
       .map((menu: Menu) => {
         if (kind !== 'takein') return menu
 

@@ -55,6 +55,7 @@
     justify-content: space-between;
     position: sticky;
     top: 0px;
+    z-index: 100;
     gap: 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   }

@@ -154,6 +154,7 @@
   }
 
   const visibleMenus = $derived([...menus].sort(compareMenus))
+  const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
   const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menu.id)))
   const selectedNutrition = $derived(
     selectedMenus.reduce(
@@ -170,6 +171,16 @@
   )
   const selectedPScore = $derived(selectedMenus.length > 0 ? pScore(selectedNutrition, app.pWeights) : null)
   const selectedItemsText = $derived(selectedMenus.map((menu) => menu.name).join(', '))
+
+  function extractCoin (name: string): number {
+    const coinMatch = name.match(/\[(\d+)Coin\]/)
+    if (coinMatch) return parseInt(coinMatch[1], 10)
+    const mainMatch = name.match(/\[Main(\d+)\]/)
+    if (mainMatch) return parseInt(mainMatch[1], 10)
+    return 0
+  }
+
+  const selectedCoinTotal = $derived(selectedMenus.reduce((sum, menu) => sum + extractCoin(menu.name), 0))
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -243,7 +254,7 @@
       <thead>
         <tr>
           {#if enableSelection}<th class="col-check"></th>{/if}
-          <th class="col-img"></th>
+          {#if hasAnyImage}<th class="col-img"></th>{/if}
           <th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>
           <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
           <th class="col-ps"><button type="button" class="sort-btn sort-btn-center" onclick={() => toggleSort('pscore')}>P-Score {sortArrow('pscore')}</button></th>
@@ -270,15 +281,15 @@
                 <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(menu.id)} />
               </td>
             {/if}
-            <td class="col-img" data-label="이미지">
-              {#if imgSrc}
-                <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
-                  <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" />
-                </button>
-              {:else}
-                <div class="thumb-placeholder"></div>
-              {/if}
-            </td>
+            {#if hasAnyImage}
+              <td class="col-img" data-label="이미지">
+                {#if imgSrc}
+                  <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
+                    <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" />
+                  </button>
+                {/if}
+              </td>
+            {/if}
             <td class="col-rest hide-sm" data-label="식당">
               <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
             </td>
@@ -408,6 +419,8 @@
     <div class="float-content">
       <div class="selected-items-count">{selectedItemsText}</div>
 
+      <div class="coin-total" class:coin-over={selectedCoinTotal > 4}>🪙 {selectedCoinTotal}/4{selectedCoinTotal > 4 ? ' ⚠️ 초과' : ''}</div>
+
       <div class="nutrition-summary">
         <div class="nutrition-item pscore-item">
           <div class="nutrition-label">P-Score</div>
@@ -462,6 +475,8 @@
         <h3>📊 선택된 {selectedMenus.length}개 항목 통합 영양성분</h3>
         <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">×</button>
       </div>
+
+      <div class="coin-total modal-coin-total" class:coin-over={selectedCoinTotal > 4}>🪙 {selectedCoinTotal}/4{selectedCoinTotal > 4 ? ' ⚠️ 초과' : ''}</div>
 
       <div class="selection-total-grid">
         <div class="selection-total-card pscore-card">
@@ -593,6 +608,24 @@
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
+  }
+  .coin-total {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fef9c3;
+    color: #92400e;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .coin-over {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  .modal-coin-total {
+    margin-bottom: 14px;
+    font-size: 16px;
   }
   .nutrition-summary {
     display: grid;
