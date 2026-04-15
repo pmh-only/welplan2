@@ -5,7 +5,7 @@
   let { data } = $props()
 
   // Local copy for immediate UI updates; syncs from server data when it changes
-  let restaurants = $state<Restaurant[]>(data.restaurants)
+  let restaurants = $state<Restaurant[]>([])
   $effect(() => { restaurants = data.restaurants })
 
   let query = $state('')
