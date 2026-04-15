@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
+
+  const LS_TAKEOUT_RESTAURANT = 'welplan_takeout_restaurant'
 
   type MenuPageData = {
     restaurants: Restaurant[]
@@ -22,6 +25,8 @@
 
   let takeInFilterMainOnly = $state(false)
   let takeInFilterExcludeOptional = $state(true)
+  let selectedTakeoutRestaurantId = $state('')
+  let takeOutFilterDrinks = $state(true)
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
 
@@ -52,6 +57,12 @@
     }), {})
   }
 
+  function isDrinkMenu(menu: Menu): boolean {
+    const parentName = (menu as Menu & { parentName?: string }).parentName
+    const text = `${parentName ?? ''} ${menu.name}`
+    return text.includes('음료') || text.includes('드링킹') || text.includes('음료 Zone')
+  }
+
   function filterTakeInComponents(menu: Menu): MenuComponent[] {
     if (!hasDetailedComponents(menu)) return menu.components
 
@@ -68,9 +79,39 @@
     return components
   }
 
+  const takeOutRestaurants = $derived(
+    data.restaurants.filter((restaurant: Restaurant) =>
+      data.menus.some((menu: Menu) => menu.isTakeOut && menu.restaurantId === restaurant.id)
+    )
+  )
+
+  $effect(() => {
+    if (!browser || kind !== 'takeout') return
+
+    const availableIds = new Set(takeOutRestaurants.map((restaurant: Restaurant) => restaurant.id))
+    if (!selectedTakeoutRestaurantId) {
+      const saved = localStorage.getItem(LS_TAKEOUT_RESTAURANT)
+      if (saved && availableIds.has(saved)) {
+        selectedTakeoutRestaurantId = saved
+        return
+      }
+    }
+
+    if (!availableIds.has(selectedTakeoutRestaurantId)) {
+      selectedTakeoutRestaurantId = takeOutRestaurants[0]?.id ?? ''
+    }
+  })
+
+  $effect(() => {
+    if (!browser || kind !== 'takeout' || !selectedTakeoutRestaurantId) return
+    localStorage.setItem(LS_TAKEOUT_RESTAURANT, selectedTakeoutRestaurantId)
+  })
+
   const visibleMenus = $derived(
     data.menus
       .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
+      .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
+      .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
       .map((menu: Menu) => {
         if (kind !== 'takein') return menu
 
@@ -143,6 +184,23 @@
           </label>
         </div>
       </div>
+    {:else if kind === 'takeout'}
+      <div class="filter-box">
+        <div class="filter-options takeout-options">
+          <div class="form-group takeout-restaurant-select">
+            <label for="takeout-restaurant-select">🏪 식당 선택</label>
+            <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
+              {#each takeOutRestaurants as restaurant (restaurant.id)}
+                <option value={restaurant.id}>{restaurant.name}</option>
+              {/each}
+            </select>
+          </div>
+          <label class="filter-option takeout-drink-filter">
+            <input type="checkbox" bind:checked={takeOutFilterDrinks} />
+            <span>음료수 제외</span>
+          </label>
+        </div>
+      </div>
     {/if}
   </div>
 
@@ -188,6 +246,9 @@
   .filter-title { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
   .filter-options { display: flex; gap: 14px; flex-wrap: wrap; }
   .filter-option { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .takeout-options { align-items: flex-end; justify-content: space-between; }
+  .takeout-restaurant-select { min-width: min(100%, 280px); }
+  .takeout-drink-filter { min-height: 36px; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group label { font-size: 12px; font-weight: 500; color: #4b5563; }
   .date-row { display: flex; align-items: center; gap: 4px; }

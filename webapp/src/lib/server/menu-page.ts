@@ -66,6 +66,7 @@ function flattenTakeOutMenuItems(menu: Menu, detail: MenuComponent[]): Menu[] {
   return rows.map((item, index) => ({
     id: `${menu.id}:${index}`,
     name: item.name,
+    parentName: menu.name,
     date: menu.date,
     mealTimeId: menu.mealTimeId,
     restaurantId: menu.restaurantId,

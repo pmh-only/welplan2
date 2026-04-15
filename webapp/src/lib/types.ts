@@ -29,6 +29,7 @@ export interface MenuComponent {
 export interface Menu {
   id: string
   name: string
+  parentName?: string
   date: string
   mealTimeId: string
   restaurantId: string
