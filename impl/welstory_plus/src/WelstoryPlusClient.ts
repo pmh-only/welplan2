@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant } from '@welplan2/model'
-import { AuthManager } from './AuthManager.js'
+import { AuthManager, WelstoryAuthError } from './AuthManager.js'
 import type {
   WpApiResponse,
   WpDish,
@@ -42,6 +42,11 @@ function unwrap<T>(raw: unknown): T {
     return (raw as WpApiResponse<T>).data
   }
   return raw as T
+}
+
+function looksLikeHtmlResponse(response: Response, text: string): boolean {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+  return contentType.includes('text/html') || /^\s*(<!doctype html|<html[\s>])/i.test(text)
 }
 
 // Simple semaphore to serialize requests — Welstory returns empty body under concurrent load
@@ -100,31 +105,56 @@ export class WelstoryPlusClient implements CafeteriaClient {
 
     await this.sem.acquire()
     try {
-      const token = await this.auth.getToken()
-      let response = await fetch(`${this.baseUrl}${path}`, {
-        ...init,
-        headers: buildHeaders(token)
-      })
+      let lastError: unknown
 
-      // On 401, force re-login and retry once
-      if (response.status === 401) {
-        const newToken = await this.auth.forceLogin()
-        response = await fetch(`${this.baseUrl}${path}`, {
-          ...init,
-          headers: buildHeaders(newToken)
-        })
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const token = attempt === 0 ? await this.auth.getToken() : await this.auth.forceLogin()
+
+          const response = await fetch(`${this.baseUrl}${path}`, {
+            ...init,
+            headers: buildHeaders(token)
+          })
+          const text = await response.text()
+          const shouldRelogin =
+            response.status === 401 ||
+            response.status === 403 ||
+            (response.ok && looksLikeHtmlResponse(response, text))
+
+          if (shouldRelogin) {
+            const error = new WelstoryAuthError(
+              response.status === 401 || response.status === 403
+                ? `Auth failed: ${response.status} ${response.statusText}`
+                : 'Auth failed: session expired',
+              response.status === 401 || response.status === 403 ? response.status : undefined
+            )
+            lastError = error
+            if (attempt === 0) continue
+            throw error
+          }
+
+          if (!response.ok) {
+            throw new WelstoryPlusError(
+              `HTTP ${response.status}: ${response.statusText}`,
+              response.status
+            )
+          }
+
+          if (!text.trim()) throw new WelstoryPlusError('Empty response body')
+
+          try {
+            return JSON.parse(text) as T
+          } catch {
+            throw new WelstoryPlusError('Invalid JSON response')
+          }
+        } catch (error) {
+          lastError = error
+          if (attempt === 0 && error instanceof WelstoryAuthError) continue
+          throw error
+        }
       }
 
-      if (!response.ok) {
-        throw new WelstoryPlusError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          response.status
-        )
-      }
-
-      const text = await response.text()
-      if (!text.trim()) throw new WelstoryPlusError('Empty response body')
-      return JSON.parse(text) as T
+      throw lastError instanceof Error ? lastError : new WelstoryPlusError('Request failed')
     } finally {
       this.sem.release()
     }

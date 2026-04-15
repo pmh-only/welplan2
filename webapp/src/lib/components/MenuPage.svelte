@@ -51,9 +51,13 @@
       calories: (totals.calories ?? 0) + (component.nutrition?.calories ?? 0),
       carbohydrates: (totals.carbohydrates ?? 0) + (component.nutrition?.carbohydrates ?? 0),
       sugar: (totals.sugar ?? 0) + (component.nutrition?.sugar ?? 0),
+      fiber: (totals.fiber ?? 0) + (component.nutrition?.fiber ?? 0),
       fat: (totals.fat ?? 0) + (component.nutrition?.fat ?? 0),
       protein: (totals.protein ?? 0) + (component.nutrition?.protein ?? 0),
       sodium: (totals.sodium ?? 0) + (component.nutrition?.sodium ?? 0),
+      cholesterol: (totals.cholesterol ?? 0) + (component.nutrition?.cholesterol ?? 0),
+      transFat: (totals.transFat ?? 0) + (component.nutrition?.transFat ?? 0),
+      saturatedFat: (totals.saturatedFat ?? 0) + (component.nutrition?.saturatedFat ?? 0),
       calcium: (totals.calcium ?? 0) + (component.nutrition?.calcium ?? 0)
     }), {})
   }

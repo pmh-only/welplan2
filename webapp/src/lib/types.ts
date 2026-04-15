@@ -17,6 +17,10 @@ export interface NutritionInfo {
   fat?: number
   sodium?: number
   sugar?: number
+  fiber?: number
+  cholesterol?: number
+  transFat?: number
+  saturatedFat?: number
   calcium?: number
 }
 

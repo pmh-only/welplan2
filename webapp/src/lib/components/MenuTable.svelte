@@ -46,6 +46,26 @@
     | 'sodium'
 
   type SortValue = number | string | null
+  type NutritionKey = keyof NutritionInfo
+  type DetailMetric = {
+    key: NutritionKey
+    label: string
+    unit?: string
+  }
+
+  const detailMetricDefs: DetailMetric[] = [
+    { key: 'calories', label: '칼로리', unit: ' kcal' },
+    { key: 'carbohydrates', label: '탄수화물', unit: 'g' },
+    { key: 'sugar', label: '당', unit: 'g' },
+    { key: 'fiber', label: '식이섬유', unit: 'g' },
+    { key: 'fat', label: '지방', unit: 'g' },
+    { key: 'protein', label: '단백질', unit: 'g' },
+    { key: 'sodium', label: '나트륨', unit: 'mg' },
+    { key: 'cholesterol', label: '콜레스테롤', unit: 'mg' },
+    { key: 'saturatedFat', label: '포화지방', unit: 'g' },
+    { key: 'transFat', label: '트랜스지방', unit: 'g' },
+    { key: 'calcium', label: '칼슘', unit: 'mg' }
+  ]
 
   function openLightbox (src: string, alt: string, e: MouseEvent) {
     e.stopPropagation()
@@ -202,6 +222,14 @@
     return rows.length > 0 ? rows : detail
   }
 
+  function detailMetricsFor (rows: MenuComponent[]): DetailMetric[] {
+    return detailMetricDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
+  }
+
+  function showDetailedNutrients (rows: MenuComponent[]): boolean {
+    return detailMetricsFor(rows).some(({ key }) => key !== 'calories')
+  }
+
   async function toggleMenu (menu: Menu) {
     if (expandedMenuId === menu.id) {
       expandedMenuId = null
@@ -330,19 +358,17 @@
                   <p class="detail-empty">구성 정보 없음</p>
                 {:else}
                   {@const detailRows = detailRowsFor(menu)}
-                  {#if isWelstoryTakeOutDetail(menu)}
+                  {@const detailMetrics = detailMetricsFor(detailRows)}
+                  {#if showDetailedNutrients(detailRows)}
                     <div class="detail-table-wrap">
                       <table class="detail-table">
                         <thead>
                           <tr>
                             <th class="detail-col-name">항목</th>
                             <th class="detail-col-ps">P-Score</th>
-                            <th class="detail-col-num">칼로리</th>
-                            <th class="detail-col-num hide-sm">탄수화물</th>
-                            <th class="detail-col-num hide-sm">당</th>
-                            <th class="detail-col-num">지방</th>
-                            <th class="detail-col-num">단백질</th>
-                            <th class="detail-col-num hide-sm">나트륨</th>
+                            {#each detailMetrics as metric}
+                              <th class="detail-col-num">{metric.label}</th>
+                            {/each}
                           </tr>
                         </thead>
                         <tbody>
@@ -358,12 +384,11 @@
                                   <span class="ps-na">—</span>
                                 {/if}
                               </td>
-                              <td class="detail-col-num">{dn?.calories != null ? `${dn.calories} kcal` : '—'}</td>
-                              <td class="detail-col-num hide-sm">{dn?.carbohydrates != null ? `${dn.carbohydrates}g` : '—'}</td>
-                              <td class="detail-col-num hide-sm">{dn?.sugar != null ? `${dn.sugar}g` : '—'}</td>
-                              <td class="detail-col-num">{dn?.fat != null ? `${dn.fat}g` : '—'}</td>
-                              <td class="detail-col-num">{dn?.protein != null ? `${dn.protein}g` : '—'}</td>
-                              <td class="detail-col-num hide-sm">{dn?.sodium != null ? `${dn.sodium}mg` : '—'}</td>
+                              {#each detailMetrics as metric}
+                                <td class="detail-col-num">
+                                  {formatMetric(dn?.[metric.key], metric.unit)}
+                                </td>
+                              {/each}
                             </tr>
                           {/each}
                         </tbody>
@@ -375,21 +400,11 @@
                         {#each detailRows as dish}
                           <tr>
                             <td class="dish-name">{dish.name}</td>
-                            <td class="dish-num">{dish.nutrition?.calories != null ? `${dish.nutrition.calories} kcal` : ''}</td>
+                            <td class="dish-num">{formatMetric(dish.nutrition?.calories, ' kcal')}</td>
                           </tr>
                         {/each}
                       </tbody>
                     </table>
-                    {#if detailRows[0]?.nutrition}
-                      {@const dn = detailRows[0].nutrition}
-                      <div class="detail-pills">
-                        {#if dn?.carbohydrates != null}<span class="pill pill-carb">탄 {dn.carbohydrates}g</span>{/if}
-                        {#if dn?.sugar != null}<span class="pill">당 {dn.sugar}g</span>{/if}
-                        {#if dn?.fat != null}<span class="pill pill-fat">지 {dn.fat}g</span>{/if}
-                        {#if dn?.protein != null}<span class="pill pill-protein">단 {dn.protein}g</span>{/if}
-                        {#if dn?.sodium != null}<span class="pill">나트륨 {dn.sodium}mg</span>{/if}
-                      </div>
-                    {/if}
                   {/if}
                 {/if}
               </td>
@@ -792,11 +807,6 @@
   .dish-table td { padding: 5px 8px 5px 0; font-size: 12px; }
   .dish-name { color: var(--text-muted); }
   .dish-num { text-align: right; font-family: var(--font-sans); font-size: 11px; color: var(--text-dim); white-space: nowrap; padding-left: 16px; }
-  .detail-pills { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
-  .pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); }
-  .pill-carb { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-  .pill-fat { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
-  .pill-protein { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
   .detail-loading { padding: 12px 0; }
   .detail-empty { font-size: 12px; color: var(--text-dim); font-style: italic; padding: 8px 0; }
 
