@@ -8,7 +8,6 @@ import type {
 } from '@welplan2/model'
 import { WelstoryPlusClient } from '@welplan2/welstory-plus'
 import { PlaneatChoiceClient } from '@welplan2/planeat-choice'
-import { WELSTORY_USERNAME, WELSTORY_PASSWORD } from '$env/static/private'
 import { db } from './db/index.js'
 import {
   restaurants as restaurantsTable,
@@ -21,21 +20,23 @@ import {
 import { eq, sql } from 'drizzle-orm'
 
 class CafeteriaService {
-  private readonly welstory: WelstoryPlusClient
-  private readonly planeat: PlaneatChoiceClient
+  private welstory: WelstoryPlusClient | null = null
+  private planeat: PlaneatChoiceClient | null = null
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
 
-  constructor() {
-    this.welstory = new WelstoryPlusClient({
-      username: WELSTORY_USERNAME,
-      password: WELSTORY_PASSWORD
-    })
-    this.planeat = new PlaneatChoiceClient()
+  private getWelstoryClient(): WelstoryPlusClient {
+    this.welstory ??= new WelstoryPlusClient()
+    return this.welstory
+  }
+
+  private getPlaneatClient(): PlaneatChoiceClient {
+    this.planeat ??= new PlaneatChoiceClient()
+    return this.planeat
   }
 
   private getClient(vendor: Vendor): CafeteriaClient {
-    return vendor === 'welstory' ? this.welstory : this.planeat
+    return vendor === 'welstory' ? this.getWelstoryClient() : this.getPlaneatClient()
   }
 
   private now(): number {
@@ -44,8 +45,8 @@ class CafeteriaService {
 
   private async populateCache(): Promise<void> {
     const [welstoryResult, planeatResult] = await Promise.allSettled([
-      this.welstory.getRestaurants(),
-      this.planeat.getRestaurants()
+      Promise.resolve().then(() => this.getWelstoryClient().getRestaurants()),
+      Promise.resolve().then(() => this.getPlaneatClient().getRestaurants())
     ])
     const toInsert: (typeof restaurantsTable.$inferInsert)[] = []
     if (welstoryResult.status === 'fulfilled') {
@@ -258,7 +259,9 @@ class CafeteriaService {
       mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
       menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
       menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
-      menuNutrientDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache))
+      menuNutrientDetails: this.count(
+        db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache)
+      )
     }
   }
 
@@ -268,7 +271,9 @@ class CafeteriaService {
       mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
       menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
       menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
-      menuNutrientDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache))
+      menuNutrientDetails: this.count(
+        db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache)
+      )
     }
 
     db.delete(restaurantsTable).run()
@@ -311,7 +316,9 @@ class CafeteriaService {
     const fromCache = rows
       .map((row) => JSON.parse(row.data) as Restaurant)
       .filter((r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q))
-    const fromWelstory = await this.welstory.searchRestaurants(query).catch(() => [])
+    const fromWelstory = await Promise.resolve()
+      .then(() => this.getWelstoryClient().searchRestaurants(query))
+      .catch(() => [])
     const seen = new Set(fromCache.map((r) => r.id))
     return [...fromCache, ...fromWelstory.filter((r) => !seen.has(r.id))]
   }
