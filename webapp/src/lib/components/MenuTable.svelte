@@ -10,8 +10,7 @@
     time,
     emptyMessage,
     preferInlineComponents = false,
-    enableSelection = false,
-    viewMode = 'scroll'
+    enableSelection = false
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -20,7 +19,6 @@
     emptyMessage: string
     preferInlineComponents?: boolean
     enableSelection?: boolean
-    viewMode?: 'scroll' | 'card'
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -277,7 +275,7 @@
     </div>
   {/if}
 
-  <div class="table-wrap" class:card-view={viewMode === 'card'}>
+  <div class="table-wrap">
     <table class="menu-table">
       <thead>
         <tr>
@@ -813,50 +811,6 @@
   .shimmer { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   .empty-state { text-align: center; padding: 48px 20px; color: var(--text-dim); font-size: 13px; }
-
-  .table-wrap.card-view { padding: 12px; background: var(--surface); }
-  .table-wrap.card-view .menu-table thead { display: none; }
-  .table-wrap.card-view .menu-table,
-  .table-wrap.card-view .menu-table tbody { display: block; width: 100%; }
-  .table-wrap.card-view .menu-table tr,
-  .table-wrap.card-view .menu-table td { display: block; }
-  .table-wrap.card-view .hide-sm { display: block; }
-  .table-wrap.card-view .menu-row {
-    width: 100%;
-    margin: 0 0 8px 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: #fff;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-  }
-  .table-wrap.card-view .menu-row:last-child { margin-bottom: 0; }
-  .table-wrap.card-view .menu-row td {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 9px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--surface);
-  }
-  .table-wrap.card-view .menu-row td:last-child { border-bottom: none; }
-  .table-wrap.card-view .menu-row td::before {
-    content: attr(data-label);
-    font-size: 11px;
-    color: var(--text-dim);
-    min-width: 72px;
-    flex-shrink: 0;
-  }
-  .table-wrap.card-view .menu-row .col-img,
-  .table-wrap.card-view .menu-row .col-name { align-items: flex-start; }
-  .table-wrap.card-view .menu-row .col-img::before { display: none; }
-  .table-wrap.card-view .menu-row .col-check { justify-content: flex-start; }
-  .table-wrap.card-view .menu-row .col-check::before { min-width: 40px; }
-  .table-wrap.card-view .menu-row .col-num,
-  .table-wrap.card-view .menu-row .col-ps { text-align: left; }
-  .table-wrap.card-view .menu-row.expandable:hover { background: #fff; }
-  .table-wrap.card-view .detail-row td { padding: 0 12px 14px 12px; border-bottom: none; }
 
   @media (max-width: 640px) {
     .hide-sm { display: none; }

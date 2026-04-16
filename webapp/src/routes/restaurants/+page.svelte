@@ -2,7 +2,12 @@
   import { invalidateAll } from '$app/navigation'
   import type { Restaurant } from '$lib/types'
 
-  let { data } = $props()
+  type RestaurantsPageData = {
+    restaurants: Restaurant[]
+    isFirstVisit: boolean
+  }
+
+  let { data }: { data: RestaurantsPageData } = $props()
 
   // Local copy for immediate UI updates; syncs from server data when it changes
   let restaurants = $state<Restaurant[]>([])
@@ -46,6 +51,28 @@
     }
   }
 </script>
+
+{#if data.isFirstVisit}
+  <div class="welcome-guide">
+    <div class="welcome-guide-head">
+      <div>
+        <p class="welcome-guide-eyebrow">첫 방문 안내</p>
+        <h2>먼저 내 식당을 추가해 주세요</h2>
+      </div>
+      <span class="welcome-guide-badge">1분 설정</span>
+    </div>
+
+    <ol class="welcome-guide-steps">
+      <li>아래 검색창에 자주 이용하는 식당 이름을 입력합니다.</li>
+      <li>검색 결과에서 원하는 웰스토리 또는 신세계푸드 식당의 <code>+ 추가</code> 버튼을 누릅니다.</li>
+      <li>설정이 끝나면 갤러리, 테이크 인, 테이크 아웃 화면이 내 식당 기준으로 표시됩니다.</li>
+    </ol>
+
+    <p class="welcome-guide-note">
+      기본 추천 식당이 보일 수 있지만, 내 식당을 직접 추가하거나 정리해 두면 이후 조회가 더 정확해집니다.
+    </p>
+  </div>
+{/if}
 
 <div class="section">
   <div class="section-head">
@@ -122,6 +149,62 @@
 </div>
 
 <style>
+  .welcome-guide {
+    margin-bottom: 14px;
+    padding: 18px;
+    border: 1px solid #86efac;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .welcome-guide-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .welcome-guide-eyebrow {
+    margin-bottom: 4px;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .welcome-guide h2 {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .welcome-guide-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .welcome-guide-steps {
+    margin: 0 0 10px;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .welcome-guide-note {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
   .section {
     background: #fff;
     border: 1px solid var(--border);

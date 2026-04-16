@@ -27,7 +27,6 @@
   let takeInFilterExcludeOptional = $state(true)
   let selectedTakeoutRestaurantId = $state('')
   let takeOutFilterDrinks = $state(true)
-  let viewMode = $state<'scroll' | 'card'>('scroll')
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
 
@@ -219,26 +218,6 @@
         </div>
       {/if}
 
-      <div class="view-toggle" title="화면 레이아웃">
-        <button
-          type="button"
-          class="view-btn"
-          class:view-btn-active={viewMode === 'scroll'}
-          onclick={() => { viewMode = 'scroll' }}
-          aria-label="테이블 보기"
-        >
-          ☰ 테이블
-        </button>
-        <button
-          type="button"
-          class="view-btn"
-          class:view-btn-active={viewMode === 'card'}
-          onclick={() => { viewMode = 'card' }}
-          aria-label="카드 보기"
-        >
-          ⊞ 카드
-        </button>
-      </div>
     </div>
   </div>
 
@@ -260,7 +239,6 @@
       emptyMessage={`${pageLabel} 메뉴가 없습니다`}
       preferInlineComponents={kind === 'takein'}
       enableSelection={kind === 'takeout'}
-      viewMode={viewMode}
     />
   </div>
 {/if}
@@ -335,28 +313,6 @@
   .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
   .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }
 
-  .view-toggle {
-    display: flex;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-  .view-btn {
-    padding: 5px 11px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: var(--bg);
-    border: none;
-    cursor: pointer;
-    transition: all 0.12s;
-    white-space: nowrap;
-  }
-  .view-btn:first-child { border-right: 1px solid var(--border); }
-  .view-btn:hover { background: var(--surface); color: var(--text); }
-  .view-btn-active { background: var(--surface-hover); color: var(--text); font-weight: 600; }
-
   .takeout-restaurant-group { min-width: min(100%, 260px); }
 
   .form-group { display: flex; flex-direction: column; gap: 5px; }
@@ -405,6 +361,5 @@
 
   @media (max-width: 640px) {
     .filter-row { gap: 8px; }
-    .view-toggle { margin-left: auto; }
   }
 </style>

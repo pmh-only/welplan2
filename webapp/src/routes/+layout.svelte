@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css'
+  import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { app } from '$lib/state.svelte'
@@ -11,6 +12,16 @@
     description: string
     robots: string
     keywords: string
+  }
+
+  type PageTip = {
+    title: string
+    items: string[]
+  }
+
+  type LayoutData = {
+    mealTimes?: MealTime[]
+    isFirstVisit: boolean
   }
 
   const INDEXABLE_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
@@ -36,7 +47,7 @@
   function routeMetaFor (pathname: string, mealTimes: MealTime[]): RouteMeta {
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
-      description: '웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다.',
+      description: '웰스토리 API | 웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다.',
       robots: INDEXABLE_ROBOTS,
       keywords: DEFAULT_KEYWORDS
     }
@@ -45,7 +56,7 @@
       return {
         ...baseMeta,
         title: '웰스토리 메뉴 갤러리 | 웰스토리·신세계푸드 식단 조회 | Welplan',
-        description: '웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서. 날짜와 식사 시간별 메뉴 사진과 영양정보를 빠르게 확인할 수 있습니다.'
+        description: '웰스토리 API | 웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다. 날짜와 식사 시간별 메뉴 사진과 영양정보를 빠르게 확인할 수 있습니다.'
       }
     }
 
@@ -83,7 +94,64 @@
     return baseMeta
   }
 
-  let { data, children } = $props()
+  function routeTipFor (pathname: string): PageTip {
+    if (pathname === '/' || pathname.startsWith('/gallery')) {
+      return {
+        title: '갤러리 팁',
+        items: [
+          '메뉴 이미지를 누르면 크게 확대해서 자세히 볼 수 있습니다.',
+          '날짜와 식사 시간을 바꾸면 다른 날 식단 사진도 바로 확인할 수 있습니다.'
+        ]
+      }
+    }
+
+    if (pathname.startsWith('/takein/')) {
+      return {
+        title: '테이크인 팁',
+        items: [
+          '식당 설정 탭에서 웰스토리/신세계푸드 식당을 추가할 수 있습니다.',
+          '테이블 헤더를 클릭하여 영양소 별로 정렬할 수 있습니다'
+        ]
+      }
+    }
+
+    if (pathname.startsWith('/takeout/')) {
+      return {
+        title: '테이크아웃 팁',
+        items: [
+          '식당 설정 탭에서 활성화한 식당을 여기서 볼 수 있습니다.',
+          '음료수 제외 필터를 켜 두면 실제 식사 메뉴만 더 쉽게 찾을 수 있습니다.'
+        ]
+      }
+    }
+
+    if (pathname.startsWith('/restaurants')) {
+      return {
+        title: '식당 설정 팁',
+        items: [
+          '식당 이름 일부만 입력해도 검색할 수 있어 원하는 식당을 빠르게 추가할 수 있습니다.',
+          '추가한 식당 목록은 저장되어 다음 방문 때도 그대로 유지됩니다.'
+        ]
+      }
+    }
+
+    if (pathname.startsWith('/settings')) {
+      return {
+        title: '설정 팁',
+        items: [
+          'P-Score는 낮을수록 좋은 점수라서 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.',
+          '메뉴가 오래된 것 같으면 캐시 상태를 확인하고 캐시 삭제로 새로고침할 수 있습니다.'
+        ]
+      }
+    }
+
+    return {
+      title: 'Welplan 팁',
+      items: ['상단 탭으로 갤러리, 테이크인, 테이크아웃, 식당 설정 화면을 빠르게 이동할 수 있습니다.']
+    }
+  }
+
+  let { data, children }: { data: LayoutData, children: Snippet } = $props()
 
   const navLinks = [
     { href: '/takein', label: '테이크 인', icon: '🍽️' },
@@ -122,6 +190,8 @@
   })
 
   const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? []))
+  const pageTip = $derived(routeTipFor(page.url.pathname))
+  const showFirstVisitGuide = $derived(data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
   const canonicalUrl = $derived(`${page.url.origin}${page.url.pathname}`)
 </script>
 
@@ -187,6 +257,32 @@
   </header>
 
   <div class="content" class:content-loading={showLoading} aria-busy={showLoading}>
+    {#if showFirstVisitGuide}
+      <section class="setup-banner" aria-label="첫 방문 안내">
+        <div class="setup-banner-icon" aria-hidden="true">🏪</div>
+        <div class="setup-banner-body">
+          <p class="setup-banner-title">처음 방문하셨다면 먼저 식당 설정을 해주세요</p>
+          <p class="setup-banner-text">
+            갤러리와 메뉴 화면은 식당 설정에 추가한 식당 기준으로 표시됩니다. 먼저 자주 사용하는
+            웰스토리 또는 신세계푸드 식당을 추가해 두면 더 정확하게 볼 수 있습니다.
+          </p>
+        </div>
+        <a class="setup-banner-link" href="/restaurants">식당 설정으로 이동</a>
+      </section>
+    {/if}
+
+    <aside class="page-tip" aria-label={pageTip.title}>
+      <div class="page-tip-icon" aria-hidden="true">💡</div>
+      <div class="page-tip-body">
+        <p class="page-tip-title">{pageTip.title}</p>
+        <ul class="page-tip-list">
+          {#each pageTip.items as item}
+            <li>{item}</li>
+          {/each}
+        </ul>
+      </div>
+    </aside>
+
     {@render children()}
   </div>
 </div>
@@ -334,6 +430,111 @@
     transition: opacity 0.18s ease, filter 0.18s ease;
   }
 
+  .setup-banner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 14px;
+    padding: 16px 18px;
+    border: 1px solid #86efac;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .setup-banner-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    font-size: 18px;
+  }
+
+  .setup-banner-body {
+    min-width: 0;
+  }
+
+  .setup-banner-title {
+    margin-bottom: 4px;
+    color: #166534;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .setup-banner-text {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .setup-banner-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #10b981;
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .setup-banner-link:hover {
+    background: #059669;
+  }
+
+  .page-tip {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .page-tip-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    font-size: 16px;
+  }
+
+  .page-tip-body {
+    min-width: 0;
+  }
+
+  .page-tip-title {
+    margin-bottom: 4px;
+    color: #1e3a8a;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .page-tip-list {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .page-tip-list li + li {
+    margin-top: 2px;
+  }
+
   .content-loading {
     opacity: 0.88;
     filter: saturate(0.96);
@@ -378,6 +579,16 @@
       transform: none;
     }
 
+    .setup-banner {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .setup-banner-link {
+      width: 100%;
+    }
+
     .header-inner { height: auto; padding: 10px 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
     .header-nav { width: 100%; overflow-x: auto; scrollbar-width: none; gap: 2px; }
     .header-nav::-webkit-scrollbar { display: none; }
@@ -385,5 +596,7 @@
     .tab-btn.active::after { bottom: -9px; }
     .brand-sub { display: none; }
     .content { padding: 14px 12px; }
+    .page-tip { grid-template-columns: 1fr; gap: 10px; }
+    .page-tip-icon { width: 30px; height: 30px; }
   }
 </style>
