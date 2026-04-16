@@ -20,6 +20,23 @@ export async function loadMenusForRoute(parent: ParentLoad, date: string, time: 
   return { menus, date, time }
 }
 
+export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
+  const { restaurants, mealTimes } = await parent()
+
+  const date = url.searchParams.get('date') ?? todayStr()
+  const mealTimeId =
+    url.searchParams.get('time') ?? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+  if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
+
+  const menus = await Promise.all(
+    restaurants.map((restaurant) =>
+      service.getMenus(restaurant.id, date, mealTimeId).catch(() => [])
+    )
+  ).then((results) => results.flat())
+
+  return { menus, date, time: mealTimeId }
+}
+
 function sumNutrition(components: MenuComponent[]): NutritionInfo | undefined {
   const withNutrition = components.filter((component) => component.nutrition)
   if (withNutrition.length === 0) return undefined

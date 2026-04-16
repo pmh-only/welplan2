@@ -3,13 +3,92 @@
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { app } from '$lib/state.svelte'
+  import type { MealTime } from '$lib/types'
+  import { formatKoreanDate } from '$lib/utils'
+
+  type RouteMeta = {
+    title: string
+    description: string
+    robots: string
+    keywords: string
+  }
+
+  const INDEXABLE_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+  const NOINDEX_ROBOTS = 'noindex, follow'
+  const DEFAULT_KEYWORDS = [
+    '웰스토리 식단 조회',
+    '웰스토리 식단',
+    '삼성웰스토리 메뉴',
+    '웰스토리 메뉴 조회',
+    '삼성웰스토리 식단',
+    '삼성전자 식단 조회',
+    '삼성전자 식단표',
+    '삼성전자 웰스토리 메뉴',
+    '신세계푸드 식단 조회',
+    '신세계푸드 메뉴 조회',
+    '신세계푸드 식단표'
+  ].join(', ')
+
+  function mealTimeName (mealTimes: MealTime[], id: string): string {
+    return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? id
+  }
+
+  function routeMetaFor (pathname: string, mealTimes: MealTime[]): RouteMeta {
+    const baseMeta: RouteMeta = {
+      title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
+      description: '웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다.',
+      robots: INDEXABLE_ROBOTS,
+      keywords: DEFAULT_KEYWORDS
+    }
+
+    if (pathname === '/' || pathname.startsWith('/gallery')) {
+      return {
+        ...baseMeta,
+        title: '웰스토리 메뉴 갤러리 | 웰스토리·신세계푸드 식단 조회 | Welplan',
+        description: '웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서. 날짜와 식사 시간별 메뉴 사진과 영양정보를 빠르게 확인할 수 있습니다.'
+      }
+    }
+
+    if (pathname.startsWith('/takein/') || pathname.startsWith('/takeout/')) {
+      const [, kind, date, time] = pathname.split('/')
+      const kindLabel = kind === 'takeout' ? '테이크아웃' : '테이크인'
+      const dateLabel = /^\d{8}$/.test(date) ? formatKoreanDate(date) : '오늘'
+      const mealLabel = time ? mealTimeName(mealTimes, time) : '식단'
+
+      return {
+        ...baseMeta,
+        title: `${dateLabel} ${mealLabel} ${kindLabel} 식단 조회 | Welplan`,
+        description: `${dateLabel} ${mealLabel} ${kindLabel} 메뉴를 Welplan에서 확인하세요. 삼성웰스토리와 신세계푸드 식단, 메뉴 구성, 영양정보를 한 번에 볼 수 있습니다.`
+      }
+    }
+
+    if (pathname.startsWith('/restaurants')) {
+      return {
+        ...baseMeta,
+        title: '식당 설정 | Welplan',
+        description: 'Welplan에서 조회할 삼성웰스토리·신세계푸드 식당을 추가하고 관리합니다.',
+        robots: NOINDEX_ROBOTS
+      }
+    }
+
+    if (pathname.startsWith('/settings')) {
+      return {
+        ...baseMeta,
+        title: '설정 | Welplan',
+        description: 'Welplan의 메뉴 점수와 캐시 상태를 관리합니다.',
+        robots: NOINDEX_ROBOTS
+      }
+    }
+
+    return baseMeta
+  }
 
   let { data, children } = $props()
 
   const navLinks = [
     { href: '/takein', label: '테이크 인', icon: '🍽️' },
     { href: '/takeout', label: '테이크 아웃', icon: '📦' },
-    { href: '/gallery', label: '갤러리', icon: '📸' },
+    { href: '/', label: '갤러리', icon: '📸' },
     { href: '/restaurants', label: '식당 설정', icon: '🏪' },
     { href: '/settings', label: '설정', icon: '⚙️' }
   ]
@@ -41,20 +120,39 @@
   onMount(() => {
     app.loadFromStorage()
   })
+
+  const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? []))
+  const canonicalUrl = $derived(`${page.url.origin}${page.url.pathname}`)
 </script>
 
 <svelte:head>
-  <title>Welplan</title>
+  <title>{routeMeta.title}</title>
+  <meta name="application-name" content="Welplan" />
+  <meta name="description" content={routeMeta.description} />
+  <meta name="keywords" content={routeMeta.keywords} />
+  <meta name="robots" content={routeMeta.robots} />
+  <meta name="theme-color" content="#0f172a" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:site_name" content="Welplan" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={routeMeta.title} />
+  <meta property="og:description" content={routeMeta.description} />
+  <meta property="og:url" content={canonicalUrl} />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content={routeMeta.title} />
+  <meta name="twitter:description" content={routeMeta.description} />
+  <link rel="canonical" href={canonicalUrl} />
+  <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
 </svelte:head>
 
 <div class="app">
   <header>
     <div class="header-inner">
-      <a href="/gallery" class="brand">
+      <a href="/" class="brand">
         <span class="brand-icon">🍽️</span>
         <div class="brand-text">
           <span class="brand-name">Welplan</span>
-          <span class="brand-sub">웰스토리 메뉴</span>
+          <span class="brand-sub">웰스토리 · 신세계푸드</span>
         </div>
       </a>
       <nav class="header-nav">
