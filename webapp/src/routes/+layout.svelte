@@ -256,6 +256,11 @@
     {/if}
   </header>
 
+  <div class="notice-bar" role="banner" aria-label="서비스 업데이트 공지">
+    <span class="notice-bar-badge">NEW</span>
+    이제 신세계푸드 식당(패밀리홀 등) 도 지원합니다!
+  </div>
+
   <div class="content" class:content-loading={showLoading} aria-busy={showLoading}>
     {#if showFirstVisitGuide}
       <section class="setup-banner" aria-label="첫 방문 안내">
@@ -289,6 +294,31 @@
 
 <style>
   .app { min-height: 100vh; }
+
+  .notice-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #7c3aed 0%, #4f46e5 50%, #0891b2 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .notice-bar-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
 
   .github-ribbon {
     position: fixed;
