@@ -5,9 +5,9 @@ import type {
   MenuComponent,
   Restaurant,
   Vendor
-} from '@welplan2/model'
-import { WelstoryPlusClient } from '@welplan2/welstory-plus'
-import { PlaneatChoiceClient } from '@welplan2/planeat-choice'
+} from '@pmh-only/welplan2-model'
+import { WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
+import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
 import { db } from './db/index.js'
 import {
   restaurants as restaurantsTable,

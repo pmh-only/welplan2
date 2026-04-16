@@ -23,7 +23,7 @@ importers:
 
   impl/planeat_choice:
     dependencies:
-      '@welplan2/model':
+      '@pmh-only/welplan2-model':
         specifier: workspace:*
         version: link:../../model
     devDependencies:
@@ -36,7 +36,7 @@ importers:
 
   impl/welstory_plus:
     dependencies:
-      '@welplan2/model':
+      '@pmh-only/welplan2-model':
         specifier: workspace:*
         version: link:../../model
     devDependencies:
@@ -55,21 +55,21 @@ importers:
 
   webapp:
     dependencies:
+      '@pmh-only/welplan2-model':
+        specifier: workspace:*
+        version: link:../model
+      '@pmh-only/welplan2-planeat-choice':
+        specifier: workspace:*
+        version: link:../impl/planeat_choice
+      '@pmh-only/welplan2-welstory-plus':
+        specifier: workspace:*
+        version: link:../impl/welstory_plus
       '@sveltejs/adapter-node':
         specifier: ^5.0.0
         version: 5.5.4(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(tsx@4.21.0)))
       '@sveltejs/kit':
         specifier: ^2.0.0
         version: 2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(tsx@4.21.0))
-      '@welplan2/model':
-        specifier: workspace:*
-        version: link:../model
-      '@welplan2/planeat-choice':
-        specifier: workspace:*
-        version: link:../impl/planeat_choice
-      '@welplan2/welstory-plus':
-        specifier: workspace:*
-        version: link:../impl/welstory_plus
       better-sqlite3:
         specifier: ^12.9.0
         version: 12.9.0

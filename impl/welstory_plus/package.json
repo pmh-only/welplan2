@@ -1,21 +1,36 @@
 {
-  "name": "@welplan2/welstory-plus",
+  "name": "@pmh-only/welplan2-welstory-plus",
   "version": "0.0.1",
-  "private": true,
+  "description": "TypeScript client for the Samsung Welstory Plus cafeteria API.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pmh-only/welplan2.git",
+    "directory": "impl/welstory_plus"
+  },
+  "homepage": "https://github.com/pmh-only/welplan2/tree/main/impl/welstory_plus",
+  "bugs": {
+    "url": "https://github.com/pmh-only/welplan2/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@welplan2/model": "workspace:*"
+    "@pmh-only/welplan2-model": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

@@ -1,9 +1,9 @@
-import type { CafeteriaClient, MealTime, Menu, Restaurant } from '@welplan2/model'
+import type { CafeteriaClient, MealTime, Menu, Restaurant } from '@pmh-only/welplan2-model'
 import type { PcDailyMenuItem, PcMealTimeEntry, PcStorTimeResponse, PcTreeNode } from './types.js'
 import { mapMealTime, mapMenu } from './mapper.js'
 
 export class PlaneatChoiceError extends Error {
-  constructor (
+  constructor(
     message: string,
     public readonly statusCode?: number
   ) {
@@ -27,18 +27,18 @@ export interface GetMenusParams {
   storCd: string
   orgTreeId: string
   mealCd: string
-  date: string  // YYYYMMDD
+  date: string // YYYYMMDD
 }
 
 export interface PlaneatChoiceClientOptions {
   baseUrl?: string
 }
 
-function getNodeName (node: PcTreeNode): string {
+function getNodeName(node: PcTreeNode): string {
   return node.title?.ko ?? node.data?.storNm ?? node.code
 }
 
-function flattenTree (nodes: PcTreeNode[], pathIndices: number[]): PcRestaurant[] {
+function flattenTree(nodes: PcTreeNode[], pathIndices: number[]): PcRestaurant[] {
   const results: PcRestaurant[] = []
 
   nodes.forEach((node, index) => {
@@ -65,7 +65,7 @@ function flattenTree (nodes: PcTreeNode[], pathIndices: number[]): PcRestaurant[
   return results
 }
 
-function unwrapList<T> (data: unknown): T[] {
+function unwrapList<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[]
   if (data !== null && typeof data === 'object') {
     const obj = data as Record<string, unknown>
@@ -77,18 +77,18 @@ function unwrapList<T> (data: unknown): T[] {
   return []
 }
 
-function asPcRestaurant (restaurant: Restaurant): PcRestaurant {
+function asPcRestaurant(restaurant: Restaurant): PcRestaurant {
   return restaurant as PcRestaurant
 }
 
 export class PlaneatChoiceClient implements CafeteriaClient {
   private readonly baseUrl: string
 
-  constructor (options: PlaneatChoiceClientOptions = {}) {
+  constructor(options: PlaneatChoiceClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? 'https://m.planeatchoice.net/v2'
   }
 
-  private async request<T> (path: string): Promise<T> {
+  private async request<T>(path: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`)
 
     if (!response.ok) {
@@ -101,17 +101,17 @@ export class PlaneatChoiceClient implements CafeteriaClient {
     return response.json() as Promise<T>
   }
 
-  async getRestaurantTree (): Promise<PcTreeNode[]> {
+  async getRestaurantTree(): Promise<PcTreeNode[]> {
     const raw = await this.request<unknown>('/storTree')
     return unwrapList<PcTreeNode>(raw)
   }
 
-  async getRestaurants (): Promise<PcRestaurant[]> {
+  async getRestaurants(): Promise<PcRestaurant[]> {
     const tree = await this.getRestaurantTree()
     return flattenTree(tree, [])
   }
 
-  async getMealTimes (restaurant: Restaurant): Promise<MealTime[]> {
+  async getMealTimes(restaurant: Restaurant): Promise<MealTime[]> {
     const { busiCd, compCd, storCd } = asPcRestaurant(restaurant)
     const raw = await this.request<PcStorTimeResponse>(
       `/storTime?busiCd=${busiCd}&compCd=${compCd}&storCd=${storCd}`
@@ -119,7 +119,7 @@ export class PlaneatChoiceClient implements CafeteriaClient {
     return (raw.mealData ?? []).map(mapMealTime)
   }
 
-  async getMenus (restaurant: Restaurant, date: string, mealTimeId: string): Promise<Menu[]> {
+  async getMenus(restaurant: Restaurant, date: string, mealTimeId: string): Promise<Menu[]> {
     const pc = asPcRestaurant(restaurant)
     const params: GetMenusParams = {
       busiCd: pc.busiCd,

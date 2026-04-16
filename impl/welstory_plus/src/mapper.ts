@@ -5,7 +5,7 @@ import type {
   MenuComponent,
   NutritionInfo,
   Restaurant
-} from '@welplan2/model'
+} from '@pmh-only/welplan2-model'
 import type { WpDish, WpMealTime, WpMenuDetail, WpMenuNutrient, WpRestaurant } from './types.js'
 
 // Nutrition values from the API are strings and may contain commas (e.g. "1,475")

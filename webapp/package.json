@@ -1,5 +1,5 @@
 {
-  "name": "@welplan2/webapp",
+  "name": "@pmh-only/welplan2-webapp",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
   "dependencies": {
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
-    "@welplan2/model": "workspace:*",
-    "@welplan2/planeat-choice": "workspace:*",
-    "@welplan2/welstory-plus": "workspace:*",
+    "@pmh-only/welplan2-model": "workspace:*",
+    "@pmh-only/welplan2-planeat-choice": "workspace:*",
+    "@pmh-only/welplan2-welstory-plus": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
     "svelte": "^5.0.0"

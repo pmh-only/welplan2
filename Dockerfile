@@ -15,7 +15,7 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm exec tsc -b --force && pnpm --filter @welplan2/webapp build
+RUN pnpm exec tsc -b --force && pnpm --filter @pmh-only/welplan2-webapp build
 
 FROM node:22-bookworm-slim AS runtime
 

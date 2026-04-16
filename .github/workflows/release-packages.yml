@@ -1,0 +1,138 @@
+name: Release Packages
+
+on:
+  push:
+    tags:
+      - 'model-v*'
+      - 'welstory-plus-v*'
+      - 'planeat-choice-v*'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish
+        required: true
+        type: choice
+        options:
+          - '@pmh-only/welplan2-model'
+          - '@pmh-only/welplan2-welstory-plus'
+          - '@pmh-only/welplan2-planeat-choice'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish selected package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@pmh-only'
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve package target
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            case "$INPUT_PACKAGE" in
+              @pmh-only/welplan2-model)
+                PACKAGE_NAME=@pmh-only/welplan2-model
+                PACKAGE_DIR=model
+                TAG_PREFIX=model-v
+                ;;
+              @pmh-only/welplan2-welstory-plus)
+                PACKAGE_NAME=@pmh-only/welplan2-welstory-plus
+                PACKAGE_DIR=impl/welstory_plus
+                TAG_PREFIX=welstory-plus-v
+                ;;
+              @pmh-only/welplan2-planeat-choice)
+                PACKAGE_NAME=@pmh-only/welplan2-planeat-choice
+                PACKAGE_DIR=impl/planeat_choice
+                TAG_PREFIX=planeat-choice-v
+                ;;
+              *)
+                echo "Unsupported package '$INPUT_PACKAGE'."
+                exit 1
+                ;;
+            esac
+          else
+            case "$REF_NAME" in
+              model-v*)
+                PACKAGE_NAME=@pmh-only/welplan2-model
+                PACKAGE_DIR=model
+                TAG_PREFIX=model-v
+                ;;
+              welstory-plus-v*)
+                PACKAGE_NAME=@pmh-only/welplan2-welstory-plus
+                PACKAGE_DIR=impl/welstory_plus
+                TAG_PREFIX=welstory-plus-v
+                ;;
+              planeat-choice-v*)
+                PACKAGE_NAME=@pmh-only/welplan2-planeat-choice
+                PACKAGE_DIR=impl/planeat_choice
+                TAG_PREFIX=planeat-choice-v
+                ;;
+              *)
+                echo "Unsupported tag '$REF_NAME'."
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "package_dir=$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
+          echo "tag_prefix=$TAG_PREFIX" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package metadata
+        id: metadata
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          PACKAGE_NAME: ${{ steps.target.outputs.package_name }}
+          PACKAGE_DIR: ${{ steps.target.outputs.package_dir }}
+          TAG_PREFIX: ${{ steps.target.outputs.tag_prefix }}
+        run: |
+          PACKAGE_JSON_NAME=$(node -p "JSON.parse(require('node:fs').readFileSync('./${PACKAGE_DIR}/package.json', 'utf8')).name")
+          PACKAGE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('./${PACKAGE_DIR}/package.json', 'utf8')).version")
+
+          if [ "$PACKAGE_JSON_NAME" != "$PACKAGE_NAME" ]; then
+            echo "Expected package '$PACKAGE_NAME' but found '$PACKAGE_JSON_NAME' in ${PACKAGE_DIR}/package.json."
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "push" ]; then
+            TAG_VERSION=${REF_NAME#${TAG_PREFIX}}
+            if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+              echo "Tag version '$TAG_VERSION' does not match ${PACKAGE_DIR}/package.json version '$PACKAGE_VERSION'."
+              exit 1
+            fi
+          fi
+
+          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build publishable packages
+        run: pnpm build
+
+      - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_NAME: ${{ steps.target.outputs.package_name }}
+        run: pnpm --filter "$PACKAGE_NAME" publish --no-git-checks

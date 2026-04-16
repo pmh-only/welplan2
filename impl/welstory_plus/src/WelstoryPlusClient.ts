@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import type { CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant } from '@welplan2/model'
+import type {
+  CafeteriaClient,
+  MealTime,
+  Menu,
+  MenuComponent,
+  Restaurant
+} from '@pmh-only/welplan2-model'
 import { AuthManager, WelstoryAuthError } from './AuthManager.js'
 import type {
   WpApiResponse,

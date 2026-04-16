@@ -1,4 +1,4 @@
-import type { MealTime, MealTypeName, Menu, NutritionInfo } from '@welplan2/model'
+import type { MealTime, MealTypeName, Menu, NutritionInfo } from '@pmh-only/welplan2-model'
 import type { PcDailyMenuItem, PcMealTimeEntry } from './types.js'
 import type { GetMenusParams, PcRestaurant } from './PlaneatChoiceClient.js'
 
@@ -11,7 +11,7 @@ const MEAL_TYPE_MAP: Record<string, MealTypeName> = {
   '6': 'dawn'
 }
 
-export function mapMealTime (raw: PcMealTimeEntry): MealTime {
+export function mapMealTime(raw: PcMealTimeEntry): MealTime {
   return {
     id: raw.mealCd,
     name: raw.mealCdNm,
@@ -19,7 +19,7 @@ export function mapMealTime (raw: PcMealTimeEntry): MealTime {
   }
 }
 
-function mapNutritionInfo (raw: PcDailyMenuItem): NutritionInfo {
+function mapNutritionInfo(raw: PcDailyMenuItem): NutritionInfo {
   return {
     calories: raw.calorie,
     carbohydrates: raw.carbohydrates,
@@ -35,7 +35,7 @@ function mapNutritionInfo (raw: PcDailyMenuItem): NutritionInfo {
   }
 }
 
-export function mapMenu (
+export function mapMenu(
   raw: PcDailyMenuItem,
   index: number,
   params: GetMenusParams,
