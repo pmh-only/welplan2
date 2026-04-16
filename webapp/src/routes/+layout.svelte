@@ -146,6 +146,19 @@
 </svelte:head>
 
 <div class="app">
+  <a
+    class="github-ribbon"
+    href="https://github.com/pmh-only/welplan2"
+    target="_blank"
+    rel="noreferrer"
+    aria-label="Open the Welplan GitHub repository and star the project"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
+    </svg>
+    <span>Star on GitHub</span>
+  </a>
+
   <header>
     <div class="header-inner">
       <a href="/" class="brand">
@@ -180,6 +193,41 @@
 
 <style>
   .app { min-height: 100vh; }
+
+  .github-ribbon {
+    position: fixed;
+    top: 18px;
+    right: -52px;
+    z-index: 140;
+    width: 196px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
+    color: #f8fafc;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transform: rotate(42deg);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.24);
+    transition: background 0.14s ease, box-shadow 0.14s ease;
+  }
+
+  .github-ribbon:hover {
+    background: linear-gradient(135deg, #111827 0%, #0f766e 100%);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
+  }
+
+  .github-ribbon svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
 
   header {
     background: #0f172a;
@@ -304,6 +352,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .github-ribbon {
+      transition: none;
+    }
+
     .route-progress-bar-primary,
     .route-progress-bar-secondary {
       animation: none;
@@ -316,6 +368,16 @@
   }
 
   @media (max-width: 640px) {
+    .github-ribbon {
+      top: auto;
+      right: 12px;
+      bottom: 12px;
+      width: auto;
+      padding: 10px 14px;
+      border-radius: 999px;
+      transform: none;
+    }
+
     .header-inner { height: auto; padding: 10px 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
     .header-nav { width: 100%; overflow-x: auto; scrollbar-width: none; gap: 2px; }
     .header-nav::-webkit-scrollbar { display: none; }
