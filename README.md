@@ -184,21 +184,19 @@ Published packages are stored in the GitHub Packages npm registry under the `@pm
 - `@pmh-only/welplan2-welstory-plus`
 - `@pmh-only/welplan2-planeat-choice`
 
-Tag-triggered release flow:
+Automatic release flow:
 
-1. Update the target package version in its `package.json`.
-2. Push the change to `main`.
-3. Create and push the matching tag:
-4. `model-v<version>` for `@pmh-only/welplan2-model`
-5. `welstory-plus-v<version>` for `@pmh-only/welplan2-welstory-plus`
-6. `planeat-choice-v<version>` for `@pmh-only/welplan2-planeat-choice`
-7. The workflow validates that the tag version matches the package version and publishes the selected package.
+1. Push changes to `main`, or run the workflow manually.
+2. The workflow generates a unique package version for that run.
+3. It publishes `@pmh-only/welplan2-model` first.
+4. It then publishes `@pmh-only/welplan2-welstory-plus` and `@pmh-only/welplan2-planeat-choice` with the matching model dependency version.
+5. All three packages are published with the `latest` dist-tag, so installs without an explicit version resolve to the newest published build.
 
-You can also run the workflow manually from the Actions tab and choose the package to publish.
+No manual version bump or git tag is required.
 
 Release note:
 
-`@pmh-only/welplan2-welstory-plus` and `@pmh-only/welplan2-planeat-choice` depend on `@pmh-only/welplan2-model`. If the model package version changes, publish `@pmh-only/welplan2-model` first so the client package dependency resolves in GitHub Packages.
+GitHub Packages still requires immutable package versions. This workflow hides that manual step by generating a unique internal version on every release while keeping the consumer-facing install target on `latest`.
 
 GitHub Packages note:
 

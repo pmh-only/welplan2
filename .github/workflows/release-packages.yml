@@ -2,20 +2,22 @@ name: Release Packages
 
 on:
   push:
-    tags:
-      - 'model-v*'
-      - 'welstory-plus-v*'
-      - 'planeat-choice-v*'
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-packages.yml'
+      - 'model/**'
+      - 'impl/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - 'tsconfig.base.json'
   workflow_dispatch:
-    inputs:
-      package:
-        description: Package to publish
-        required: true
-        type: choice
-        options:
-          - '@pmh-only/welplan2-model'
-          - '@pmh-only/welplan2-welstory-plus'
-          - '@pmh-only/welplan2-planeat-choice'
+
+concurrency:
+  group: release-packages
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -23,7 +25,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish selected package
+    name: Publish latest packages
     runs-on: ubuntu-latest
 
     steps:
@@ -44,95 +46,57 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Resolve package target
-        id: target
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF_NAME: ${{ github.ref_name }}
-          INPUT_PACKAGE: ${{ inputs.package }}
+      - name: Compute release version
+        id: version
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            case "$INPUT_PACKAGE" in
-              @pmh-only/welplan2-model)
-                PACKAGE_NAME=@pmh-only/welplan2-model
-                PACKAGE_DIR=model
-                TAG_PREFIX=model-v
-                ;;
-              @pmh-only/welplan2-welstory-plus)
-                PACKAGE_NAME=@pmh-only/welplan2-welstory-plus
-                PACKAGE_DIR=impl/welstory_plus
-                TAG_PREFIX=welstory-plus-v
-                ;;
-              @pmh-only/welplan2-planeat-choice)
-                PACKAGE_NAME=@pmh-only/welplan2-planeat-choice
-                PACKAGE_DIR=impl/planeat_choice
-                TAG_PREFIX=planeat-choice-v
-                ;;
-              *)
-                echo "Unsupported package '$INPUT_PACKAGE'."
-                exit 1
-                ;;
-            esac
-          else
-            case "$REF_NAME" in
-              model-v*)
-                PACKAGE_NAME=@pmh-only/welplan2-model
-                PACKAGE_DIR=model
-                TAG_PREFIX=model-v
-                ;;
-              welstory-plus-v*)
-                PACKAGE_NAME=@pmh-only/welplan2-welstory-plus
-                PACKAGE_DIR=impl/welstory_plus
-                TAG_PREFIX=welstory-plus-v
-                ;;
-              planeat-choice-v*)
-                PACKAGE_NAME=@pmh-only/welplan2-planeat-choice
-                PACKAGE_DIR=impl/planeat_choice
-                TAG_PREFIX=planeat-choice-v
-                ;;
-              *)
-                echo "Unsupported tag '$REF_NAME'."
-                exit 1
-                ;;
-            esac
-          fi
+          SHORT_SHA=$(git rev-parse --short=7 "$GITHUB_SHA")
+          RELEASE_VERSION="0.0.${GITHUB_RUN_NUMBER}-sha.${SHORT_SHA}.attempt.${GITHUB_RUN_ATTEMPT}"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing release version: $RELEASE_VERSION"
 
-          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-          echo "package_dir=$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
-          echo "tag_prefix=$TAG_PREFIX" >> "$GITHUB_OUTPUT"
-
-      - name: Verify package metadata
-        id: metadata
+      - name: Stamp package versions
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF_NAME: ${{ github.ref_name }}
-          PACKAGE_NAME: ${{ steps.target.outputs.package_name }}
-          PACKAGE_DIR: ${{ steps.target.outputs.package_dir }}
-          TAG_PREFIX: ${{ steps.target.outputs.tag_prefix }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
         run: |
-          PACKAGE_JSON_NAME=$(node -p "JSON.parse(require('node:fs').readFileSync('./${PACKAGE_DIR}/package.json', 'utf8')).name")
-          PACKAGE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('./${PACKAGE_DIR}/package.json', 'utf8')).version")
+          node <<'NODE'
+          const fs = require('node:fs')
 
-          if [ "$PACKAGE_JSON_NAME" != "$PACKAGE_NAME" ]; then
-            echo "Expected package '$PACKAGE_NAME' but found '$PACKAGE_JSON_NAME' in ${PACKAGE_DIR}/package.json."
-            exit 1
-          fi
+          const releaseVersion = process.env.RELEASE_VERSION
 
-          if [ "$EVENT_NAME" = "push" ]; then
-            TAG_VERSION=${REF_NAME#${TAG_PREFIX}}
-            if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-              echo "Tag version '$TAG_VERSION' does not match ${PACKAGE_DIR}/package.json version '$PACKAGE_VERSION'."
-              exit 1
-            fi
-          fi
+          function updatePackage(filePath, dependencyOverrides = {}) {
+            const pkg = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+            pkg.version = releaseVersion
+            if (pkg.dependencies) {
+              for (const [name, version] of Object.entries(dependencyOverrides)) {
+                pkg.dependencies[name] = version
+              }
+            }
+            fs.writeFileSync(filePath, `${JSON.stringify(pkg, null, 2)}\n`)
+          }
 
-          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          updatePackage('model/package.json')
+          updatePackage('impl/welstory_plus/package.json', {
+            '@pmh-only/welplan2-model': releaseVersion
+          })
+          updatePackage('impl/planeat_choice/package.json', {
+            '@pmh-only/welplan2-model': releaseVersion
+          })
+          NODE
 
       - name: Build publishable packages
         run: pnpm build
 
-      - name: Publish package
+      - name: Publish model package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_NAME: ${{ steps.target.outputs.package_name }}
-        run: pnpm --filter "$PACKAGE_NAME" publish --no-git-checks
+        run: pnpm --filter @pmh-only/welplan2-model publish --tag latest --no-git-checks
+
+      - name: Publish Welstory package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter @pmh-only/welplan2-welstory-plus publish --tag latest --no-git-checks
+
+      - name: Publish PlanEAT package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter @pmh-only/welplan2-planeat-choice publish --tag latest --no-git-checks
