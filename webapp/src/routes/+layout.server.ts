@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 
   for (const r of restaurants) service.registerRestaurant(r)
 
-  const mealTimes = await service.getAllMealTimes().catch(() => [])
+  const mealTimes = await service.getMealTimesForRestaurants(restaurants).catch(() => [])
 
   return { restaurants, mealTimes, isFirstVisit }
 }

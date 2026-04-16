@@ -25,6 +25,21 @@ class CafeteriaService {
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
 
+  private readRestaurants(): Restaurant[] {
+    return db
+      .select()
+      .from(restaurantsTable)
+      .all()
+      .map((row) => JSON.parse(row.data) as Restaurant)
+      .filter(
+        (r) =>
+          typeof r.id === 'string' &&
+          r.id.length > 0 &&
+          typeof r.name === 'string' &&
+          typeof r.vendor === 'string'
+      )
+  }
+
   private getWelstoryClient(): WelstoryPlusClient {
     this.welstory ??= new WelstoryPlusClient()
     return this.welstory
@@ -93,35 +108,16 @@ class CafeteriaService {
 
   async getRestaurants(): Promise<Restaurant[]> {
     await this.ensureCache()
-    return db
-      .select()
-      .from(restaurantsTable)
-      .all()
-      .map((row) => JSON.parse(row.data) as Restaurant)
+    return this.readRestaurants()
   }
 
   getUserSelectedRestaurants(): Restaurant[] {
     const selected = db.select().from(userSelectedRestaurants).all()
     const ids = new Set(selected.map((r) => r.restaurantId))
-    return db
-      .select()
-      .from(restaurantsTable)
-      .all()
-      .map((row) => JSON.parse(row.data) as Restaurant)
-      .filter((r) => ids.has(r.id))
+    return this.readRestaurants().filter((r) => ids.has(r.id))
   }
 
-  async getAllMealTimes(): Promise<MealTime[]> {
-    await this.ensureCache()
-    const rows = db.select().from(restaurantsTable).all()
-    const byVendor = new Map<string, Restaurant>()
-    for (const row of rows) {
-      const r = JSON.parse(row.data) as Restaurant
-      if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
-    }
-    const results = await Promise.allSettled(
-      [...byVendor.values()].map((r) => this.getMealTimes(r.id))
-    )
+  private mergeMealTimes(results: PromiseSettledResult<MealTime[]>[]): MealTime[] {
     const seen = new Set<string>()
     const merged: MealTime[] = []
     for (const result of results) {
@@ -134,6 +130,25 @@ class CafeteriaService {
       }
     }
     return merged
+  }
+
+  async getMealTimesForRestaurants(restaurants: Restaurant[]): Promise<MealTime[]> {
+    await this.ensureCache()
+    const uniqueRestaurants = [...new Map(restaurants.map((r) => [r.id, r])).values()]
+    const results = await Promise.allSettled(uniqueRestaurants.map((r) => this.getMealTimes(r.id)))
+    return this.mergeMealTimes(results)
+  }
+
+  async getAllMealTimes(): Promise<MealTime[]> {
+    await this.ensureCache()
+    const byVendor = new Map<string, Restaurant>()
+    for (const r of this.readRestaurants()) {
+      if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
+    }
+    const results = await Promise.allSettled(
+      [...byVendor.values()].map((r) => this.getMealTimes(r.id))
+    )
+    return this.mergeMealTimes(results)
   }
 
   async getMealTimes(restaurantId: string): Promise<MealTime[]> {
@@ -306,13 +321,21 @@ class CafeteriaService {
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
     const q = query.toLowerCase()
-    const rows = db.select().from(restaurantsTable).all()
-    const fromCache = rows
-      .map((row) => JSON.parse(row.data) as Restaurant)
-      .filter((r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q))
+    const fromCache = this.readRestaurants().filter(
+      (r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    )
     const fromWelstory = await Promise.resolve()
       .then(() => this.getWelstoryClient().searchRestaurants(query))
       .catch(() => [])
+      .then((restaurants) =>
+        restaurants.filter(
+          (r) =>
+            typeof r.id === 'string' &&
+            r.id.length > 0 &&
+            typeof r.name === 'string' &&
+            typeof r.vendor === 'string'
+        )
+      )
     const seen = new Set(fromCache.map((r) => r.id))
     return [...fromCache, ...fromWelstory.filter((r) => !seen.has(r.id))]
   }
