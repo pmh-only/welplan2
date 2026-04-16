@@ -77,12 +77,6 @@ class CafeteriaService {
 
   private async ensureCache(): Promise<void> {
     if (this.cacheLoaded) return
-    // Check if we already have restaurants in DB
-    const count = this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable))
-    if (count > 0) {
-      this.cacheLoaded = true
-      return
-    }
     if (this.cachePromise) return this.cachePromise
     this.cachePromise = this.populateCache().finally(() => {
       this.cachePromise = null
