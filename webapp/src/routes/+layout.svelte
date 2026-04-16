@@ -3,7 +3,6 @@
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { app } from '$lib/state.svelte'
-  import { buildJsonLd, buildSeo } from '$lib/seo'
 
   let { data, children } = $props()
 
@@ -42,48 +41,16 @@
   onMount(() => {
     app.loadFromStorage()
   })
-
-  const seo = $derived.by(() => buildSeo(page.url, data.mealTimes))
-  const jsonLd = $derived.by(() => JSON.stringify(buildJsonLd(page.url, seo)))
 </script>
 
 <svelte:head>
-  <title>{seo.title}</title>
-  <meta name="description" content={seo.description} />
-  <meta name="keywords" content={seo.keywords} />
-  <meta name="robots" content={seo.robots} />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <meta name="format-detection" content="telephone=no" />
-  <meta name="application-name" content="Welplan" />
-  <meta name="apple-mobile-web-app-title" content="Welplan" />
-  <link rel="canonical" href={seo.canonical} />
-  <link rel="alternate" hreflang="ko-KR" href={seo.canonical} />
-
-  <meta property="og:locale" content="ko_KR" />
-  <meta property="og:site_name" content="Welplan" />
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content={seo.title} />
-  <meta property="og:description" content={seo.description} />
-  <meta property="og:url" content={seo.canonical} />
-  <meta property="og:image" content={seo.image} />
-  <meta property="og:image:type" content="image/svg+xml" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content={seo.ogAlt} />
-
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content={seo.title} />
-  <meta name="twitter:description" content={seo.description} />
-  <meta name="twitter:image" content={seo.image} />
-  <meta name="twitter:image:alt" content={seo.ogAlt} />
-
-  <script type="application/ld+json">{@html jsonLd}</script>
+  <title>Welplan</title>
 </svelte:head>
 
 <div class="app">
   <header>
     <div class="header-inner">
-      <a href="/" class="brand">
+      <a href="/gallery" class="brand">
         <span class="brand-icon">🍽️</span>
         <div class="brand-text">
           <span class="brand-name">Welplan</span>
@@ -108,10 +75,9 @@
     {/if}
   </header>
 
-  <main class="content" class:content-loading={showLoading} aria-busy={showLoading}>
-    <h1 class="sr-only">{seo.heading}</h1>
+  <div class="content" class:content-loading={showLoading} aria-busy={showLoading}>
     {@render children()}
-  </main>
+  </div>
 </div>
 
 <style>
@@ -225,18 +191,6 @@
   .content-loading {
     opacity: 0.88;
     filter: saturate(0.96);
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   @keyframes route-progress-primary {
