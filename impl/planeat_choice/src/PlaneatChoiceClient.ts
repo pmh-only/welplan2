@@ -38,18 +38,25 @@ function getNodeName(node: PcTreeNode): string {
   return node.title?.ko ?? node.data?.storNm ?? node.code
 }
 
-function flattenTree(nodes: PcTreeNode[], pathIndices: number[]): PcRestaurant[] {
+function flattenTree(
+  nodes: PcTreeNode[],
+  pathIndices: number[],
+  pathNames: string[]
+): PcRestaurant[] {
   const results: PcRestaurant[] = []
 
   nodes.forEach((node, index) => {
     const currentPath = [...pathIndices, index]
+    const currentName = getNodeName(node)
+    const currentPathNames = currentName ? [...pathNames, currentName] : pathNames
     const d = node.data
 
     if (node.type === 'STOR' && d?.storCd && d?.busiCd && d?.compCd) {
       results.push({
         id: d.storCd,
-        name: getNodeName(node),
+        name: currentName,
         vendor: 'shinsegae', // all PlanEAT restaurants use PlaneatChoiceClient
+        path: pathNames,
         busiCd: d.busiCd,
         compCd: d.compCd,
         storCd: d.storCd,
@@ -58,7 +65,7 @@ function flattenTree(nodes: PcTreeNode[], pathIndices: number[]): PcRestaurant[]
     }
 
     if (node.children && node.children.length > 0) {
-      results.push(...flattenTree(node.children, currentPath))
+      results.push(...flattenTree(node.children, currentPath, currentPathNames))
     }
   })
 
@@ -108,7 +115,7 @@ export class PlaneatChoiceClient implements CafeteriaClient {
 
   async getRestaurants(): Promise<PcRestaurant[]> {
     const tree = await this.getRestaurantTree()
-    return flattenTree(tree, [])
+    return flattenTree(tree, [], [])
   }
 
   async getMealTimes(restaurant: Restaurant): Promise<MealTime[]> {

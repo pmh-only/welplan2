@@ -13,6 +13,7 @@ export interface WpRestaurant {
   restaurantId: string | null
   restaurantCode?: string | null
   restaurantName: string
+  restaurantDesc?: string | null
   mainDiv: string // 'Y' = main/selected
   orderSeq: number
   useBeacon: string

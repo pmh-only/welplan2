@@ -20,6 +20,10 @@
 
   const myIds = $derived(new Set(restaurants.map((r: Restaurant) => r.id)))
 
+  function pathText (restaurant: Restaurant) {
+    return restaurant.path?.filter(Boolean).join(' / ') ?? ''
+  }
+
   function saveRestaurants (next: Restaurant[]) {
     restaurants = next
     document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
@@ -91,7 +95,12 @@
       {#each restaurants as r (r.id)}
         <li class="rest-item">
           <div class="rest-info">
-            <span class="rest-name">{r.name}</span>
+            <div class="rest-copy">
+              <span class="rest-name">{r.name}</span>
+              {#if pathText(r)}
+                <span class="rest-path">{pathText(r)}</span>
+              {/if}
+            </div>
             <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
           </div>
           <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
@@ -133,7 +142,12 @@
           {@const added = myIds.has(r.id)}
           <li class="rest-item" class:rest-item-added={added}>
             <div class="rest-info">
-              <span class="rest-name">{r.name}</span>
+              <div class="rest-copy">
+                <span class="rest-name">{r.name}</span>
+                {#if pathText(r)}
+                  <span class="rest-path">{pathText(r)}</span>
+                {/if}
+              </div>
               <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
             </div>
             {#if added}
@@ -250,7 +264,9 @@
   .rest-item:hover { border-color: #cbd5e1; }
   .rest-item-added { opacity: 0.65; }
   .rest-info { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+  .rest-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .rest-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rest-path { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vendor-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
   .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
   .vendor-shinsegae { background: #fce7f3; color: #be185d; }

@@ -6,6 +6,7 @@ export interface Restaurant {
   id: string
   name: string
   vendor: Vendor
+  path?: string[]
 }
 
 export interface MealTime {

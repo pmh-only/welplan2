@@ -116,6 +116,22 @@ class CafeteriaService {
     return this.readRestaurants()
   }
 
+  async hydrateRestaurants(restaurants: Restaurant[]): Promise<Restaurant[]> {
+    await this.ensureCache()
+    const knownRestaurants = new Map(
+      this.readRestaurants().map((restaurant) => [restaurant.id, restaurant])
+    )
+    return restaurants.map((restaurant) => {
+      const knownRestaurant = knownRestaurants.get(restaurant.id)
+      if (!knownRestaurant) return restaurant
+      return {
+        ...restaurant,
+        ...knownRestaurant,
+        path: knownRestaurant.path ?? restaurant.path
+      }
+    })
+  }
+
   getUserSelectedRestaurants(): Restaurant[] {
     const selected = db.select().from(userSelectedRestaurants).all()
     const ids = new Set(selected.map((r) => r.restaurantId))
@@ -308,11 +324,25 @@ class CafeteriaService {
       .from(restaurantsTable)
       .where(eq(restaurantsTable.id, restaurant.id))
       .get()
-    if (!existing) {
-      db.insert(restaurantsTable)
-        .values({ id: restaurant.id, data: JSON.stringify(restaurant), cachedAt: this.now() })
-        .run()
-    }
+    const mergedRestaurant = existing
+      ? {
+          ...(JSON.parse(existing.data) as Restaurant),
+          ...restaurant,
+          path: restaurant.path ?? (JSON.parse(existing.data) as Restaurant).path
+        }
+      : restaurant
+
+    db.insert(restaurantsTable)
+      .values({
+        id: mergedRestaurant.id,
+        data: JSON.stringify(mergedRestaurant),
+        cachedAt: this.now()
+      })
+      .onConflictDoUpdate({
+        target: restaurantsTable.id,
+        set: { data: JSON.stringify(mergedRestaurant), cachedAt: this.now() }
+      })
+      .run()
     // Record anonymous user selection
     db.insert(userSelectedRestaurants)
       .values({ restaurantId: restaurant.id, lastSeenAt: this.now() })
@@ -327,7 +357,10 @@ class CafeteriaService {
     await this.ensureCache()
     const q = query.toLowerCase()
     const fromCache = this.readRestaurants().filter(
-      (r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q) ||
+        (r.path?.some((segment) => segment.toLowerCase().includes(q)) ?? false)
     )
     const fromWelstory = await Promise.resolve()
       .then(() => this.getWelstoryClient().searchRestaurants(query))

@@ -15,11 +15,32 @@ export function parseNum(val: string | null | undefined): number | undefined {
   return isNaN(n) ? undefined : n
 }
 
+function parseRestaurantPath(
+  description: string | null | undefined,
+  name: string
+): string[] | undefined {
+  if (!description) return undefined
+
+  const seen = new Set<string>()
+  const path = description
+    .split(/[|│]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== name)
+    .filter((segment) => {
+      if (seen.has(segment)) return false
+      seen.add(segment)
+      return true
+    })
+
+  return path.length > 0 ? path : undefined
+}
+
 export function mapRestaurant(raw: WpRestaurant): Restaurant {
   return {
     id: raw.restaurantId ?? raw.restaurantCode ?? '',
     name: raw.restaurantName,
-    vendor: 'welstory'
+    vendor: 'welstory',
+    path: parseRestaurantPath(raw.restaurantDesc, raw.restaurantName)
   }
 }
 
