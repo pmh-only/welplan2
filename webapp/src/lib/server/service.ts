@@ -6,6 +6,7 @@ import type {
   Restaurant,
   Vendor
 } from '@pmh-only/welplan2-model'
+import { env } from '$env/dynamic/private'
 import { WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
 import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
 import { db } from './db/index.js'
@@ -41,7 +42,11 @@ class CafeteriaService {
   }
 
   private getWelstoryClient(): WelstoryPlusClient {
-    this.welstory ??= new WelstoryPlusClient()
+    this.welstory ??= new WelstoryPlusClient({
+      username: env.WELSTORY_USERNAME,
+      password: env.WELSTORY_PASSWORD,
+      deviceId: env.WELSTORY_DEVICE_ID
+    })
     return this.welstory
   }
 

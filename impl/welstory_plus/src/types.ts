@@ -10,7 +10,8 @@ export interface WpApiResponse<T> {
 // GET /api/mypage/rest-list
 // GET /api/mypage/rest-my-list
 export interface WpRestaurant {
-  restaurantId: string
+  restaurantId: string | null
+  restaurantCode?: string | null
   restaurantName: string
   mainDiv: string // 'Y' = main/selected
   orderSeq: number

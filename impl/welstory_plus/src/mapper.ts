@@ -17,7 +17,7 @@ export function parseNum(val: string | null | undefined): number | undefined {
 
 export function mapRestaurant(raw: WpRestaurant): Restaurant {
   return {
-    id: raw.restaurantId,
+    id: raw.restaurantId ?? raw.restaurantCode ?? '',
     name: raw.restaurantName,
     vendor: 'welstory'
   }
