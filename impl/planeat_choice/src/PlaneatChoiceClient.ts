@@ -1,5 +1,5 @@
 import type { CafeteriaClient, MealTime, Menu, Restaurant } from '@pmh-only/welplan2-model'
-import type { PcDailyMenuItem, PcMealTimeEntry, PcStorTimeResponse, PcTreeNode } from './types.js'
+import type { PcDailyMenuItem, PcStorTimeResponse, PcTreeNode } from './types.js'
 import { mapMealTime, mapMenu } from './mapper.js'
 
 export class PlaneatChoiceError extends Error {

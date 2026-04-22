@@ -107,8 +107,9 @@ export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string,
 
   const menus = await Promise.all(
     data.menus.map(async (menu) => {
-      if (!(menu.vendor === 'welstory' && menu.isTakeOut && menu.hallNo && menu.courseType))
+      if (!(menu.vendor === 'welstory' && menu.isTakeOut && menu.hallNo && menu.courseType)) {
         return [menu]
+      }
 
       try {
         const detail = await service.getMenuNutrientDetail(
@@ -133,8 +134,9 @@ export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, 
 
   const menus = await Promise.all(
     data.menus.map(async (menu) => {
-      if (!(menu.vendor === 'welstory' && !menu.isTakeOut && menu.hallNo && menu.courseType))
+      if (!(menu.vendor === 'welstory' && !menu.isTakeOut && menu.hallNo && menu.courseType)) {
         return menu
+      }
 
       try {
         const detail = await service.getMenuNutrientDetail(

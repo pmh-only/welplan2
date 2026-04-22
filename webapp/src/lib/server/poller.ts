@@ -47,7 +47,9 @@ async function prefetch(): Promise<void> {
       }
     }
 
-    console.log(`[poller] prefetched ${fetched} menus across ${restaurants.length} restaurants at ${new Date().toISOString()}`)
+    console.log(
+      `[poller] prefetched ${fetched} menus across ${restaurants.length} restaurants at ${new Date().toISOString()}`
+    )
   } finally {
     running = false
   }

@@ -1,8 +1,17 @@
 <script lang="ts">
+  import { goto } from '$app/navigation'
   import '../app.css'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
+  import {
+    AGENT_SKILLS_INDEX_PATH,
+    API_CATALOG_PATH,
+    API_DOC_PATH,
+    OPENAPI_PATH,
+    WEB_MCP_TOOLS,
+    routeForAgentPage
+  } from '$lib/agent'
   import { app } from '$lib/state.svelte'
   import type { MealTime } from '$lib/types'
   import { formatKoreanDate } from '$lib/utils'
@@ -187,6 +196,95 @@
 
   onMount(() => {
     app.loadFromStorage()
+
+    const navigatorWithModelContext = navigator as Navigator & {
+      modelContext?: {
+        registerTool?: (
+          tool: {
+            name: string
+            title?: string
+            description: string
+            inputSchema?: Record<string, unknown>
+            execute: (input: Record<string, unknown>) => Promise<unknown>
+            annotations?: { readOnlyHint?: boolean }
+          },
+          options?: { signal?: AbortSignal }
+        ) => void
+      }
+    }
+
+    const modelContext = navigatorWithModelContext.modelContext
+    if (!modelContext?.registerTool) return
+
+    const controller = new AbortController()
+
+    function pageSummary () {
+      const headings = [...document.querySelectorAll('h1, h2, h3')]
+        .map((heading) => heading.textContent?.trim())
+        .filter(Boolean)
+      const bodyText = document.querySelector('.content')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+
+      return {
+        url: window.location.href,
+        path: window.location.pathname,
+        title: document.title,
+        headings,
+        text: bodyText.slice(0, 4000)
+      }
+    }
+
+    for (const tool of WEB_MCP_TOOLS) {
+      modelContext.registerTool(
+        {
+          name: tool.name,
+          title: tool.title,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          annotations: { readOnlyHint: tool.readOnlyHint },
+          execute: async (input: Record<string, unknown>) => {
+            switch (tool.name) {
+              case 'welplan.open-page': {
+                const pageName = typeof input.page === 'string' ? input.page : ''
+                const date = typeof input.date === 'string' ? input.date : undefined
+                const time = typeof input.time === 'string' ? input.time : undefined
+                const target = routeForAgentPage(pageName, date, time)
+                if (!target) throw new Error('Invalid page name')
+                await goto(target)
+                return { ok: true, url: new URL(target, window.location.origin).toString() }
+              }
+              case 'welplan.search-restaurants': {
+                const query = typeof input.query === 'string' ? input.query.trim() : ''
+                if (!query) throw new Error('query is required')
+
+                const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
+                if (!response.ok) throw new Error(`Search failed with status ${response.status}`)
+                return {
+                  query,
+                  results: await response.json()
+                }
+              }
+              case 'welplan.get-current-page':
+                return pageSummary()
+              case 'welplan.get-cache-status': {
+                const response = await fetch('/api/cache/status')
+                if (!response.ok) throw new Error(`Cache status failed with status ${response.status}`)
+                return {
+                  ...pageSummary(),
+                  cache: await response.json()
+                }
+              }
+              default:
+                throw new Error(`Unsupported tool '${tool.name}'`)
+            }
+          }
+        },
+        { signal: controller.signal }
+      )
+    }
+
+    return () => {
+      controller.abort()
+    }
   })
 
   const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? []))
@@ -213,6 +311,11 @@
   <meta name="twitter:description" content={routeMeta.description} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
+  <link rel="alternate" type="text/markdown" href={canonicalUrl} />
+  <link rel="api-catalog" href={API_CATALOG_PATH} />
+  <link rel="service-doc" href={API_DOC_PATH} />
+  <link rel="service-desc" href={OPENAPI_PATH} />
+  <link rel="describedby" href={AGENT_SKILLS_INDEX_PATH} />
 </svelte:head>
 
 <div class="app">

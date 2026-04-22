@@ -3,12 +3,12 @@ import type { PcDailyMenuItem, PcMealTimeEntry } from './types.js'
 import type { GetMenusParams, PcRestaurant } from './PlaneatChoiceClient.js'
 
 const MEAL_TYPE_MAP: Record<string, MealTypeName> = {
-  '1': 'breakfast',
-  '2': 'lunch',
-  '3': 'dinner',
-  '4': 'supper',
-  '5': 'snack',
-  '6': 'dawn'
+  1: 'breakfast',
+  2: 'lunch',
+  3: 'dinner',
+  4: 'supper',
+  5: 'snack',
+  6: 'dawn'
 }
 
 export function mapMealTime(raw: PcMealTimeEntry): MealTime {

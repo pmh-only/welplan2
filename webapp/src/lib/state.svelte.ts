@@ -14,7 +14,7 @@ export const DEFAULT_WEIGHTS: PScoreWeights = {
 class AppState {
   pWeights = $state<PScoreWeights>({ ...DEFAULT_WEIGHTS })
 
-  loadFromStorage (): void {
+  loadFromStorage(): void {
     if (!browser) return
     try {
       const s = localStorage.getItem(LS_PSCORE)
@@ -22,12 +22,14 @@ class AppState {
     } catch {}
   }
 
-  savePWeights (): void {
+  savePWeights(): void {
     if (!browser) return
-    try { localStorage.setItem(LS_PSCORE, JSON.stringify(this.pWeights)) } catch {}
+    try {
+      localStorage.setItem(LS_PSCORE, JSON.stringify(this.pWeights))
+    } catch {}
   }
 
-  resetWeights (): void {
+  resetWeights(): void {
     this.pWeights = { ...DEFAULT_WEIGHTS }
     this.savePWeights()
   }
