@@ -26,6 +26,109 @@ class CafeteriaService {
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
 
+  private normalizeSearchText(value: string): string {
+    return value.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim()
+  }
+
+  private compactSearchText(value: string): string {
+    return this.normalizeSearchText(value).replace(/\s+/g, '')
+  }
+
+  private collectSearchValues(value: unknown, values: Set<string>): void {
+    if (typeof value === 'string') {
+      const normalized = this.normalizeSearchText(value)
+      if (normalized) values.add(normalized)
+      return
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      values.add(String(value).toLowerCase())
+      return
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((entry) => this.collectSearchValues(entry, values))
+      return
+    }
+
+    if (value !== null && typeof value === 'object') {
+      Object.values(value).forEach((entry) => this.collectSearchValues(entry, values))
+    }
+  }
+
+  private isSubsequence(needle: string, haystack: string): boolean {
+    let index = 0
+    for (const ch of haystack) {
+      if (ch === needle[index]) index++
+      if (index === needle.length) return true
+    }
+    return needle.length === 0
+  }
+
+  private scoreSearchField(field: string, token: string): number {
+    if (!field || !token) return 0
+    if (field === token) return 500
+    if (field.startsWith(token)) return 300
+    if (field.includes(token)) return 200
+
+    const compactField = this.compactSearchText(field)
+    const compactToken = this.compactSearchText(token)
+
+    if (!compactField || !compactToken) return 0
+    if (compactField === compactToken) return 180
+    if (compactField.startsWith(compactToken)) return 140
+    if (compactField.includes(compactToken)) return 100
+    if (compactToken.length >= 2 && this.isSubsequence(compactToken, compactField)) return 60
+    return 0
+  }
+
+  private scoreRestaurantSearch(restaurant: Restaurant, query: string): number {
+    const normalizedQuery = this.normalizeSearchText(query)
+    if (!normalizedQuery) return 0
+
+    const tokens = normalizedQuery.split(' ').filter(Boolean)
+    const fields = new Set<string>()
+    this.collectSearchValues(restaurant, fields)
+
+    const searchableFields = [...fields]
+    if (searchableFields.length === 0) return 0
+
+    let score = 0
+    for (const token of tokens) {
+      let bestScore = 0
+      for (const field of searchableFields) {
+        bestScore = Math.max(bestScore, this.scoreSearchField(field, token))
+      }
+      if (bestScore === 0) return 0
+      score += bestScore
+    }
+
+    score += this.scoreSearchField(this.normalizeSearchText(restaurant.name), normalizedQuery)
+    score += this.scoreSearchField(this.normalizeSearchText(restaurant.id), normalizedQuery)
+
+    return score
+  }
+
+  private mergeSearchResults(query: string, ...groups: Restaurant[][]): Restaurant[] {
+    const merged = new Map<string, { restaurant: Restaurant; score: number }>()
+
+    for (const restaurants of groups) {
+      for (const restaurant of restaurants) {
+        const score = this.scoreRestaurantSearch(restaurant, query)
+        if (score === 0) continue
+
+        const existing = merged.get(restaurant.id)
+        if (!existing || score > existing.score) {
+          merged.set(restaurant.id, { restaurant, score })
+        }
+      }
+    }
+
+    return [...merged.values()]
+      .sort((a, b) => b.score - a.score || a.restaurant.name.localeCompare(b.restaurant.name, 'ko'))
+      .map((entry) => entry.restaurant)
+  }
+
   private readRestaurants(): Restaurant[] {
     return db
       .select()
@@ -355,13 +458,7 @@ class CafeteriaService {
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
-    const q = query.toLowerCase()
-    const fromCache = this.readRestaurants().filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q) ||
-        (r.path?.some((segment) => segment.toLowerCase().includes(q)) ?? false)
-    )
+    const fromCache = this.readRestaurants()
     const fromWelstory = await Promise.resolve()
       .then(() => this.getWelstoryClient().searchRestaurants(query))
       .catch(() => [])
@@ -374,8 +471,7 @@ class CafeteriaService {
             typeof r.vendor === 'string'
         )
       )
-    const seen = new Set(fromCache.map((r) => r.id))
-    return [...fromCache, ...fromWelstory.filter((r) => !seen.has(r.id))]
+    return this.mergeSearchResults(query, fromCache, fromWelstory)
   }
 }
 
