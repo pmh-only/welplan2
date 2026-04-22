@@ -320,6 +320,9 @@
               <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
             </td>
             <td class="col-name" data-label="메뉴">
+              {#if preferInlineComponents}
+                <span class="rest-tag rest-tag-mobile">{restaurantName(menu.restaurantId)}</span>
+              {/if}
               {#if parentName}
                 <span class="menu-parent">{parentName}</span>
               {/if}
@@ -778,6 +781,7 @@
   .thumb-placeholder { width: 52px; height: 52px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
 
   .rest-tag { font-size: 11px; color: var(--text-dim); }
+  .rest-tag-mobile { display: none; margin-bottom: 4px; }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
   .menu-name { font-weight: 500; color: var(--text); line-height: 1.4; }
   .menu-desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
@@ -814,6 +818,7 @@
 
   @media (max-width: 640px) {
     .hide-sm { display: none; }
+    .rest-tag-mobile { display: block; }
     .detail-row td { padding-left: 12px; }
 
     .selection-bar { padding-top: 0; }
