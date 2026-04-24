@@ -2,7 +2,38 @@
   import { goto } from '$app/navigation'
   import { app } from '$lib/state.svelte'
   import { pScore, pScoreColor, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
-  import type { Menu } from '$lib/types'
+  import type { Menu, NutritionInfo } from '$lib/types'
+
+  type NutritionKey = keyof NutritionInfo
+  type NutrientDef = { key: NutritionKey; label: string; unit: string }
+
+  const nutrientDefs: NutrientDef[] = [
+    { key: 'calories', label: '칼로리', unit: ' kcal' },
+    { key: 'carbohydrates', label: '탄수화물', unit: 'g' },
+    { key: 'sugar', label: '당', unit: 'g' },
+    { key: 'fiber', label: '식이섬유', unit: 'g' },
+    { key: 'fat', label: '지방', unit: 'g' },
+    { key: 'protein', label: '단백질', unit: 'g' },
+    { key: 'sodium', label: '나트륨', unit: 'mg' },
+    { key: 'cholesterol', label: '콜레스테롤', unit: 'mg' },
+    { key: 'saturatedFat', label: '포화지방', unit: 'g' },
+    { key: 'transFat', label: '트랜스지방', unit: 'g' },
+    { key: 'calcium', label: '칼슘', unit: 'mg' },
+  ]
+
+  function formatMetric (value: number | undefined, unit = ''): string {
+    if (value == null) return '—'
+    const rounded = Math.round(value * 10) / 10
+    const display = Number.isInteger(rounded)
+      ? rounded.toLocaleString()
+      : rounded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    return `${display}${unit}`
+  }
+
+  function activeNutrients (n: NutritionInfo | undefined): NutrientDef[] {
+    if (!n) return []
+    return nutrientDefs.filter(({ key }) => n[key] != null)
+  }
 
   let { data } = $props()
 
@@ -178,6 +209,16 @@
           <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
         {/if}
       </div>
+      {#if activeNutrients(zoomedMenu.nutrition).length > 0}
+        <div class="lightbox-nutrition">
+          {#each activeNutrients(zoomedMenu.nutrition) as { key, label, unit }}
+            <div class="nutr-cell">
+              <span class="nutr-label">{label}</span>
+              <span class="nutr-value">{formatMetric(zoomedMenu.nutrition?.[key], unit)}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
       <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">✕</button>
     </div>
   </div>
@@ -285,7 +326,7 @@
     background: white;
     box-shadow: 0 24px 64px rgba(0,0,0,0.5);
   }
-  .lightbox-img { width: 100%; max-height: 70vh; object-fit: contain; display: block; background: white; }
+  .lightbox-img { width: 100%; max-height: 55vh; object-fit: contain; display: block; background: white; }
   .lightbox-info {
     padding: 12px 16px;
     display: flex;
@@ -297,6 +338,39 @@
   .lightbox-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .lightbox-name { font-size: 15px; font-weight: 600; color: var(--text); }
   .lightbox-restaurant { font-size: 12px; color: var(--text-dim); }
+  .lightbox-nutrition {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 6px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .nutr-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 7px 6px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .nutr-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 3px;
+  }
+  .nutr-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--font-sans);
+    white-space: nowrap;
+  }
+
   .lightbox-close {
     position: absolute; top: 10px; right: 10px;
     width: 32px; height: 32px;
