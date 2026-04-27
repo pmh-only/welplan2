@@ -28,11 +28,25 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
     url.searchParams.get('time') ?? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
   if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
 
-  const menus = await Promise.all(
+  const rawMenus = await Promise.all(
     restaurants.map((restaurant) =>
       service.getMenus(restaurant.id, date, mealTimeId).catch(() => [])
     )
   ).then((results) => results.flat())
+
+  const menus = await Promise.all(
+    rawMenus.map(async (menu) => {
+      if (!(menu.vendor === 'welstory' && !menu.isTakeOut && menu.hallNo && menu.courseType && menu.imageUrl)) {
+        return menu
+      }
+      try {
+        const detail = await service.getMenuNutrientDetail(menu.restaurantId, date, mealTimeId, menu.hallNo, menu.courseType)
+        return { ...menu, components: detail }
+      } catch {
+        return menu
+      }
+    })
+  )
 
   return { menus, date, time: mealTimeId }
 }

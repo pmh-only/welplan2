@@ -2,7 +2,8 @@
   import { goto } from '$app/navigation'
   import { app } from '$lib/state.svelte'
   import { pScore, pScoreColor, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
-  import type { Menu, NutritionInfo } from '$lib/types'
+  import type { Menu, MenuComponent, NutritionInfo } from '$lib/types'
+  import type { PageData } from './$types'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -35,14 +36,64 @@
     return nutrientDefs.filter(({ key }) => n[key] != null)
   }
 
-  let { data } = $props()
+  let { data }: { data: PageData } = $props()
 
   let showLabels = $state(true)
   let sortBy = $state<'pscore-asc' | 'pscore-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('pscore-asc')
   let zoomedMenu = $state<(Menu & { restaurantIds: string[] }) | null>(null)
+  let detail = $state<MenuComponent[]>([])
+  let loadingDetail = $state(false)
 
-  function openZoom (menu: Menu) { zoomedMenu = menu }
-  function closeZoom () { zoomedMenu = null }
+  function normalizeMenuName (name: string): string {
+    return name.replace(/\s*포장$/, '').trim()
+  }
+
+  function detailRowsFor (menu: Menu): MenuComponent[] {
+    if (detail.length <= 1) return detail
+    const normalizedMenuName = normalizeMenuName(menu.name)
+    const rows = detail.filter((dish) => !(normalizeMenuName(dish.name) === normalizedMenuName && dish.nutrition?.calories === 0))
+    return rows.length > 0 ? rows : detail
+  }
+
+  function sortedByPScore (components: MenuComponent[]): MenuComponent[] {
+    return [...components].sort((a, b) => {
+      const aScore = pScore(a.nutrition, app.pWeights)
+      const bScore = pScore(b.nutrition, app.pWeights)
+      if (aScore === null && bScore === null) return 0
+      if (aScore === null) return 1
+      if (bScore === null) return -1
+      return bScore - aScore
+    })
+  }
+
+  function activeDetailNutrients (rows: MenuComponent[]): NutrientDef[] {
+    return nutrientDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
+  }
+
+  async function openZoom (menu: Menu & { restaurantIds: string[] }) {
+    zoomedMenu = menu
+    detail = []
+    loadingDetail = false
+
+    if (menu.vendor === 'welstory' && menu.hallNo && menu.courseType) {
+      loadingDetail = true
+      try {
+        const params = new URLSearchParams({
+          date: selectedDate,
+          mealTimeId: selectedTime,
+          hallNo: menu.hallNo,
+          courseType: menu.courseType,
+          nutrient: '1'
+        })
+        const res = await fetch(`/proxy/${menu.restaurantId}/menus/detail?${params}`)
+        if (res.ok) detail = await res.json()
+      } finally {
+        loadingDetail = false
+      }
+    }
+  }
+
+  function closeZoom () { zoomedMenu = null; detail = [] }
 
   function onKeydown (e: KeyboardEvent) {
     if (zoomedMenu && e.key === 'Escape') closeZoom()
@@ -168,6 +219,9 @@
             {#if showLabels}
               <div class="gallery-info">
                 <span class="gallery-name">{menu.name}</span>
+                {#if menu.components.length > 0}
+                  <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                {/if}
                 <div class="gallery-meta">
                   {#if ps !== null}
                     <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
@@ -199,26 +253,75 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
-      <div class="lightbox-info">
-        <div class="lightbox-text">
-          <span class="lightbox-name">{zoomedMenu.name}</span>
-          <span class="lightbox-restaurant">{restaurantNames(zoomedMenu.restaurantIds)}</span>
+      <div class="lightbox-left">
+        <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        <div class="lightbox-info">
+          <div class="lightbox-text">
+            <span class="lightbox-name">{zoomedMenu.name}</span>
+            {#if zoomedMenu.components.length > 0}
+              <span class="lightbox-components">{sortedByPScore(zoomedMenu.components).map((c) => c.name).join(' · ')}</span>
+            {/if}
+            <span class="lightbox-restaurant">{restaurantNames(zoomedMenu.restaurantIds)}</span>
+          </div>
+          {#if ps !== null}
+            <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+          {/if}
         </div>
-        {#if ps !== null}
-          <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+      </div>
+      <div class="lightbox-right">
+        {#if activeNutrients(zoomedMenu.nutrition).length > 0}
+          <div class="lightbox-nutrition">
+            {#each activeNutrients(zoomedMenu.nutrition) as { key, label, unit }}
+              <div class="nutr-cell">
+                <span class="nutr-label">{label}</span>
+                <span class="nutr-value">{formatMetric(zoomedMenu.nutrition?.[key], unit)}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        {#if loadingDetail}
+          <div class="detail-loading">
+            {#each Array(3) as _}
+              <div class="shimmer"></div>
+            {/each}
+          </div>
+        {:else if detail.length > 0}
+          {@const detailRows = detailRowsFor(zoomedMenu)}
+          {@const detailMetrics = activeDetailNutrients(detailRows)}
+          <div class="detail-table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th class="detail-col-name">항목</th>
+                  <th class="detail-col-ps">P-Score</th>
+                  {#each detailMetrics as { label }}
+                    <th class="detail-col-num">{label}</th>
+                  {/each}
+                </tr>
+              </thead>
+              <tbody>
+                {#each detailRows as dish}
+                  {@const dn = dish.nutrition}
+                  {@const dps = pScore(dn, app.pWeights)}
+                  <tr>
+                    <td class="detail-col-name dish-name">{dish.name}</td>
+                    <td class="detail-col-ps">
+                      {#if dps !== null}
+                        <span class="ps-badge {pScoreColor(dps)}">{dps}</span>
+                      {:else}
+                        <span class="ps-na">—</span>
+                      {/if}
+                    </td>
+                    {#each detailMetrics as { key, unit }}
+                      <td class="detail-col-num">{formatMetric(dn?.[key], unit)}</td>
+                    {/each}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         {/if}
       </div>
-      {#if activeNutrients(zoomedMenu.nutrition).length > 0}
-        <div class="lightbox-nutrition">
-          {#each activeNutrients(zoomedMenu.nutrition) as { key, label, unit }}
-            <div class="nutr-cell">
-              <span class="nutr-label">{label}</span>
-              <span class="nutr-value">{formatMetric(zoomedMenu.nutrition?.[key], unit)}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
       <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">✕</button>
     </div>
   </div>
@@ -301,6 +404,8 @@
     background: white;
     cursor: zoom-in;
     transition: transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    flex-direction: column;
   }
   .gallery-card:hover {
     transform: translateY(-2px);
@@ -315,35 +420,52 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 24px;
   }
   .lightbox-inner {
     position: relative;
-    max-width: 640px;
-    width: 100%;
+    width: calc(100vw - 48px);
+    max-width: 960px;
+    max-height: calc(100vh - 48px);
     border-radius: var(--radius);
-    overflow: hidden;
     background: white;
     box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    display: flex;
+    overflow: hidden;
   }
-  .lightbox-img { width: 100%; max-height: 55vh; object-fit: contain; display: block; background: white; }
+  .lightbox-left {
+    width: 45%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .lightbox-right {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+  }
+  .lightbox-img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; background: var(--surface); }
   .lightbox-info {
     padding: 12px 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
     border-top: 1px solid var(--border);
+    flex: 1;
   }
   .lightbox-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .lightbox-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .lightbox-components { display: block; font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
   .lightbox-restaurant { font-size: 12px; color: var(--text-dim); }
   .lightbox-nutrition {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 6px;
     padding: 10px 16px 14px;
-    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
   .nutr-cell {
@@ -371,7 +493,23 @@
     white-space: nowrap;
   }
 
-  .lightbox-close {
+  .detail-loading { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 6px; background: var(--surface); border-top: 1px solid var(--border); }
+  .shimmer { height: 13px; border-radius: 3px; background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .detail-table-wrap { overflow-x: auto; border-top: 1px solid var(--border); background: var(--surface); }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .detail-table thead tr { border-bottom: 1px solid var(--border); }
+  .detail-table th { padding: 7px 8px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+  .detail-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .detail-table tbody tr:last-child td { border-bottom: none; }
+  .detail-col-name { min-width: 140px; }
+  .detail-col-ps { width: 72px; text-align: center; }
+  .detail-col-num { width: 80px; text-align: right; font-family: var(--font-sans); white-space: nowrap; }
+  .dish-name { color: var(--text-muted); }
+  .ps-na { color: var(--text-dim); font-size: 12px; }
+
+.lightbox-close {
     position: absolute; top: 10px; right: 10px;
     width: 32px; height: 32px;
     border-radius: 50%;
@@ -390,9 +528,10 @@
   .gallery-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.2s; }
   .gallery-card:hover .gallery-img { transform: scale(1.04); }
 
-  .gallery-info { padding: 9px 10px; background: white; border-top: 1px solid var(--border); }
-  .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 5px; line-height: 1.4; }
-  .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .gallery-info { padding: 9px 10px; background: white; border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
+  .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
+  .gallery-components { display: block; font-size: 10px; color: var(--text-dim); line-height: 1.4; margin-bottom: 5px; }
+  .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }
   .gallery-restaurant { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
@@ -403,5 +542,8 @@
   @media (max-width: 640px) {
     .controls { width: 100%; }
     .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 12px; }
+    .lightbox-inner { flex-direction: column; width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; }
+    .lightbox-left { width: 100%; border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
+    .lightbox-right { overflow-y: visible; }
   }
 </style>
