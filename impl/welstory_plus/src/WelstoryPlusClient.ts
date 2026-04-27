@@ -7,6 +7,7 @@ import type {
   Restaurant
 } from '@pmh-only/welplan2-model'
 import { AuthManager, WelstoryAuthError } from './AuthManager.js'
+import { createLogger } from './log.js'
 import type {
   WpApiResponse,
   WpDish,
@@ -34,6 +35,9 @@ export class WelstoryPlusError extends Error {
     this.name = 'WelstoryPlusError'
   }
 }
+
+const trafficLog = createLogger('traffic')
+const authLog = createLogger('auth')
 
 export interface WelstoryPlusClientOptions {
   username?: string
@@ -114,20 +118,55 @@ export class WelstoryPlusClient implements CafeteriaClient {
       let lastError: unknown
 
       for (let attempt = 0; attempt < 2; attempt++) {
+        const startedAt = Date.now()
+        const method = init.method ?? 'GET'
+        const attemptNo = attempt + 1
+        const requestBodyBytes = typeof init.body === 'string' ? init.body.length : undefined
+
         try {
           const token = attempt === 0 ? await this.auth.getToken() : await this.auth.forceLogin()
+
+          trafficLog.info('outbound request started', {
+            vendor: 'welstory',
+            method,
+            path,
+            attempt: attemptNo,
+            requestBodyBytes
+          })
 
           const response = await fetch(`${this.baseUrl}${path}`, {
             ...init,
             headers: buildHeaders(token)
           })
           const text = await response.text()
+
+          trafficLog.info('outbound request completed', {
+            vendor: 'welstory',
+            method,
+            path,
+            attempt: attemptNo,
+            status: response.status,
+            ok: response.ok,
+            durationMs: Date.now() - startedAt,
+            responseBytes: text.length
+          })
+
           const shouldRelogin =
             response.status === 401 ||
             response.status === 403 ||
             (response.ok && looksLikeHtmlResponse(response, text))
 
           if (shouldRelogin) {
+            authLog.warn('request requires new login', {
+              path,
+              attempt: attemptNo,
+              status: response.status,
+              durationMs: Date.now() - startedAt,
+              reason:
+                response.status === 401 || response.status === 403
+                  ? 'auth_status'
+                  : 'html_session_response'
+            })
             const error = new WelstoryAuthError(
               response.status === 401 || response.status === 403
                 ? `Auth failed: ${response.status} ${response.statusText}`
@@ -155,6 +194,14 @@ export class WelstoryPlusClient implements CafeteriaClient {
           }
         } catch (error) {
           lastError = error
+          trafficLog.warn('outbound request failed', {
+            vendor: 'welstory',
+            method,
+            path,
+            attempt: attemptNo,
+            durationMs: Date.now() - startedAt,
+            error
+          })
           if (attempt === 0 && error instanceof WelstoryAuthError) continue
           throw error
         }

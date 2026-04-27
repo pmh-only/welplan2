@@ -1,3 +1,5 @@
+import { createLogger } from './log.js'
+
 export class WelstoryAuthError extends Error {
   constructor(
     message: string,
@@ -33,6 +35,8 @@ export class AuthManager {
   private tokenExp: number | null = null
   private pendingAuth: Promise<void> | null = null
 
+  private readonly authLog = createLogger('auth')
+
   constructor(private readonly options: AuthManagerOptions) {}
 
   get deviceId(): string {
@@ -50,58 +54,112 @@ export class AuthManager {
   }
 
   private async doLogin(): Promise<void> {
-    const response = await fetch(`${this.options.baseUrl}/login`, {
-      method: 'POST',
-      headers: {
-        'User-Agent': 'Welplus',
-        'X-Device-Id': this.options.deviceId,
-        'X-Autologin': 'N',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        username: this.options.username,
-        password: this.options.password,
-        'remember-me': 'false'
-      }).toString()
-    })
+    const startedAt = Date.now()
+    this.authLog.info('login started')
 
-    if (!response.ok) {
-      throw new WelstoryAuthError(
-        `Login failed: ${response.status} ${response.statusText}`,
-        response.status
-      )
+    try {
+      const response = await fetch(`${this.options.baseUrl}/login`, {
+        method: 'POST',
+        headers: {
+          'User-Agent': 'Welplus',
+          'X-Device-Id': this.options.deviceId,
+          'X-Autologin': 'N',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          username: this.options.username,
+          password: this.options.password,
+          'remember-me': 'false'
+        }).toString()
+      })
+
+      if (!response.ok) {
+        this.authLog.warn('login failed', {
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
+        throw new WelstoryAuthError(
+          `Login failed: ${response.status} ${response.statusText}`,
+          response.status
+        )
+      }
+
+      const authHeader = response.headers.get('Authorization')
+      if (!authHeader) {
+        this.authLog.warn('login response missing authorization header', {
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
+        throw new WelstoryAuthError('No Authorization header in login response')
+      }
+
+      this.setToken(authHeader)
+      this.authLog.info('login succeeded', {
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+        expiresAt: this.tokenExp
+      })
+    } catch (error) {
+      if (!(error instanceof WelstoryAuthError)) {
+        this.authLog.warn('login request failed', {
+          durationMs: Date.now() - startedAt,
+          error
+        })
+      }
+      throw error
     }
-
-    const authHeader = response.headers.get('Authorization')
-    if (!authHeader) throw new WelstoryAuthError('No Authorization header in login response')
-
-    this.setToken(authHeader)
   }
 
   private async doRefresh(): Promise<void> {
-    const response = await fetch(`${this.options.baseUrl}/session`, {
-      headers: {
-        'User-Agent': 'Welplus',
-        'X-Device-Id': this.options.deviceId,
-        Authorization: this.token!
-      }
-    })
-
-    if (!response.ok) {
-      // Fallback to full login if session refresh fails
-      await this.doLogin()
-      return
-    }
+    const startedAt = Date.now()
+    this.authLog.info('session refresh started')
 
     try {
-      const body = (await response.json()) as { data: string }
-      if (!body.data) throw new WelstoryAuthError('No data field in session refresh response')
-      this.setToken(body.data)
-    } catch (error) {
-      if (error instanceof SyntaxError || error instanceof WelstoryAuthError) {
-        // Welstory sometimes returns a logged-out or malformed refresh response; recover with a full login.
+      const response = await fetch(`${this.options.baseUrl}/session`, {
+        headers: {
+          'User-Agent': 'Welplus',
+          'X-Device-Id': this.options.deviceId,
+          Authorization: this.token!
+        }
+      })
+
+      if (!response.ok) {
+        this.authLog.warn('session refresh failed, falling back to login', {
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
+        // Fallback to full login if session refresh fails
         await this.doLogin()
         return
+      }
+
+      try {
+        const body = (await response.json()) as { data: string }
+        if (!body.data) throw new WelstoryAuthError('No data field in session refresh response')
+        this.setToken(body.data)
+        this.authLog.info('session refresh succeeded', {
+          status: response.status,
+          durationMs: Date.now() - startedAt,
+          expiresAt: this.tokenExp
+        })
+      } catch (error) {
+        if (error instanceof SyntaxError || error instanceof WelstoryAuthError) {
+          this.authLog.warn('session refresh returned unusable data, falling back to login', {
+            durationMs: Date.now() - startedAt,
+            error
+          })
+          // Welstory sometimes returns a logged-out or malformed refresh response; recover with a full login.
+          await this.doLogin()
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      if (!(error instanceof WelstoryAuthError)) {
+        this.authLog.warn('session refresh request failed', {
+          durationMs: Date.now() - startedAt,
+          error
+        })
       }
       throw error
     }
@@ -110,11 +168,17 @@ export class AuthManager {
   async getToken(): Promise<string> {
     // If an auth operation is already in flight, wait for it
     if (this.pendingAuth) {
+      this.authLog.debug('waiting for in-flight auth operation')
       await this.pendingAuth
       return this.token!
     }
 
-    if (this.token && !this.isExpiringSoon()) return this.token
+    if (this.token && !this.isExpiringSoon()) {
+      this.authLog.debug('using cached token')
+      return this.token
+    }
+
+    this.authLog.info(this.token ? 'refreshing expiring token' : 'requesting initial token')
 
     const op = this.token ? this.doRefresh() : this.doLogin()
     this.pendingAuth = op.finally(() => {
@@ -125,6 +189,7 @@ export class AuthManager {
   }
 
   async forceLogin(): Promise<string> {
+    this.authLog.info('forcing new login')
     this.token = null
     this.tokenExp = null
     this.pendingAuth = this.doLogin().finally(() => {

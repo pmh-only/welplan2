@@ -1,5 +1,6 @@
 import type { CafeteriaClient, MealTime, Menu, Restaurant } from '@pmh-only/welplan2-model'
 import type { PcDailyMenuItem, PcStorTimeResponse, PcTreeNode } from './types.js'
+import { createLogger } from './log.js'
 import { mapMealTime, mapMenu } from './mapper.js'
 
 export class PlaneatChoiceError extends Error {
@@ -11,6 +12,8 @@ export class PlaneatChoiceError extends Error {
     this.name = 'PlaneatChoiceError'
   }
 }
+
+const trafficLog = createLogger('traffic')
 
 // Extends the common Restaurant with PlanEAT-specific fields required for subsequent calls
 export interface PcRestaurant extends Restaurant {
@@ -96,16 +99,51 @@ export class PlaneatChoiceClient implements CafeteriaClient {
   }
 
   private async request<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`)
+    const startedAt = Date.now()
+    const method = 'GET'
 
-    if (!response.ok) {
-      throw new PlaneatChoiceError(
-        `HTTP ${response.status}: ${response.statusText}`,
-        response.status
-      )
+    trafficLog.info('outbound request started', {
+      vendor: 'planeat',
+      method,
+      path
+    })
+
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`)
+      const text = await response.text()
+
+      trafficLog.info('outbound request completed', {
+        vendor: 'planeat',
+        method,
+        path,
+        status: response.status,
+        ok: response.ok,
+        durationMs: Date.now() - startedAt,
+        responseBytes: text.length
+      })
+
+      if (!response.ok) {
+        throw new PlaneatChoiceError(
+          `HTTP ${response.status}: ${response.statusText}`,
+          response.status
+        )
+      }
+
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        throw new PlaneatChoiceError('Invalid JSON response')
+      }
+    } catch (error) {
+      trafficLog.warn('outbound request failed', {
+        vendor: 'planeat',
+        method,
+        path,
+        durationMs: Date.now() - startedAt,
+        error
+      })
+      throw error
     }
-
-    return response.json() as Promise<T>
   }
 
   async getRestaurantTree(): Promise<PcTreeNode[]> {

@@ -31,16 +31,22 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 
 ## Environment Variables
 
-| Variable             | Required     | Default        | Description                                                  |
-| -------------------- | ------------ | -------------- | ------------------------------------------------------------ |
-| `WELSTORY_USERNAME`  | For Welstory | none           | Welstory Plus login ID.                                      |
-| `WELSTORY_PASSWORD`  | For Welstory | none           | Welstory Plus password.                                      |
-| `WELSTORY_DEVICE_ID` | No           | generated UUID | Optional device identifier sent to Welstory.                 |
-| `DB_PATH`            | No           | `cache.db`     | SQLite database path used by the web app and Drizzle config. |
-| `HOST`               | No           | `0.0.0.0`      | Host used by the production Node server.                     |
-| `PORT`               | No           | `3000`         | Port used by the production Node server.                     |
+| Variable               | Required     | Default        | Description                                                            |
+| ---------------------- | ------------ | -------------- | ---------------------------------------------------------------------- |
+| `WELSTORY_USERNAME`    | For Welstory | none           | Welstory Plus login ID.                                                |
+| `WELSTORY_PASSWORD`    | For Welstory | none           | Welstory Plus password.                                                |
+| `WELSTORY_DEVICE_ID`   | No           | generated UUID | Optional device identifier sent to Welstory.                           |
+| `WELPLAN_VERBOSE_LOGS` | No           | off            | Enables all verbose server, sync, traffic, and auth logs.              |
+| `WELPLAN_SYNC_LOGS`    | No           | off            | Enables detailed cache warmup, cache hit/miss, and poller logs.        |
+| `WELPLAN_TRAFFIC_LOGS` | No           | off            | Enables inbound web request logs and outbound vendor API traffic logs. |
+| `WELPLAN_AUTH_LOGS`    | No           | off            | Enables detailed Welstory login and session refresh logs.              |
+| `DB_PATH`              | No           | `cache.db`     | SQLite database path used by the web app and Drizzle config.           |
+| `HOST`                 | No           | `0.0.0.0`      | Host used by the production Node server.                               |
+| `PORT`                 | No           | `3000`         | Port used by the production Node server.                               |
 
 PlanEAT Choice requests do not currently require credentials.
+
+All log flags accept common truthy values such as `1`, `true`, `yes`, `on`, `debug`, or `verbose`.
 
 ## Local Development
 
