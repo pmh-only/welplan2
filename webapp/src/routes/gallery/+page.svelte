@@ -157,6 +157,12 @@
 
 <svelte:window onkeydown={onKeydown} />
 
+<svelte:head>
+  {#each (data.menus as Menu[]).filter((m) => m.imageUrl && !m.isTakeOut).slice(0, 1) as menu}
+    <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
+  {/each}
+</svelte:head>
+
 <div class="section">
   <div class="section-head">
     <div class="section-head-left">
@@ -355,7 +361,7 @@
     padding-left: 10px;
     border-left: 3px solid var(--green);
   }
-  .count-badge { font-size: 12px; color: var(--text-dim); background: var(--surface); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); }
+  .count-badge { font-size: 12px; color: var(--text-muted); background: var(--surface); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); }
 
   .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -371,8 +377,8 @@
     transition: all 0.12s;
     white-space: nowrap;
   }
-  .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
-  .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }
+  .chip:hover { border-color: var(--green); color: #047857; background: #f0fdf4; }
+  .chip-active { border-color: var(--green); color: #047857; background: #f0fdf4; font-weight: 600; }
 
   .sort-select,
   .select-input,
@@ -531,14 +537,14 @@
 
   .gallery-info { padding: 9px 10px; background: white; border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
-  .gallery-components { display: block; font-size: 10px; color: var(--text-dim); line-height: 1.4; margin-bottom: 5px; }
+  .gallery-components { display: block; font-size: 10px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px; }
   .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }
-  .gallery-restaurant { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gallery-restaurant { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
   .ps-green { background: #dcfce7; color: #16a34a; }
   .ps-yellow { background: #fef9c3; color: #ca8a04; }
-  .ps-red { background: #fee2e2; color: #dc2626; }
+  .ps-red { background: #fee2e2; color: #b91c1c; }
 
   @media (max-width: 640px) {
     .controls { width: 100%; }

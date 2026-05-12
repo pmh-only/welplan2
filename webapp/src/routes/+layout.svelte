@@ -520,7 +520,7 @@
   .brand-icon { font-size: 1.4rem; line-height: 1; }
   .brand-text { display: flex; flex-direction: column; gap: 0; }
   .brand-name { font-size: 1rem; font-weight: 700; color: #f8fafc; line-height: 1.2; letter-spacing: -0.01em; }
-  .brand-sub { font-size: 0.7rem; color: #64748b; line-height: 1; }
+  .brand-sub { font-size: 0.7rem; color: #94a3b8; line-height: 1; }
 
   .header-nav { display: flex; gap: 2px; flex: 1; }
 
@@ -530,7 +530,7 @@
     gap: 6px;
     padding: 6px 12px;
     border-radius: 7px;
-    color: #64748b;
+    color: #94a3b8;
     font-size: 13px;
     font-weight: 500;
     text-decoration: none;
