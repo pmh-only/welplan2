@@ -364,7 +364,7 @@
     이제 신세계푸드 식당(패밀리홀 등) 도 지원합니다!
   </div>
 
-  <div class="content" class:content-loading={showLoading} aria-busy={showLoading}>
+  <main class="content" class:content-loading={showLoading} aria-busy={showLoading}>
     {#if showFirstVisitGuide}
       <section class="setup-banner" aria-label="첫 방문 안내">
         <div class="setup-banner-icon" aria-hidden="true">🏪</div>
@@ -392,7 +392,7 @@
     </aside>
 
     {@render children()}
-  </div>
+  </main>
 </div>
 
 <style>

@@ -164,7 +164,7 @@
       <span class="count-badge">{galleryMenus.length}개</span>
     </div>
     <div class="controls">
-      <select class="sort-select" bind:value={sortBy}>
+      <select class="sort-select" bind:value={sortBy} aria-label="정렬 기준">
         <option value="pscore-asc">P-Score 낮은순</option>
         <option value="pscore-desc">P-Score 높은순</option>
         <option value="name-asc">메뉴명 A-Z</option>
@@ -191,10 +191,11 @@
       <input
         class="date-input"
         type="date"
+        aria-label="날짜 선택"
         value={toInputDate(selectedDate)}
         oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime)}
       />
-      <select class="select-input" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
+      <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
         {#each data.mealTimes as mealTime (mealTime.id)}
           <option value={mealTime.id}>{mealTime.name}</option>
         {/each}
@@ -214,7 +215,7 @@
               <span class="medal">{(['🥇', '🥈', '🥉'])[i]}</span>
             {/if}
             <div class="gallery-img-wrap">
-              <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading="lazy" />
+              <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
             </div>
             {#if showLabels}
               <div class="gallery-info">
