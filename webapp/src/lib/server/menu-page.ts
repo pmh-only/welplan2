@@ -36,11 +36,25 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
 
   const menus = await Promise.all(
     rawMenus.map(async (menu) => {
-      if (!(menu.vendor === 'welstory' && !menu.isTakeOut && menu.hallNo && menu.courseType && menu.imageUrl)) {
+      if (
+        !(
+          menu.vendor === 'welstory' &&
+          !menu.isTakeOut &&
+          menu.hallNo &&
+          menu.courseType &&
+          menu.imageUrl
+        )
+      ) {
         return menu
       }
       try {
-        const detail = await service.getMenuNutrientDetail(menu.restaurantId, date, mealTimeId, menu.hallNo, menu.courseType)
+        const detail = await service.getMenuNutrientDetail(
+          menu.restaurantId,
+          date,
+          mealTimeId,
+          menu.hallNo,
+          menu.courseType
+        )
         return { ...menu, components: detail }
       } catch {
         return menu

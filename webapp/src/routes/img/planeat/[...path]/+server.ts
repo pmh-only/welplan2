@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ params, request }) => {
       headers: {
         'Content-Type': cached.contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'Vary': 'Accept'
+        Vary: 'Accept'
       }
     })
   }
@@ -30,14 +30,17 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
     if (supportsWebP && contentType.startsWith('image/') && !contentType.includes('svg')) {
       const webpBuffer = await sharp(new Uint8Array(body)).webp({ quality: 82 }).toBuffer()
-      const webpData = webpBuffer.buffer.slice(webpBuffer.byteOffset, webpBuffer.byteOffset + webpBuffer.byteLength) as ArrayBuffer
+      const webpData = webpBuffer.buffer.slice(
+        webpBuffer.byteOffset,
+        webpBuffer.byteOffset + webpBuffer.byteLength
+      ) as ArrayBuffer
       setCachedImage(cacheKey, webpData, 'image/webp')
       return new Response(webpData, {
         status: 200,
         headers: {
           'Content-Type': 'image/webp',
           'Cache-Control': 'public, max-age=31536000, immutable',
-          'Vary': 'Accept'
+          Vary: 'Accept'
         }
       })
     }
@@ -48,7 +51,7 @@ export const GET: RequestHandler = async ({ params, request }) => {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'Vary': 'Accept'
+        Vary: 'Accept'
       }
     })
   } catch {
