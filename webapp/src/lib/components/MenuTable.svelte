@@ -275,8 +275,8 @@
     </div>
   {/if}
 
-  <div class="table-wrap">
-    <table class="menu-table">
+  <div class={enableSelection ? 'table-wrap selection-mode' : 'table-wrap'}>
+    <table class={enableSelection ? 'menu-table selection-mode' : 'menu-table'}>
       <thead>
         <tr>
           {#if enableSelection}<th class="col-check"></th>{/if}
@@ -320,7 +320,7 @@
               <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
             </td>
             <td class="col-name" data-label="메뉴">
-              {#if preferInlineComponents}
+              {#if preferInlineComponents || enableSelection}
                 <span class="rest-tag rest-tag-mobile">{restaurantName(menu.restaurantId)}</span>
               {/if}
               {#if parentName}
@@ -378,7 +378,7 @@
                             {@const dps = pScore(dn, app.pWeights)}
                             <tr>
                               <td class="detail-col-name dish-name">{dish.name}</td>
-                              <td class="detail-col-ps">
+                              <td class="detail-col-ps" data-label="P-Score">
                                 {#if dps !== null}
                                   <span class="ps-badge {pScoreColor(dps)}">{dps}</span>
                                 {:else}
@@ -386,7 +386,7 @@
                                 {/if}
                               </td>
                               {#each detailMetrics as metric}
-                                <td class="detail-col-num">
+                                <td class="detail-col-num" data-label={metric.label}>
                                   {formatMetric(dn?.[metric.key], metric.unit)}
                                 </td>
                               {/each}
@@ -543,11 +543,11 @@
                   <strong>{menu.name}</strong>
                   <div class="selection-item-context">{menuContext(menu)}</div>
                 </td>
-                <td>{formatMetric(menu.nutrition?.calories)}</td>
-                <td>{formatMetric(menu.nutrition?.carbohydrates, 'g')}</td>
-                <td>{formatMetric(menu.nutrition?.sugar, 'g')}</td>
-                <td>{formatMetric(menu.nutrition?.fat, 'g')}</td>
-                <td>{formatMetric(menu.nutrition?.protein, 'g')}</td>
+                <td data-label="칼로리">{formatMetric(menu.nutrition?.calories)}</td>
+                <td data-label="탄수화물">{formatMetric(menu.nutrition?.carbohydrates, 'g')}</td>
+                <td data-label="당분">{formatMetric(menu.nutrition?.sugar, 'g')}</td>
+                <td data-label="지방">{formatMetric(menu.nutrition?.fat, 'g')}</td>
+                <td data-label="단백질">{formatMetric(menu.nutrition?.protein, 'g')}</td>
               </tr>
             {/each}
           </tbody>
@@ -821,6 +821,172 @@
     .rest-tag-mobile { display: block; }
     .detail-row td { padding-left: 12px; }
 
+    .table-wrap.selection-mode { overflow-x: visible; }
+    .menu-table.selection-mode,
+    .menu-table.selection-mode thead,
+    .menu-table.selection-mode tbody { display: block; }
+    .menu-table.selection-mode thead tr {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 0 10px;
+      background: transparent;
+      border-bottom: 0;
+    }
+    .menu-table.selection-mode th {
+      display: block;
+      width: auto;
+      padding: 0;
+    }
+    .menu-table.selection-mode th.col-check,
+    .menu-table.selection-mode th.col-img,
+    .menu-table.selection-mode th.hide-sm { display: none; }
+    .menu-table.selection-mode th .sort-btn {
+      width: auto;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 10px;
+      text-align: left;
+    }
+    .menu-table.selection-mode .menu-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px 10px;
+      margin-bottom: 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      cursor: pointer;
+    }
+    .menu-table.selection-mode .menu-row.selected { background: #f0fdf4; border-color: #bbf7d0; }
+    .menu-table.selection-mode .menu-row.expanded { margin-bottom: 0; border-radius: 12px 12px 0 0; }
+    .menu-table.selection-mode .menu-row td {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+    .menu-table.selection-mode .menu-row .col-check {
+      grid-column: 1;
+      grid-row: 1 / 3;
+      width: auto;
+      padding-top: 2px;
+    }
+    .menu-table.selection-mode .menu-row .col-check input {
+      width: 20px;
+      height: 20px;
+      accent-color: #10b981;
+    }
+    .menu-table.selection-mode .menu-row .col-img {
+      grid-column: 3;
+      grid-row: 1 / 3;
+      width: auto;
+      padding: 0;
+    }
+    .menu-table.selection-mode .menu-row .col-rest {
+      grid-column: 2;
+      grid-row: 1;
+      width: auto;
+    }
+    .menu-table.selection-mode .menu-row .col-name {
+      grid-column: 2;
+      grid-row: 2;
+      min-width: 0;
+    }
+    .menu-table.selection-mode .menu-row .col-ps,
+    .menu-table.selection-mode .menu-row .col-num {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      width: auto;
+      min-width: 0;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .menu-table.selection-mode .menu-row .col-ps::before,
+    .menu-table.selection-mode .menu-row .col-num::before {
+      content: attr(data-label);
+      color: var(--text-dim);
+      font-family: var(--font-sans);
+    }
+    .menu-table.selection-mode .menu-row .col-ps {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+      color: #16a34a;
+      font-weight: 700;
+    }
+    .menu-table.selection-mode .menu-row .col-ps::before { color: #16a34a; }
+    .menu-table.selection-mode .menu-row .col-ps .ps-badge {
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font-size: 11px;
+    }
+    .menu-table.selection-mode .menu-row .col-ps .ps-na { color: inherit; font-size: 11px; }
+    .menu-table.selection-mode .detail-row {
+      display: block;
+      margin: 0 0 10px;
+      border: 1px solid var(--border);
+      border-top: 0;
+      border-radius: 0 0 12px 12px;
+      background: var(--surface);
+    }
+    .menu-table.selection-mode .detail-row > td {
+      display: block;
+      padding: 12px;
+      border-bottom: 0;
+      background: transparent;
+    }
+    .menu-table.selection-mode .detail-table-wrap { overflow-x: visible; }
+    .menu-table.selection-mode .detail-table,
+    .menu-table.selection-mode .detail-table tbody,
+    .menu-table.selection-mode .detail-table tr { display: block; }
+    .menu-table.selection-mode .detail-table thead { display: none; }
+    .menu-table.selection-mode .detail-table tr {
+      margin-bottom: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+    }
+    .menu-table.selection-mode .detail-table tr:last-child { margin-bottom: 0; }
+    .menu-table.selection-mode .detail-table td {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 4px 0;
+      border-bottom: 0;
+    }
+    .menu-table.selection-mode .detail-table td::before {
+      content: attr(data-label);
+      color: var(--text-dim);
+      font-family: var(--font-sans);
+      font-size: 11px;
+    }
+    .menu-table.selection-mode .detail-table .detail-col-name {
+      display: block;
+      min-width: 0;
+      padding-bottom: 8px;
+      font-weight: 600;
+    }
+    .menu-table.selection-mode .detail-table .detail-col-name::before { display: none; }
+    .menu-table.selection-mode .detail-col-ps,
+    .menu-table.selection-mode .detail-col-num {
+      width: auto;
+      text-align: right;
+    }
+
     .selection-bar { padding-top: 0; }
     .selection-actions { width: 100%; }
     .selection-btn { flex: 1; }
@@ -867,7 +1033,37 @@
       border-bottom: 0;
     }
     .selection-total-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .selection-detail-wrap { padding-bottom: 90px; }
+    .selection-detail-wrap { overflow-x: visible; padding-bottom: 90px; }
+    .selection-detail-table,
+    .selection-detail-table tbody,
+    .selection-detail-table tr { display: block; }
+    .selection-detail-table thead { display: none; }
+    .selection-detail-table tr {
+      margin-bottom: 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .selection-detail-table tr:last-child { margin-bottom: 0; }
+    .selection-detail-table td {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 5px 0;
+      border: 0;
+      text-align: right;
+    }
+    .selection-detail-table td:first-child {
+      display: block;
+      padding-bottom: 8px;
+      text-align: left;
+    }
+    .selection-detail-table td:not(:first-child)::before {
+      content: attr(data-label);
+      color: var(--text-dim);
+      font-size: 11px;
+    }
   }
 
   .thumb-clickable { cursor: zoom-in; }
