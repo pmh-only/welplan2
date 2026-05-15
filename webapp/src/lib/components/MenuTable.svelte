@@ -495,7 +495,13 @@
         <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">×</button>
       </div>
 
-      <div class="coin-total modal-coin-total" class:coin-over={selectedCoinTotal > 4}>🪙 {selectedCoinTotal}/4{selectedCoinTotal > 4 ? ' ⚠️ 초과' : ''}</div>
+      <div class="modal-coin-panel" role="group" aria-label="선택 코인 합계">
+        <span class="modal-coin-label">포장 코인 합계</span>
+        <div class="coin-total modal-coin-total" class:coin-over={selectedCoinTotal > 4}>
+          <span>🪙 {selectedCoinTotal}/4 Coin</span>
+          {#if selectedCoinTotal > 4}<span class="modal-coin-warning">⚠️ 초과</span>{/if}
+        </div>
+      </div>
 
       <div class="selection-total-grid">
         <div class="selection-total-card pscore-card">
@@ -646,10 +652,29 @@
     background: #fee2e2;
     color: #dc2626;
   }
-  .modal-coin-total {
-    margin-bottom: 14px;
-    font-size: 16px;
+  .modal-coin-panel {
+    margin: 16px 18px 0;
+    padding: 12px;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff7ed 100%);
   }
+  .modal-coin-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .modal-coin-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 0;
+    font-size: 18px;
+  }
+  .modal-coin-warning { white-space: nowrap; }
   .nutrition-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1031,6 +1056,16 @@
       border-left: 0;
       border-right: 0;
       border-bottom: 0;
+    }
+    .modal-coin-panel {
+      margin: 12px 16px 0;
+      padding: 14px;
+      box-shadow: 0 8px 18px rgba(146, 64, 14, 0.12);
+    }
+    .modal-coin-label { font-size: 13px; }
+    .modal-coin-total {
+      padding: 12px 14px;
+      font-size: 20px;
     }
     .selection-total-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .selection-detail-wrap { overflow-x: visible; padding-bottom: 90px; }

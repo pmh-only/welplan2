@@ -324,12 +324,12 @@
     href="https://github.com/pmh-only/welplan2"
     target="_blank"
     rel="noreferrer"
-    aria-label="Open the Welplan GitHub repository and star the project"
+    aria-label="Welplan GitHub 저장소 열기"
   >
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
     </svg>
-    <span>Star on GitHub</span>
+    <span class="github-label-desktop">Star on GitHub</span>
   </a>
 
   <header>
@@ -703,13 +703,7 @@
 
   @media (max-width: 640px) {
     .github-ribbon {
-      top: auto;
-      right: 12px;
-      bottom: 12px;
-      width: auto;
-      padding: 10px 14px;
-      border-radius: 999px;
-      transform: none;
+      display: none;
     }
 
     .setup-banner {
