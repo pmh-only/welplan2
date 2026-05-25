@@ -10,7 +10,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 - Supports gallery, take-in, and take-out menu views.
 - Calculates and customizes a nutrition-based `P-Score` in the web UI.
 - Caches restaurants, meal times, menus, and menu details in SQLite.
-- Periodically prefetches menus for user-selected restaurants.
+- Periodically prefetches menus for cached restaurants with meal info over the next 7 days.
 - Builds and publishes a Docker image to GHCR.
 - Publishes client packages to the GitHub Packages npm registry.
 

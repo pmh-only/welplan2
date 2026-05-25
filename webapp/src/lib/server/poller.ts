@@ -1,17 +1,11 @@
 import { service } from './service.js'
 import { createServerLogger } from './log.js'
+import { menuScanDates, scanRestaurantMealInfo } from './menu-availability.js'
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 const syncLog = createServerLogger('sync')
 
 let running = false
-
-function kstDateStr(offsetDays = 0): string {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
-  d.setDate(d.getDate() + offsetDays)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
-}
 
 const yield_ = () => new Promise<void>((resolve) => setImmediate(resolve))
 
@@ -24,14 +18,16 @@ async function prefetch(): Promise<void> {
   const startedAt = Date.now()
 
   try {
-    const restaurants = service.getUserSelectedRestaurants()
+    const restaurants = await service.getRestaurants()
     if (restaurants.length === 0) {
-      syncLog.info('prefetch skipped because no restaurants are selected')
+      syncLog.info('prefetch skipped because no restaurants are cached')
       return
     }
 
-    const dates = [kstDateStr(0), kstDateStr(1)]
+    const dates = menuScanDates()
     let fetched = 0
+    let skipped = 0
+    let errors = 0
 
     syncLog.info('prefetch started', {
       restaurantCount: restaurants.length,
@@ -45,54 +41,35 @@ async function prefetch(): Promise<void> {
         vendor: restaurant.vendor
       })
 
-      let mealTimes
-      try {
-        mealTimes = await service.getMealTimes(restaurant.id)
-        syncLog.info('loaded meal times for prefetch', {
-          restaurantId: restaurant.id,
-          mealTimeCount: mealTimes.length
-        })
-      } catch (error) {
-        syncLog.warn('prefetch meal-time load failed', {
+      const result = await scanRestaurantMealInfo(restaurant, dates, { afterBatch: yield_ })
+      fetched += result.fetchedBatchCount
+      errors += result.errorCount
+
+      syncLog.info('prefetched restaurant meal scan', {
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        vendor: restaurant.vendor,
+        mealTimeCount: result.mealTimeCount,
+        fetchedBatchCount: result.fetchedBatchCount,
+        datesWithMenus: result.datesWithMenus,
+        errorCount: result.errorCount
+      })
+
+      if (result.datesWithMenus.length === 0) {
+        skipped++
+        syncLog.info('prefetch skipped restaurant without meal info', {
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
-          error
+          vendor: restaurant.vendor,
+          dates
         })
-        await yield_()
-        continue
-      }
-
-      for (const date of dates) {
-        for (const mt of mealTimes) {
-          try {
-            const menus = await service.getMenus(restaurant.id, date, mt.id)
-            fetched++
-            syncLog.info('prefetched menu batch', {
-              restaurantId: restaurant.id,
-              restaurantName: restaurant.name,
-              date,
-              mealTimeId: mt.id,
-              mealTimeName: mt.name,
-              menuCount: menus.length
-            })
-          } catch (error) {
-            syncLog.warn('prefetch menu batch failed', {
-              restaurantId: restaurant.id,
-              restaurantName: restaurant.name,
-              date,
-              mealTimeId: mt.id,
-              mealTimeName: mt.name,
-              error
-            })
-          }
-          // yield between each fetch so user requests can be processed
-          await yield_()
-        }
       }
     }
 
     syncLog.info('prefetch completed', {
       fetched,
+      skipped,
+      errors,
       restaurantCount: restaurants.length,
       durationMs: Date.now() - startedAt
     })
