@@ -13,7 +13,7 @@
     routeForAgentPage
   } from '$lib/agent'
   import { app } from '$lib/state.svelte'
-  import type { MealTime } from '$lib/types'
+  import type { MealTime, Restaurant } from '$lib/types'
   import { formatKoreanDate } from '$lib/utils'
 
   type RouteMeta = {
@@ -53,7 +53,31 @@
     return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? id
   }
 
-  function routeMetaFor (pathname: string, mealTimes: MealTime[]): RouteMeta {
+  function isRestaurant (value: unknown): value is Restaurant {
+    if (!value || typeof value !== 'object') return false
+    const restaurant = value as Partial<Restaurant>
+    return typeof restaurant.id === 'string' &&
+      typeof restaurant.name === 'string' &&
+      typeof restaurant.vendor === 'string'
+  }
+
+  function restaurantFromPageData (value: unknown): Restaurant | undefined {
+    if (!value || typeof value !== 'object') return undefined
+    const pageData = value as { restaurant?: unknown }
+    return isRestaurant(pageData.restaurant) ? pageData.restaurant : undefined
+  }
+
+  function canonicalPathFromPageData (value: unknown): string | undefined {
+    if (!value || typeof value !== 'object') return undefined
+    const pageData = value as { canonicalPath?: unknown }
+    return typeof pageData.canonicalPath === 'string' ? pageData.canonicalPath : undefined
+  }
+
+  function vendorName (vendor: string): string {
+    return vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
+  }
+
+  function routeMetaFor (pathname: string, mealTimes: MealTime[], restaurant?: Restaurant): RouteMeta {
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
       description: '웰스토리 API | 웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다.',
@@ -79,6 +103,17 @@
         ...baseMeta,
         title: `${dateLabel} ${mealLabel} ${kindLabel} 식단 조회 | Welplan`,
         description: `${dateLabel} ${mealLabel} ${kindLabel} 메뉴를 Welplan에서 확인하세요. 삼성웰스토리와 신세계푸드 식단, 메뉴 구성, 영양정보를 한 번에 볼 수 있습니다.`
+      }
+    }
+
+    if ((pathname.startsWith('/restaurant/') || pathname.startsWith('/restaurants/')) && restaurant) {
+      const vendorLabel = vendorName(restaurant.vendor)
+
+      return {
+        ...baseMeta,
+        title: `${restaurant.name} 하루 전체 메뉴 갤러리 | ${vendorLabel} 식단 조회 | Welplan`,
+        description: `${vendorLabel} ${restaurant.name}의 하루 전체 식사 시간 메뉴 사진과 영양정보를 Welplan에서 한 번에 확인하세요. 웰스토리·신세계푸드 메뉴 갤러리로 오늘 식단을 빠르게 볼 수 있습니다.`,
+        keywords: [restaurant.name, vendorLabel, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS].join(', ')
       }
     }
 
@@ -287,10 +322,15 @@
     }
   })
 
-  const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? []))
+  const restaurantMeta = $derived(restaurantFromPageData(page.data))
+  const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta))
   const pageTip = $derived(routeTipFor(page.url.pathname))
-  const showFirstVisitGuide = $derived(data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
-  const canonicalUrl = $derived(`${page.url.origin}${page.url.pathname}`)
+  const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
+  const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
+  const showGlobalChrome = $derived(!isRestaurantDetailPage)
+  const showFirstVisitGuide = $derived(showGlobalChrome && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
+  const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
+  const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
 </script>
 
 <svelte:head>
@@ -311,6 +351,7 @@
   <meta name="twitter:description" content={routeMeta.description} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
+  <link rel="alternate" type="application/rss+xml" title="Welplan RSS" href={rssUrl} />
   <link rel="alternate" type="text/markdown" href={canonicalUrl} />
   <link rel="api-catalog" href={API_CATALOG_PATH} />
   <link rel="service-doc" href={API_DOC_PATH} />
@@ -319,52 +360,54 @@
 </svelte:head>
 
 <div class="app">
-  <a
-    class="github-ribbon"
-    href="https://github.com/pmh-only/welplan2"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Welplan GitHub 저장소 열기"
-  >
-    <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
-    </svg>
-    <span class="github-label-desktop">Star on GitHub</span>
-  </a>
+  {#if showGlobalChrome}
+    <a
+      class="github-ribbon"
+      href="https://github.com/pmh-only/welplan2"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Welplan GitHub 저장소 열기"
+    >
+      <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
+      </svg>
+      <span class="github-label-desktop">Star on GitHub</span>
+    </a>
 
-  <header>
-    <div class="header-inner">
-      <a href="/" class="brand">
-        <span class="brand-icon">🍽️</span>
-        <div class="brand-text">
-          <span class="brand-name">Welplan</span>
-          <span class="brand-sub">웰스토리 · 신세계푸드</span>
-        </div>
-      </a>
-      <nav class="header-nav">
-        {#each navLinks as link}
-          <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')}>
-            <span class="tab-icon">{link.icon}</span>
-            <span class="tab-label">{link.label}</span>
-          </a>
-        {/each}
-      </nav>
-    </div>
-
-    {#if showLoading}
-      <div class="route-progress" role="status" aria-label="페이지 불러오는 중">
-        <div class="route-progress-bar route-progress-bar-secondary" aria-hidden="true"></div>
-        <div class="route-progress-bar route-progress-bar-primary" aria-hidden="true"></div>
+    <header>
+      <div class="header-inner">
+        <a href="/" class="brand">
+          <span class="brand-icon">🍽️</span>
+          <div class="brand-text">
+            <span class="brand-name">Welplan</span>
+            <span class="brand-sub">웰스토리 · 신세계푸드</span>
+          </div>
+        </a>
+        <nav class="header-nav">
+          {#each navLinks as link}
+            <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')}>
+              <span class="tab-icon">{link.icon}</span>
+              <span class="tab-label">{link.label}</span>
+            </a>
+          {/each}
+        </nav>
       </div>
-    {/if}
-  </header>
 
-  <div class="notice-bar" role="banner" aria-label="서비스 업데이트 공지">
-    <span class="notice-bar-badge">NEW</span>
-    이제 신세계푸드 식당(패밀리홀 등) 도 지원합니다!
-  </div>
+      {#if showLoading}
+        <div class="route-progress" role="status" aria-label="페이지 불러오는 중">
+          <div class="route-progress-bar route-progress-bar-secondary" aria-hidden="true"></div>
+          <div class="route-progress-bar route-progress-bar-primary" aria-hidden="true"></div>
+        </div>
+      {/if}
+    </header>
 
-  <main class="content" class:content-loading={showLoading} aria-busy={showLoading}>
+    <div class="notice-bar" role="banner" aria-label="서비스 업데이트 공지">
+      <span class="notice-bar-badge">NEW</span>
+      이제 신세계푸드 식당(패밀리홀 등) 도 지원합니다!
+    </div>
+  {/if}
+
+  <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
     {#if showFirstVisitGuide}
       <section class="setup-banner" aria-label="첫 방문 안내">
         <div class="setup-banner-icon" aria-hidden="true">🏪</div>
@@ -379,17 +422,19 @@
       </section>
     {/if}
 
-    <aside class="page-tip" aria-label={pageTip.title}>
-      <div class="page-tip-icon" aria-hidden="true">💡</div>
-      <div class="page-tip-body">
-        <p class="page-tip-title">{pageTip.title}</p>
-        <ul class="page-tip-list">
-          {#each pageTip.items as item}
-            <li>{item}</li>
-          {/each}
-        </ul>
-      </div>
-    </aside>
+    {#if showGlobalChrome}
+      <aside class="page-tip" aria-label={pageTip.title}>
+        <div class="page-tip-icon" aria-hidden="true">💡</div>
+        <div class="page-tip-body">
+          <p class="page-tip-title">{pageTip.title}</p>
+          <ul class="page-tip-list">
+            {#each pageTip.items as item}
+              <li>{item}</li>
+            {/each}
+          </ul>
+        </div>
+      </aside>
+    {/if}
 
     {@render children()}
   </main>
@@ -561,6 +606,10 @@
     margin: 0 auto;
     padding: 20px 16px;
     transition: opacity 0.18s ease, filter 0.18s ease;
+  }
+
+  .focused-content {
+    max-width: 1040px;
   }
 
   .setup-banner {

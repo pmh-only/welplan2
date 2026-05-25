@@ -1,6 +1,8 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
+  import { todayStr } from '$lib/utils'
 
   type RestaurantsPageData = {
     restaurants: Restaurant[]
@@ -22,6 +24,10 @@
 
   function pathText (restaurant: Restaurant) {
     return restaurant.path?.filter(Boolean).join(' / ') ?? ''
+  }
+
+  function restaurantLink (restaurant: Restaurant) {
+    return restaurantDatedPath(restaurant, todayStr())
   }
 
   function saveRestaurants (next: Restaurant[]) {
@@ -96,7 +102,7 @@
         <li class="rest-item">
           <div class="rest-info">
             <div class="rest-copy">
-              <span class="rest-name">{r.name}</span>
+              <a class="rest-name rest-link" href={restaurantLink(r)}>{r.name}</a>
               {#if pathText(r)}
                 <span class="rest-path">{pathText(r)}</span>
               {/if}
@@ -143,7 +149,7 @@
           <li class="rest-item" class:rest-item-added={added}>
             <div class="rest-info">
               <div class="rest-copy">
-                <span class="rest-name">{r.name}</span>
+                <a class="rest-name rest-link" href={restaurantLink(r)}>{r.name}</a>
                 {#if pathText(r)}
                   <span class="rest-path">{pathText(r)}</span>
                 {/if}
@@ -266,6 +272,8 @@
   .rest-info { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
   .rest-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .rest-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rest-link { text-decoration: none; }
+  .rest-link:hover { color: var(--accent); text-decoration: underline; }
   .rest-path { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vendor-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
   .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
