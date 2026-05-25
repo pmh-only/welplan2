@@ -10,6 +10,12 @@ type ParentData = {
 
 type ParentLoad = () => Promise<ParentData>
 
+export type GalleryMealTimeResult = MealTime & {
+  menuCount: number
+  failed: boolean
+  errorMessage?: string
+}
+
 export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string) {
   const { restaurants } = await parent()
 
@@ -34,8 +40,70 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
     )
   ).then((results) => results.flat())
 
-  const menus = await Promise.all(
-    rawMenus.map(async (menu) => {
+  const menus = await enrichGalleryMenus(rawMenus, date, mealTimeId)
+
+  return { menus, date, time: mealTimeId }
+}
+
+export async function loadGalleryMenusForRestaurant(
+  restaurant: Restaurant,
+  mealTimes: MealTime[],
+  url: URL
+) {
+  const date = url.searchParams.get('date') ?? todayStr()
+  const mealTimeId =
+    url.searchParams.get('time') ?? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+  if (!mealTimeId) return { menus: [], date, time: '' }
+
+  const rawMenus = await service.getMenus(restaurant.id, date, mealTimeId).catch(() => [])
+  const menus = await enrichGalleryMenus(rawMenus, date, mealTimeId)
+
+  return { menus, date, time: mealTimeId }
+}
+
+export async function loadGalleryMenusForRestaurantDate(
+  restaurant: Restaurant,
+  mealTimes: MealTime[],
+  date: string
+) {
+  const mealTimeResults = await Promise.all(
+    mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
+      try {
+        const rawMenus = await service.getMenus(restaurant.id, date, mealTime.id)
+        const menus = await enrichGalleryMenus(rawMenus, date, mealTime.id)
+
+        return {
+          menus,
+          mealTime: {
+            ...mealTime,
+            menuCount: menus.length,
+            failed: false
+          }
+        }
+      } catch (error) {
+        return {
+          menus: [],
+          mealTime: {
+            ...mealTime,
+            menuCount: 0,
+            failed: true,
+            errorMessage: error instanceof Error ? error.message : 'Unknown menu loading error'
+          }
+        }
+      }
+    })
+  )
+
+  return {
+    menus: mealTimeResults.flatMap((result) => result.menus),
+    date,
+    mealTimeMenus: mealTimeResults.map((result) => result.mealTime)
+  }
+}
+
+async function enrichGalleryMenus(menus: Menu[], date: string, mealTimeId: string): Promise<Menu[]> {
+  return Promise.all(
+    menus.map(async (menu) => {
       if (
         !(
           menu.vendor === 'welstory' &&
@@ -61,8 +129,6 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
       }
     })
   )
-
-  return { menus, date, time: mealTimeId }
 }
 
 function sumNutrition(components: MenuComponent[]): NutritionInfo | undefined {
