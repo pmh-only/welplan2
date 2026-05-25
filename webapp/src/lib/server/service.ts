@@ -175,29 +175,60 @@ class CafeteriaService {
     return Date.now()
   }
 
+  private menuCacheKey(restaurantId: string, date: string, mealTimeId: string): string {
+    return `${restaurantId}:${date}:${mealTimeId}`
+  }
+
+  private parseMenuCacheKey(key: string): { restaurantId: string, date: string, mealTimeId: string } | null {
+    const parts = key.split(':')
+    if (parts.length < 3) return null
+    const mealTimeId = parts[parts.length - 1]
+    const date = parts[parts.length - 2]
+    const restaurantId = parts.slice(0, -2).join(':')
+    if (!restaurantId || !date || !mealTimeId) return null
+    return { restaurantId, date, mealTimeId }
+  }
+
   private async populateCache(): Promise<void> {
     const startedAt = this.now()
     syncLog.info('restaurant sync started')
 
-    const [welstoryResult, planeatResult] = await Promise.allSettled([
+    const [welstorySelectedResult, welstorySearchResult, planeatResult] = await Promise.allSettled([
       Promise.resolve().then(() => this.getWelstoryClient().getRestaurants()),
+      Promise.resolve().then(() => this.getWelstoryClient().searchRestaurants('')),
       Promise.resolve().then(() => this.getPlaneatClient().getRestaurants())
     ])
 
     const toInsert: (typeof restaurantsTable.$inferInsert)[] = []
-    if (welstoryResult.status === 'fulfilled') {
+    const welstoryRestaurants = new Map<string, Restaurant>()
+    if (welstorySelectedResult.status === 'fulfilled') {
       syncLog.info('vendor restaurant sync completed', {
-        vendor: 'welstory',
-        restaurantCount: welstoryResult.value.length
+        vendor: 'welstory-selected',
+        restaurantCount: welstorySelectedResult.value.length
       })
-      for (const r of welstoryResult.value) {
-        toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
-      }
+      for (const r of welstorySelectedResult.value) welstoryRestaurants.set(r.id, r)
     } else {
       syncLog.warn('vendor restaurant sync failed', {
-        vendor: 'welstory',
-        error: welstoryResult.reason
+        vendor: 'welstory-selected',
+        error: welstorySelectedResult.reason
       })
+    }
+
+    if (welstorySearchResult.status === 'fulfilled') {
+      syncLog.info('vendor restaurant sync completed', {
+        vendor: 'welstory-search',
+        restaurantCount: welstorySearchResult.value.length
+      })
+      for (const r of welstorySearchResult.value) welstoryRestaurants.set(r.id, r)
+    } else {
+      syncLog.warn('vendor restaurant sync failed', {
+        vendor: 'welstory-search',
+        error: welstorySearchResult.reason
+      })
+    }
+
+    for (const r of welstoryRestaurants.values()) {
+      toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
     }
 
     if (planeatResult.status === 'fulfilled') {
@@ -263,9 +294,48 @@ class CafeteriaService {
     return JSON.parse(row.data) as Restaurant
   }
 
+  async getRestaurant(id: string): Promise<Restaurant | null> {
+    await this.ensureCache()
+    const row = db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)).get()
+    if (!row) {
+      syncLog.warn('restaurant lookup failed', { restaurantId: id })
+      return null
+    }
+    return JSON.parse(row.data) as Restaurant
+  }
+
   async getRestaurants(): Promise<Restaurant[]> {
     await this.ensureCache()
     return this.readRestaurants()
+  }
+
+  getCachedMenus(restaurantId: string, date: string, mealTimeId: string): Menu[] | null {
+    const cached = db
+      .select()
+      .from(menusCache)
+      .where(eq(menusCache.key, this.menuCacheKey(restaurantId, date, mealTimeId)))
+      .get()
+
+    return cached ? JSON.parse(cached.data) as Menu[] : null
+  }
+
+  getCachedMenuDates(dates: string[]): Map<string, Set<string>> {
+    const wantedDates = new Set(dates)
+    const byRestaurant = new Map<string, Set<string>>()
+
+    for (const row of db.select().from(menusCache).all()) {
+      const parsed = this.parseMenuCacheKey(row.key)
+      if (!parsed || !wantedDates.has(parsed.date)) continue
+
+      const menus = JSON.parse(row.data) as Menu[]
+      if (menus.length === 0) continue
+
+      const restaurantDates = byRestaurant.get(parsed.restaurantId) ?? new Set<string>()
+      restaurantDates.add(parsed.date)
+      byRestaurant.set(parsed.restaurantId, restaurantDates)
+    }
+
+    return byRestaurant
   }
 
   async hydrateRestaurants(restaurants: Restaurant[]): Promise<Restaurant[]> {
@@ -369,18 +439,27 @@ class CafeteriaService {
   }
 
   async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
-    const key = `${restaurantId}:${date}:${mealTimeId}`
+    const key = this.menuCacheKey(restaurantId, date, mealTimeId)
     const cached = db.select().from(menusCache).where(eq(menusCache.key, key)).get()
 
     if (cached) {
       const menus = JSON.parse(cached.data) as Menu[]
-      syncLog.info('menu cache hit', {
-        restaurantId,
-        date,
-        mealTimeId,
-        menuCount: menus.length
-      })
-      return menus
+      if (menus.length === 0) {
+        db.delete(menusCache).where(eq(menusCache.key, key)).run()
+        syncLog.info('empty menu cache ignored', {
+          restaurantId,
+          date,
+          mealTimeId
+        })
+      } else {
+        syncLog.info('menu cache hit', {
+          restaurantId,
+          date,
+          mealTimeId,
+          menuCount: menus.length
+        })
+        return menus
+      }
     }
 
     syncLog.info('menu cache miss', { restaurantId, date, mealTimeId })
@@ -397,14 +476,17 @@ class CafeteriaService {
         }
       }
 
-      db.insert(menusCache)
-        .values({ key, data: JSON.stringify(menus), cachedAt: this.now() })
-        .onConflictDoUpdate({
-          target: menusCache.key,
-          set: { data: JSON.stringify(menus), cachedAt: this.now() }
-        })
-        .run()
-      syncLog.info('menus cached', {
+      if (menus.length > 0) {
+        db.insert(menusCache)
+          .values({ key, data: JSON.stringify(menus), cachedAt: this.now() })
+          .onConflictDoUpdate({
+            target: menusCache.key,
+            set: { data: JSON.stringify(menus), cachedAt: this.now() }
+          })
+          .run()
+      }
+
+      syncLog.info(menus.length > 0 ? 'menus cached' : 'menus not cached because empty', {
         restaurantId,
         vendor: restaurant.vendor,
         date,
