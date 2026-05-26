@@ -286,10 +286,10 @@ export function buildRestaurantPageDescription(
   })
 
   if (groups.length === 0) {
-    return `${base} Welplan에서 오늘의 메뉴와 영양정보를 확인하세요.`
+    return `${base} 오늘의 메뉴와 영양정보를 확인하세요.`
   }
 
   const body = groups.join(' · ')
   const full = `${base} ${body}`
-  return full.length <= 155 ? full : full.slice(0, 152) + '...'
+  return full.length <= 80 ? full : full.slice(0, 77) + '...'
 }

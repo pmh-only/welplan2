@@ -80,7 +80,7 @@
   function routeMetaFor (pathname: string, mealTimes: MealTime[], restaurant?: Restaurant): RouteMeta {
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
-      description: '웰스토리 API | 웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다.',
+      description: '웰스토리·신세계푸드 식단 조회를 한 곳에서. 메뉴 사진과 영양정보를 빠르게.',
       robots: INDEXABLE_ROBOTS,
       keywords: DEFAULT_KEYWORDS
     }
@@ -89,7 +89,7 @@
       return {
         ...baseMeta,
         title: '웰스토리 메뉴 갤러리 | 웰스토리·신세계푸드 식단 조회 | Welplan',
-        description: '웰스토리 API | 웰스토리 식단 조회, 삼성웰스토리 메뉴 조회, 신세계푸드 식단 조회를 한 곳에서 빠르게 확인할 수 있는 사내 식당 메뉴 서비스입니다. 날짜와 식사 시간별 메뉴 사진과 영양정보를 빠르게 확인할 수 있습니다.'
+        description: '웰스토리·신세계푸드 메뉴 갤러리. 날짜·식사 시간별 사진과 영양정보.'
       }
     }
 
@@ -102,7 +102,7 @@
       return {
         ...baseMeta,
         title: `${dateLabel} ${mealLabel} ${kindLabel} 식단 조회 | Welplan`,
-        description: `${dateLabel} ${mealLabel} ${kindLabel} 메뉴를 Welplan에서 확인하세요. 삼성웰스토리와 신세계푸드 식단, 메뉴 구성, 영양정보를 한 번에 볼 수 있습니다.`
+        description: `${dateLabel} ${mealLabel} ${kindLabel} 식단. 웰스토리·신세계푸드 메뉴와 영양정보.`
       }
     }
 
@@ -114,7 +114,7 @@
       return {
         ...baseMeta,
         title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표`,
-        description: `${vendorLabel} ${restaurant.name}의 하루 전체 식사 시간 메뉴 사진과 영양정보를 Welplan에서 한 번에 확인하세요. 웰스토리·신세계푸드 메뉴 갤러리로 오늘 식단을 빠르게 볼 수 있습니다.`,
+        description: `${vendorLabel} ${restaurant.name} 식단표. 메뉴 사진과 영양정보를 한눈에.`,
         keywords: [restaurant.name, vendorLabel, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS].join(', ')
       }
     }
