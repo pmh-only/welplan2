@@ -163,6 +163,8 @@
   {/each}
 </svelte:head>
 
+<h1 class="sr-only">웰스토리·신세계푸드 메뉴 갤러리</h1>
+
 <div class="section">
   <div class="section-head">
     <div class="section-head-left">
@@ -335,6 +337,18 @@
 {/if}
 
 <style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .section {
     background: #fff;
     border: 1px solid var(--border);

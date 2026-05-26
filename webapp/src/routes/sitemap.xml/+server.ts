@@ -1,5 +1,5 @@
 import { service } from '$lib/server/service'
-import { restaurantDatedPath, restaurantDatedRssPath } from '$lib/restaurant-routes'
+import { restaurantDatedPath } from '$lib/restaurant-routes'
 import { autoSelectMealTime, todayStr } from '$lib/utils'
 import { menuScanDates } from '$lib/server/menu-availability'
 import type { RequestHandler } from './$types'
@@ -21,8 +21,7 @@ function xmlEscape(value: string): string {
 
 export const GET: RequestHandler = async ({ url }) => {
   const entries: SitemapEntry[] = [
-    { path: '/', changefreq: 'hourly', priority: '1.0' },
-    { path: '/rss.xml', changefreq: 'hourly', priority: '0.4' }
+    { path: '/', changefreq: 'hourly', priority: '1.0' }
   ]
   const date = todayStr()
 
@@ -45,18 +44,11 @@ export const GET: RequestHandler = async ({ url }) => {
         .flatMap((restaurant) => {
           // Always include today; add any additional cached dates on top
           const entryDates = new Set([date, ...(cachedMenuDates.get(restaurant.id) ?? [])])
-          return [...entryDates].flatMap((entryDate) => [
-            {
-              path: restaurantDatedPath(restaurant, entryDate),
-              changefreq: 'weekly' as const,
-              priority: '0.6'
-            },
-            {
-              path: restaurantDatedRssPath(restaurant, entryDate),
-              changefreq: 'daily' as const,
-              priority: '0.4'
-            }
-          ])
+          return [...entryDates].map((entryDate) => ({
+            path: restaurantDatedPath(restaurant, entryDate),
+            changefreq: 'weekly' as const,
+            priority: '0.6'
+          }))
         })
         .sort((a, b) => a.path.localeCompare(b.path, 'ko'))
     })

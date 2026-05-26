@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
+  import { page } from '$app/state'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { app } from '$lib/state.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -190,6 +191,24 @@
       <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
     {/if}
   {/each}
+  {@html `<script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Welplan', item: page.url.origin },
+          { '@type': 'ListItem', position: 2, name: data.restaurant.name, item: page.url.href }
+        ]
+      },
+      {
+        '@type': 'FoodEstablishment',
+        name: data.restaurant.name,
+        servesCuisine: 'Korean',
+        url: page.url.href
+      }
+    ]
+  })}</script>`}
 </svelte:head>
 
 <article class="menu-page" aria-labelledby="restaurant-title">

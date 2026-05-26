@@ -17,6 +17,7 @@
 
   type RouteMeta = {
     title: string
+    ogTitle: string
     description: string
     robots: string
     keywords: string
@@ -79,6 +80,7 @@
   function routeMetaFor (pathname: string, mealTimes: MealTime[], restaurant?: Restaurant): RouteMeta {
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
+      ogTitle: 'Welplan | 웰스토리·신세계푸드 메뉴 조회',
       description: '웰스토리·신세계푸드 식단 조회를 한 곳에서. 메뉴 사진과 영양정보를 빠르게.',
       robots: INDEXABLE_ROBOTS,
       keywords: DEFAULT_KEYWORDS
@@ -88,7 +90,8 @@
       return {
         ...baseMeta,
         title: '웰스토리 메뉴 갤러리 | 웰스토리·신세계푸드 식단 조회 | Welplan',
-        description: '웰스토리·신세계푸드 메뉴 갤러리. 날짜·식사 시간별 사진과 영양정보.'
+        ogTitle: '웰스토리·신세계푸드 메뉴 갤러리 | Welplan',
+        description: '웰스토리·신세계푸드 사내 식당 메뉴를 한 화면에서. 날짜·식사 시간별 메뉴 사진, P-Score 영양 점수, 상세 영양정보를 빠르게 확인할 수 있습니다.'
       }
     }
 
@@ -113,6 +116,7 @@
       return {
         ...baseMeta,
         title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표`,
+        ogTitle: `${restaurant.name} 식단표 | ${vendorLabel}`,
         description: `${vendorLabel} ${restaurant.name} 식단표. 메뉴 사진과 영양정보를 한눈에.`,
         keywords: [restaurant.name, vendorLabel, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS].join(', ')
       }
@@ -349,21 +353,44 @@
   <meta property="og:locale" content="ko_KR" />
   <meta property="og:site_name" content="Welplan" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content={routeMeta.title} />
+  <meta property="og:title" content={routeMeta.ogTitle} />
   <meta property="og:description" content={routeMeta.description} />
   <meta property="og:url" content={canonicalUrl} />
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content={routeMeta.title} />
+  <meta property="og:image" content={new URL('/og-image.png', page.url.origin).toString()} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={routeMeta.ogTitle} />
   <meta name="twitter:description" content={routeMeta.description} />
+  <meta name="twitter:image" content={new URL('/og-image.png', page.url.origin).toString()} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
   <link rel="alternate" type="application/rss+xml" title="Welplan RSS" href={rssUrl} />
-  <link rel="alternate" type="text/markdown" href={canonicalUrl} />
   <link rel="api-catalog" href={API_CATALOG_PATH} />
   <link rel="service-doc" href={API_DOC_PATH} />
   <link rel="service-desc" href={OPENAPI_PATH} />
   <link rel="describedby" href={AGENT_SKILLS_INDEX_PATH} />
   <link rel="describedby" type="text/plain" href="/llms.txt" title="LLM usage guide" />
+  {#if isRestaurantDetailPage}
+    <link rel="alternate" type="text/markdown" href={canonicalUrl} />
+  {/if}
+  {#if page.url.pathname === '/' || page.url.pathname.startsWith('/gallery')}
+    {@html `<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Welplan',
+      url: page.url.origin,
+      description: '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: `${page.url.origin}/proxy/search?q={search_term_string}`
+        },
+        'query-input': 'required name=search_term_string'
+      }
+    })}</script>`}
+  {/if}
 </svelte:head>
 
 <div class="app">
