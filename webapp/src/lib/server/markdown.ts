@@ -1,5 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
+import { ALL_MEAL_TIME_ID } from '$lib/utils'
 import {
   APP_NAME,
   AGENT_SKILLS_INDEX_PATH,
@@ -29,6 +30,7 @@ description: ${description}
 }
 
 function mealTimeName(mealTimes: MealTime[], id: string): string {
+  if (id === ALL_MEAL_TIME_ID) return '전체'
   return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? id
 }
 

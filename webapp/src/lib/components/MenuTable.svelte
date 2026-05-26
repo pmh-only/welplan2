@@ -1,24 +1,29 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { app } from '$lib/state.svelte'
-  import { pScore, pScoreColor, proxyImg } from '$lib/utils'
-  import type { Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
+  import { autoSelectMealTime, pScore, pScoreColor, proxyImg } from '$lib/utils'
+  import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
 
   let {
     menus,
     restaurants,
+    mealTimes = [],
     date,
     time,
     emptyMessage,
     preferInlineComponents = false,
-    enableSelection = false
+    enableSelection = false,
+    groupByMealTime = false
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
+    mealTimes?: MealTime[]
     date: string
     time: string
     emptyMessage: string
     preferInlineComponents?: boolean
     enableSelection?: boolean
+    groupByMealTime?: boolean
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -29,6 +34,11 @@
   let showSelectionDetail = $state(false)
   let selectionFloatDismissed = $state(false)
   let selectedMenuIds = $state<string[]>([])
+  let expandedMealTimeIds = $state<string[]>(
+    untrack(() =>
+      groupByMealTime ? [autoSelectMealTime(mealTimes)].filter((id): id is string => id != null) : []
+    )
+  )
   let sortKey = $state<SortKey | null>(null)
   let sortDirection = $state<'asc' | 'desc'>('asc')
 
@@ -45,6 +55,9 @@
 
   type SortValue = number | string | null
   type NutritionKey = keyof NutritionInfo
+  type MenuRow =
+    | { type: 'mealTime', mealTime: MealTime, count: number }
+    | { type: 'menu', menu: Menu }
   type DetailMetric = {
     key: NutritionKey
     label: string
@@ -81,6 +94,7 @@
     showSelectionDetail = false
     selectionFloatDismissed = false
     selectedMenuIds = []
+    expandedMealTimeIds = groupByMealTime ? defaultExpandedMealTimeIds() : []
   })
 
   function restaurantName (id: string): string {
@@ -106,6 +120,27 @@
     return selectedMenuIds.includes(menuId)
   }
 
+  function menuKey (menu: Menu): string {
+    return `${menu.mealTimeId}:${menu.id}`
+  }
+
+  function defaultExpandedMealTimeIds (): string[] {
+    const currentMealTimeId = autoSelectMealTime(mealTimes)
+    return currentMealTimeId ? [currentMealTimeId] : []
+  }
+
+  function isMealTimeExpanded (mealTimeId: string): boolean {
+    return expandedMealTimeIds.includes(mealTimeId)
+  }
+
+  function toggleMealTime (mealTimeId: string) {
+    if (isMealTimeExpanded(mealTimeId)) {
+      expandedMealTimeIds = expandedMealTimeIds.filter((id) => id !== mealTimeId)
+    } else {
+      expandedMealTimeIds = [...expandedMealTimeIds, mealTimeId]
+    }
+  }
+
   function toggleSelection (menuId: string) {
     selectionFloatDismissed = false
     if (isSelected(menuId)) {
@@ -117,7 +152,7 @@
 
   function selectAllVisible () {
     selectionFloatDismissed = false
-    selectedMenuIds = visibleMenus.map((menu) => menu.id)
+    selectedMenuIds = visibleMenus.map(menuKey)
   }
 
   function clearSelection () {
@@ -172,8 +207,23 @@
   }
 
   const visibleMenus = $derived([...menus].sort(compareMenus))
+  const visibleRows = $derived.by<MenuRow[]>(() => {
+    if (!groupByMealTime) return visibleMenus.map((menu) => ({ type: 'menu', menu }))
+
+    return mealTimes.flatMap((mealTime) => {
+      const sectionMenus = visibleMenus.filter((menu) => menu.mealTimeId === mealTime.id)
+      if (sectionMenus.length === 0) return []
+      if (!isMealTimeExpanded(mealTime.id)) {
+        return [{ type: 'mealTime' as const, mealTime, count: sectionMenus.length }]
+      }
+      return [
+        { type: 'mealTime' as const, mealTime, count: sectionMenus.length },
+        ...sectionMenus.map((menu) => ({ type: 'menu' as const, menu }))
+      ]
+    })
+  })
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
-  const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menu.id)))
+  const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menuKey(menu))))
   const selectedNutrition = $derived(
     selectedMenus.reduce(
       (totals: NutritionInfo, menu) => ({
@@ -229,12 +279,13 @@
   }
 
   async function toggleMenu (menu: Menu) {
-    if (expandedMenuId === menu.id) {
+    const key = menuKey(menu)
+    if (expandedMenuId === key) {
       expandedMenuId = null
       return
     }
 
-    expandedMenuId = menu.id
+    expandedMenuId = key
     detail = []
 
     if (preferInlineComponents && menu.components.length > 0) {
@@ -249,6 +300,7 @@
           courseType: menu.courseType
         })
         if (isWelstoryTakeOutDetail(menu)) params.set('nutrient', '1')
+        params.set('mealTimeId', menu.mealTimeId)
         const res = await fetch(`/proxy/${menu.restaurantId}/menus/detail?${params}`)
         if (res.ok) detail = await res.json()
       } finally {
@@ -293,18 +345,37 @@
         </tr>
       </thead>
       <tbody>
-        {#each visibleMenus as menu (menu.id)}
-          {@const isExpanded = expandedMenuId === menu.id}
+        {#each visibleRows as row (`${row.type}:${row.type === 'menu' ? menuKey(row.menu) : row.mealTime.id}`)}
+          {#if row.type === 'mealTime'}
+            {@const isExpanded = isMealTimeExpanded(row.mealTime.id)}
+            <tr class="meal-time-row">
+              <th colspan={enableSelection ? 11 : 10}>
+                <button
+                  type="button"
+                  class="meal-time-toggle"
+                  aria-expanded={isExpanded}
+                  onclick={() => toggleMealTime(row.mealTime.id)}
+                >
+                  <span class="meal-time-caret" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+                  <span class="meal-time-title">{row.mealTime.name}</span>
+                  <span class="meal-time-count">{row.count}개</span>
+                </button>
+              </th>
+            </tr>
+          {:else}
+          {@const menu = row.menu}
+          {@const key = menuKey(menu)}
+          {@const isExpanded = expandedMenuId === key}
           {@const canExpand = isExpandable(menu)}
-          {@const selected = isSelected(menu.id)}
+          {@const selected = isSelected(key)}
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
           {@const imgSrc = proxyImg(menu.imageUrl)}
           {@const ps = pScore(n, app.pWeights)}
-          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(menu.id); else if (canExpand) toggleMenu(menu) }}>
+          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
-                <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(menu.id)} />
+                <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(key)} />
               </td>
             {/if}
             {#if hasAnyImage}
@@ -410,6 +481,7 @@
                 {/if}
               </td>
             </tr>
+          {/if}
           {/if}
         {/each}
       </tbody>
@@ -588,6 +660,36 @@
   .menu-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .menu-table thead tr { background: var(--surface); border-bottom: 2px solid var(--border); }
   .menu-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .meal-time-row th {
+    padding: 0;
+    background: #f8fafc;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .meal-time-toggle {
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .meal-time-toggle:hover { background: var(--surface-hover); }
+  .meal-time-caret {
+    width: 14px;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .meal-time-title { font-weight: 700; }
+  .meal-time-count { color: var(--text-dim); font-weight: 600; }
   .selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
   .selection-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .selection-count { font-size: 12px; font-weight: 700; color: var(--text); }

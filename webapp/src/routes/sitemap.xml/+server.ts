@@ -1,6 +1,6 @@
 import { service } from '$lib/server/service'
 import { restaurantDatedPath } from '$lib/restaurant-routes'
-import { autoSelectMealTime, todayStr } from '$lib/utils'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '$lib/utils'
 import { menuScanDates } from '$lib/server/menu-availability'
 import type { RequestHandler } from './$types'
 
@@ -25,14 +25,12 @@ export const GET: RequestHandler = async ({ url }) => {
   ]
   const date = todayStr()
 
+  entries.push({ path: `/takein/${date}/${ALL_MEAL_TIME_ID}`, changefreq: 'daily', priority: '0.8' })
+
   const mealTimes = await service.getAllMealTimes().catch(() => [])
   const currentMealTimeId = autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
-
   if (currentMealTimeId) {
-    entries.push(
-      { path: `/takein/${date}/${currentMealTimeId}`, changefreq: 'daily', priority: '0.8' },
-      { path: `/takeout/${date}/${currentMealTimeId}`, changefreq: 'daily', priority: '0.8' }
-    )
+    entries.push({ path: `/takeout/${date}/${currentMealTimeId}`, changefreq: 'daily', priority: '0.8' })
   }
 
   const dates = menuScanDates(date)

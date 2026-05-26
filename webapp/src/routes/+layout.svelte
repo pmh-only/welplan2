@@ -13,7 +13,7 @@
   } from '$lib/agent'
   import { app } from '$lib/state.svelte'
   import type { MealTime, Restaurant } from '$lib/types'
-  import { formatKoreanDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, formatKoreanDate } from '$lib/utils'
 
   type RouteMeta = {
     title: string
@@ -50,6 +50,7 @@
   ].join(', ')
 
   function mealTimeName (mealTimes: MealTime[], id: string): string {
+    if (id === ALL_MEAL_TIME_ID) return '전체'
     return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? id
   }
 

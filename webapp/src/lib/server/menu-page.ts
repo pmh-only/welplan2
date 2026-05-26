@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit'
 import { service } from '$lib/server/service'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-import { todayStr, autoSelectMealTime } from '$lib/utils'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '$lib/utils'
 
 type ParentData = {
   restaurants: Restaurant[]
@@ -16,11 +16,22 @@ export type GalleryMealTimeResult = MealTime & {
   errorMessage?: string
 }
 
+function selectedMealTimes(mealTimes: MealTime[], time: string): MealTime[] {
+  if (time === ALL_MEAL_TIME_ID) return mealTimes
+  return mealTimes.filter((mealTime) => mealTime.id === time)
+}
+
 export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string) {
-  const { restaurants } = await parent()
+  const { restaurants, mealTimes } = await parent()
+  const targetMealTimes = selectedMealTimes(mealTimes, time)
+  if (!targetMealTimes.length) return { menus: [], date, time }
 
   const menus = await Promise.all(
-    restaurants.map((restaurant) => service.getMenus(restaurant.id, date, time).catch(() => []))
+    restaurants.flatMap((restaurant) =>
+      targetMealTimes.map((mealTime) =>
+        service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+      )
+    )
   ).then((results) => results.flat())
 
   return { menus, date, time }
@@ -30,17 +41,20 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
   const { restaurants, mealTimes } = await parent()
 
   const date = url.searchParams.get('date') ?? todayStr()
-  const mealTimeId =
-    url.searchParams.get('time') ?? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+  const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
   if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
+  const targetMealTimes = selectedMealTimes(mealTimes, mealTimeId)
+  if (!targetMealTimes.length) return { menus: [], date, time: mealTimeId }
 
   const rawMenus = await Promise.all(
-    restaurants.map((restaurant) =>
-      service.getMenus(restaurant.id, date, mealTimeId).catch(() => [])
+    restaurants.flatMap((restaurant) =>
+      targetMealTimes.map((mealTime) =>
+        service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+      )
     )
   ).then((results) => results.flat())
 
-  const menus = await enrichGalleryMenus(rawMenus, date, mealTimeId)
+  const menus = await enrichGalleryMenus(rawMenus, date)
 
   return { menus, date, time: mealTimeId }
 }
@@ -51,12 +65,17 @@ export async function loadGalleryMenusForRestaurant(
   url: URL
 ) {
   const date = url.searchParams.get('date') ?? todayStr()
-  const mealTimeId =
-    url.searchParams.get('time') ?? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+  const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
   if (!mealTimeId) return { menus: [], date, time: '' }
+  const targetMealTimes = selectedMealTimes(mealTimes, mealTimeId)
+  if (!targetMealTimes.length) return { menus: [], date, time: mealTimeId }
 
-  const rawMenus = await service.getMenus(restaurant.id, date, mealTimeId).catch(() => [])
-  const menus = await enrichGalleryMenus(rawMenus, date, mealTimeId)
+  const rawMenus = await Promise.all(
+    targetMealTimes.map((mealTime) =>
+      service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+    )
+  ).then((results) => results.flat())
+  const menus = await enrichGalleryMenus(rawMenus, date)
 
   return { menus, date, time: mealTimeId }
 }
@@ -70,7 +89,7 @@ export async function loadGalleryMenusForRestaurantDate(
     mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
       try {
         const rawMenus = await service.getMenus(restaurant.id, date, mealTime.id)
-        const menus = await enrichGalleryMenus(rawMenus, date, mealTime.id)
+        const menus = await enrichGalleryMenus(rawMenus, date)
 
         return {
           menus,
@@ -101,7 +120,7 @@ export async function loadGalleryMenusForRestaurantDate(
   }
 }
 
-async function enrichGalleryMenus(menus: Menu[], date: string, mealTimeId: string): Promise<Menu[]> {
+async function enrichGalleryMenus(menus: Menu[], date: string): Promise<Menu[]> {
   return Promise.all(
     menus.map(async (menu) => {
       if (
@@ -119,7 +138,7 @@ async function enrichGalleryMenus(menus: Menu[], date: string, mealTimeId: strin
         const detail = await service.getMenuNutrientDetail(
           menu.restaurantId,
           date,
-          mealTimeId,
+          menu.mealTimeId,
           menu.hallNo,
           menu.courseType
         )
@@ -209,7 +228,7 @@ export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string,
         const detail = await service.getMenuNutrientDetail(
           menu.restaurantId,
           date,
-          time,
+          menu.mealTimeId,
           menu.hallNo,
           menu.courseType
         )
@@ -236,7 +255,7 @@ export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, 
         const detail = await service.getMenuNutrientDetail(
           menu.restaurantId,
           date,
-          time,
+          menu.mealTimeId,
           menu.hallNo,
           menu.courseType
         )
@@ -260,7 +279,10 @@ export async function redirectToCurrentMenuRoute(
 ) {
   const { mealTimes } = await parent()
   const date = todayStr()
-  const mealTimeId = autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+  const mealTimeId =
+    basePath === '/takeout'
+      ? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+      : ALL_MEAL_TIME_ID
 
   if (mealTimeId) redirect(302, `${basePath}/${date}/${mealTimeId}`)
   redirect(302, '/restaurants')

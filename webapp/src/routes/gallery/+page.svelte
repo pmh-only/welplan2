@@ -1,12 +1,15 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
   import { app } from '$lib/state.svelte'
-  import { pScore, pScoreColor, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
-  import type { Menu, MenuComponent, NutritionInfo } from '$lib/types'
+  import { ALL_MEAL_TIME_ID, autoSelectMealTime, pScore, pScoreColor, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
+  import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
+  type GalleryMenu = Menu & { restaurantIds: string[] }
+  type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
 
   const nutrientDefs: NutrientDef[] = [
     { key: 'calories', label: '칼로리', unit: ' kcal' },
@@ -40,9 +43,16 @@
 
   let showLabels = $state(true)
   let sortBy = $state<'pscore-asc' | 'pscore-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('pscore-asc')
-  let zoomedMenu = $state<(Menu & { restaurantIds: string[] }) | null>(null)
+  let zoomedMenu = $state<GalleryMenu | null>(null)
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
+  let expandedMealTimeIds = $state<string[]>(
+    untrack(() =>
+      (data as typeof data & { time: string }).time === ALL_MEAL_TIME_ID
+        ? [autoSelectMealTime(data.mealTimes)].filter((id): id is string => id != null)
+        : []
+    )
+  )
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -70,7 +80,7 @@
     return nutrientDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
   }
 
-  async function openZoom (menu: Menu & { restaurantIds: string[] }) {
+  async function openZoom (menu: GalleryMenu) {
     zoomedMenu = menu
     detail = []
     loadingDetail = false
@@ -80,7 +90,7 @@
       try {
         const params = new URLSearchParams({
           date: selectedDate,
-          mealTimeId: selectedTime,
+          mealTimeId: menu.mealTimeId,
           hallNo: menu.hallNo,
           courseType: menu.courseType,
           nutrient: '1'
@@ -100,6 +110,13 @@
   }
   const selectedDate = $derived((data as typeof data & { date: string }).date)
   const selectedTime = $derived((data as typeof data & { time: string }).time)
+  const isAllMealTime = $derived(selectedTime === ALL_MEAL_TIME_ID)
+
+  $effect(() => {
+    const _date = selectedDate
+    const _time = selectedTime
+    expandedMealTimeIds = isAllMealTime ? defaultExpandedMealTimeIds() : []
+  })
 
   function navigate (date: string, time: string) {
     const params = new URLSearchParams({ date, time })
@@ -108,6 +125,23 @@
 
   function restaurantName (id: string): string {
     return data.restaurants.find((r: { id: string }) => r.id === id)?.name ?? id
+  }
+
+  function defaultExpandedMealTimeIds (): string[] {
+    const currentMealTimeId = autoSelectMealTime(data.mealTimes)
+    return currentMealTimeId ? [currentMealTimeId] : []
+  }
+
+  function isMealTimeExpanded (mealTimeId: string): boolean {
+    return expandedMealTimeIds.includes(mealTimeId)
+  }
+
+  function toggleMealTime (mealTimeId: string) {
+    if (isMealTimeExpanded(mealTimeId)) {
+      expandedMealTimeIds = expandedMealTimeIds.filter((id) => id !== mealTimeId)
+    } else {
+      expandedMealTimeIds = [...expandedMealTimeIds, mealTimeId]
+    }
   }
 
   function compareMenus (a: Menu, b: Menu): number {
@@ -123,6 +157,11 @@
     }
   }
 
+  function galleryMenuKey (menu: Menu): string {
+    const nameKey = menu.name.trim().toLowerCase()
+    return isAllMealTime ? `${menu.mealTimeId}:${nameKey}` : nameKey
+  }
+
   const galleryMenus = $derived.by(() => {
     const uniqueMenus = new Map<string, Menu>()
     const allRestaurantIds = new Map<string, Set<string>>()
@@ -132,7 +171,7 @@
       if (menu.name.includes('죽')) continue
       if (menu.isTakeOut && !menu.name.includes('도시락')) continue
 
-      const key = menu.name.trim().toLowerCase()
+      const key = galleryMenuKey(menu)
       const existing = uniqueMenus.get(key)
       if (!existing || (menu.imageUrl?.length ?? 0) > (existing.imageUrl?.length ?? 0)) {
         uniqueMenus.set(key, menu)
@@ -142,8 +181,18 @@
     }
 
     return [...uniqueMenus.values()].sort(compareMenus).map((menu) => {
-      const key = menu.name.trim().toLowerCase()
+      const key = galleryMenuKey(menu)
       return { ...menu, restaurantIds: [...(allRestaurantIds.get(key) ?? [menu.restaurantId])] }
+    })
+  })
+
+  const gallerySections = $derived.by<GallerySection[]>(() => {
+    if (!isAllMealTime) return []
+
+    return data.mealTimes.flatMap((mealTime: MealTime) => {
+      const menus = galleryMenus.filter((menu) => menu.mealTimeId === mealTime.id)
+      if (menus.length === 0) return []
+      return [{ mealTime, menus }]
     })
   })
 
@@ -204,6 +253,7 @@
         oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime)}
       />
       <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
+        <option value={ALL_MEAL_TIME_ID}>전체</option>
         {#each data.mealTimes as mealTime (mealTime.id)}
           <option value={mealTime.id}>{mealTime.name}</option>
         {/each}
@@ -214,9 +264,57 @@
       <div class="hint-block">
         <p class="hint">이미지가 있는 메뉴가 없습니다.</p>
       </div>
+    {:else if isAllMealTime}
+      <div class="gallery-sections">
+        {#each gallerySections as section (section.mealTime.id)}
+          {@const isExpanded = isMealTimeExpanded(section.mealTime.id)}
+          <section class="gallery-meal-section" aria-labelledby={`gallery-meal-${section.mealTime.id}`}>
+            <button
+              type="button"
+              class="meal-section-head"
+              aria-expanded={isExpanded}
+              aria-controls={`gallery-meal-panel-${section.mealTime.id}`}
+              onclick={() => toggleMealTime(section.mealTime.id)}
+            >
+              <span class="meal-section-caret" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+              <span class="meal-section-title" id={`gallery-meal-${section.mealTime.id}`}>{section.mealTime.name}</span>
+              <span>{section.menus.length}개</span>
+            </button>
+            {#if isExpanded}
+              <div class="gallery-grid" id={`gallery-meal-panel-${section.mealTime.id}`}>
+                {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
+                  {@const ps = pScore(menu.nutrition, app.pWeights)}
+                  <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
+                    {#if showRanking && i < 3}
+                      <span class="medal">{(['🥇', '🥈', '🥉'])[i]}</span>
+                    {/if}
+                    <div class="gallery-img-wrap">
+                      <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+                    </div>
+                    {#if showLabels}
+                      <div class="gallery-info">
+                        <span class="gallery-name">{menu.name}</span>
+                        {#if menu.components.length > 0}
+                          <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                        {/if}
+                        <div class="gallery-meta">
+                          {#if ps !== null}
+                            <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+                          {/if}
+                          <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </section>
+        {/each}
+      </div>
     {:else}
       <div class="gallery-grid">
-        {#each galleryMenus as menu, i (menu.id)}
+        {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           {@const ps = pScore(menu.nutrition, app.pWeights)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             {#if showRanking && i < 3}
@@ -416,6 +514,23 @@
   .hint a:hover { text-decoration: underline; }
 
   .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding: 16px; }
+  .gallery-sections { display: flex; flex-direction: column; }
+  .gallery-meal-section + .gallery-meal-section { border-top: 1px solid var(--border); }
+  .meal-section-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border: 0;
+    background: #f8fafc;
+    cursor: pointer;
+    text-align: left;
+  }
+  .meal-section-head:hover { background: var(--surface-hover); }
+  .meal-section-caret { width: 14px; color: var(--text-dim); font-size: 12px; }
+  .meal-section-head span { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+  .meal-section-head .meal-section-title { font-size: 14px; font-weight: 700; color: var(--text); }
 
   .gallery-card {
     position: relative;

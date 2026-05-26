@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
 
   const LS_TAKEOUT_RESTAURANT = 'welplan_takeout_restaurant'
 
@@ -29,6 +29,7 @@
   let takeOutFilterDrinks = $state(true)
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
+  const isAllMealTime = $derived(kind === 'takein' && data.time === ALL_MEAL_TIME_ID)
 
   function isOptionalComponent(component: MenuComponent): boolean {
     return component.name.includes('추가찬') || component.name.includes('택1')
@@ -169,6 +170,9 @@
           value={data.time}
           onchange={(e) => navigate(data.date, e.currentTarget.value)}
         >
+          {#if kind === 'takein'}
+            <option value={ALL_MEAL_TIME_ID}>전체</option>
+          {/if}
           {#each data.mealTimes as mealTime (mealTime.id)}
             <option value={mealTime.id}>{mealTime.name}</option>
           {/each}
@@ -234,11 +238,13 @@
     <MenuTable
       menus={visibleMenus}
       restaurants={data.restaurants}
+      mealTimes={data.mealTimes}
       date={data.date}
       time={data.time}
       emptyMessage={`${pageLabel} 메뉴가 없습니다`}
       preferInlineComponents={kind === 'takein'}
       enableSelection={kind === 'takeout'}
+      groupByMealTime={isAllMealTime}
     />
   </div>
 {/if}

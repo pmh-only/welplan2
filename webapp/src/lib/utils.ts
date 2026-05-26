@@ -1,5 +1,7 @@
 import type { MealTime, NutritionInfo, PScoreWeights } from './types'
 
+export const ALL_MEAL_TIME_ID = 'all'
+
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
