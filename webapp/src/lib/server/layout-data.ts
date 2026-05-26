@@ -4,14 +4,12 @@ import { service } from '$lib/server/service'
 import type { Restaurant } from '$lib/types'
 
 const COOKIE = 'welplan_restaurants'
-const DEFAULT_RESTAURANTS_BY_ID = new Map(
-  DEFAULT_RESTAURANTS.map((restaurant) => [restaurant.id, restaurant])
-)
+const DEFAULT_RESTAURANTS_BY_ID = new Map(DEFAULT_RESTAURANTS.map((r) => [r.id, r]))
 
 export async function loadLayoutData(cookies: Cookies) {
-  let restaurants: Restaurant[] = [...DEFAULT_RESTAURANTS]
   const raw = cookies.get(COOKIE)
   const isFirstVisit = raw == null
+  let restaurants: Restaurant[] = []
   if (raw) {
     try {
       restaurants = JSON.parse(decodeURIComponent(raw))

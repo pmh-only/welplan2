@@ -82,24 +82,26 @@ export async function buildRestaurantDateFeedItems(
   return sortFeedItems(items.filter((item): item is RssFeedItem => item !== null))
 }
 
-export async function buildCachedDateRangeFeedItems(
+export function buildCachedDateRangeFeedItems(
   origin: string,
   restaurants: Restaurant[],
   dates: string[],
   mealTimes: MealTime[]
-): Promise<RssFeedItem[]> {
-  const items = restaurants.flatMap((restaurant) =>
-    dates.flatMap((date) =>
-      mealTimes.map((mealTime, index) => {
-        const menus = service.getCachedMenus(restaurant.id, date, mealTime.id)
-        return menus && menus.length > 0
-          ? buildRestaurantMealTimeItemFromMenus(origin, restaurant, date, mealTime, index, menus)
-          : null
-      })
-    )
-  )
+): RssFeedItem[] {
+  const items: RssFeedItem[] = []
 
-  return sortFeedItems(items.filter((item): item is RssFeedItem => item !== null))
+  for (const restaurant of restaurants) {
+    for (const date of dates) {
+      for (const [index, mealTime] of mealTimes.entries()) {
+        const menus = service.getCachedMenus(restaurant.id, date, mealTime.id)
+        if (menus && menus.length > 0) {
+          items.push(buildRestaurantMealTimeItemFromMenus(origin, restaurant, date, mealTime, index, menus))
+        }
+      }
+    }
+  }
+
+  return sortFeedItems(items)
 }
 
 export function sortFeedItems(items: RssFeedItem[]): RssFeedItem[] {
@@ -148,10 +150,12 @@ function buildRestaurantMealTimeItemFromMenus(
 }
 
 function menuDescription(menus: Menu[]): string {
-  return menus
+  const items = menus
     .map((menu) => [menu.parentName, menu.name].filter(Boolean).join(' - '))
     .filter(Boolean)
-    .join(', ')
+    .map((line) => `<li>${xmlEscape(line)}</li>`)
+    .join('')
+  return `<ul>${items}</ul>`
 }
 
 function feedDate(date: string, mealTimeIndex: number): Date {
@@ -166,7 +170,7 @@ function renderItem(item: RssFeedItem): string {
       <title>${xmlEscape(item.title)}</title>
       <link>${xmlEscape(item.link)}</link>
       <guid isPermaLink="false">${xmlEscape(item.guid)}</guid>
-      <description>${xmlEscape(item.description)}</description>
+      <description><![CDATA[${item.description}]]></description>
       <pubDate>${item.pubDate.toUTCString()}</pubDate>
     </item>`
 }

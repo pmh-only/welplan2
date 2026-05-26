@@ -108,10 +108,12 @@
 
     if ((pathname.startsWith('/restaurant/') || pathname.startsWith('/restaurants/')) && restaurant) {
       const vendorLabel = vendorName(restaurant.vendor)
+      const lastSegment = pathname.split('/').filter(Boolean).pop() ?? ''
+      const dateLabel = /^\d{8}$/.test(lastSegment) ? ` ${formatKoreanDate(lastSegment)}` : ''
 
       return {
         ...baseMeta,
-        title: `${restaurant.name} 하루 전체 메뉴 갤러리 | ${vendorLabel} 식단 조회 | Welplan`,
+        title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표`,
         description: `${vendorLabel} ${restaurant.name}의 하루 전체 식사 시간 메뉴 사진과 영양정보를 Welplan에서 한 번에 확인하세요. 웰스토리·신세계푸드 메뉴 갤러리로 오늘 식단을 빠르게 볼 수 있습니다.`,
         keywords: [restaurant.name, vendorLabel, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS].join(', ')
       }
@@ -323,7 +325,11 @@
   })
 
   const restaurantMeta = $derived(restaurantFromPageData(page.data))
-  const routeMeta = $derived.by(() => routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta))
+  const routeMeta = $derived.by(() => {
+    const base = routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta)
+    const pageDescription = (page.data as { pageDescription?: string }).pageDescription
+    return pageDescription ? { ...base, description: pageDescription } : base
+  })
   const pageTip = $derived(routeTipFor(page.url.pathname))
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)

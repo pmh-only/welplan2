@@ -102,7 +102,7 @@
         <li class="rest-item">
           <div class="rest-info">
             <div class="rest-copy">
-              <a class="rest-name rest-link" href={restaurantLink(r)}>{r.name}</a>
+              <p class="rest-name">{r.name}</p>
               {#if pathText(r)}
                 <span class="rest-path">{pathText(r)}</span>
               {/if}
@@ -149,7 +149,7 @@
           <li class="rest-item" class:rest-item-added={added}>
             <div class="rest-info">
               <div class="rest-copy">
-                <a class="rest-name rest-link" href={restaurantLink(r)}>{r.name}</a>
+                <p class="rest-name">{r.name}</p>
                 {#if pathText(r)}
                   <span class="rest-path">{pathText(r)}</span>
                 {/if}

@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ url }) => {
     service.getRestaurants().catch(() => []),
     service.getAllMealTimes().catch(() => [])
   ])
-  const items = await buildCachedDateRangeFeedItems(url.origin, restaurants, dates, mealTimes)
+  const items = buildCachedDateRangeFeedItems(url.origin, restaurants, dates, mealTimes)
 
   return rssResponse({
     title: `Welplan ${formatKoreanDate(date)}부터 7일 메뉴 RSS`,

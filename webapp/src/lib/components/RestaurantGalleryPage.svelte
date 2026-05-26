@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { app } from '$lib/state.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { fromInputDate, pScore, pScoreColor, proxyImg, toInputDate } from '$lib/utils'
+  import { fromInputDate, pScore, proxyImg, toInputDate } from '$lib/utils'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -50,6 +50,30 @@
   let zoomedMenu = $state<Menu | null>(null)
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
+
+  const COOKIE = 'welplan_restaurants'
+
+  function savedRestaurants (): Restaurant[] {
+    if (typeof document === 'undefined') return []
+    const raw = document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1)
+    if (!raw) return []
+    try { return JSON.parse(decodeURIComponent(raw)) } catch { return [] }
+  }
+
+  function isRestaurantSaved (): boolean {
+    return savedRestaurants().some((r) => r.id === data.restaurant.id)
+  }
+
+  let registered = $state(false)
+  $effect(() => { registered = isRestaurantSaved() })
+
+  function registerRestaurant () {
+    if (registered) return
+    const next = [...savedRestaurants(), data.restaurant]
+    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
+    registered = true
+    invalidateAll()
+  }
 
   const selectedDate = $derived(data.date)
 
@@ -99,12 +123,6 @@
     return aScore - bScore || a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id, 'ko')
   }
 
-  function isGalleryMenu (menu: Menu): boolean {
-    if (!menu.imageUrl) return false
-    if (menu.name.includes('죽')) return false
-    return !menu.isTakeOut || menu.name.includes('도시락')
-  }
-
   function mealTimeName (mealTimeId: string): string {
     return data.mealTimes.find((mealTime) => mealTime.id === mealTimeId)?.name ?? mealTimeId
   }
@@ -115,7 +133,6 @@
       info: data.mealTimeMenus.find((result) => result.id === mealTime.id),
       menus: data.menus
         .filter((menu) => menu.mealTimeId === mealTime.id)
-        .filter(isGalleryMenu)
         .sort(compareMenus)
     }))
     .filter((section) => section.menus.length > 0 || section.info?.failed))
@@ -169,17 +186,17 @@
 
 <svelte:head>
   {#each galleryMenus.slice(0, 1) as menu}
-    <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
+    {#if menu.imageUrl}
+      <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
+    {/if}
   {/each}
 </svelte:head>
 
 <article class="menu-page" aria-labelledby="restaurant-title">
   <section class="hero-panel">
-    <p class="eyebrow">하루 전체 메뉴 갤러리</p>
-    <h1 id="restaurant-title">{data.restaurant.name}</h1>
+    <h1 id="restaurant-title">{data.restaurant.name} 식단표</h1>
     <div class="controls-row" aria-label="메뉴 조회 조건">
       <label class="control-field" for="date-input">
-        <span>날짜</span>
         <input
           id="date-input"
           class="date-input"
@@ -188,7 +205,6 @@
           oninput={(event) => navigate(fromInputDate(event.currentTarget.value))}
         />
       </label>
-      <span class="all-day-pill">모든 식사 시간</span>
     </div>
   </section>
 
@@ -202,7 +218,6 @@
         <section class="meal-section" aria-labelledby={`meal-section-${section.mealTime.id}`}>
           <div class="meal-section-head">
             <div>
-              <p class="meal-eyebrow">Meal Time</p>
               <h2 id={`meal-section-${section.mealTime.id}`}>{section.mealTime.name}</h2>
             </div>
             <span class="meal-count">{section.menus.length}개</span>
@@ -214,10 +229,19 @@
           {:else}
             <div class="gallery-grid">
               {#each section.menus as menu, index (`${section.mealTime.id}:${menu.id}`)}
-                {@const score = pScore(menu.nutrition, app.pWeights)}
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
-                    <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} />
+                    {#if menu.imageUrl}
+                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} />
+                    {:else}
+                      <span class="no-image-placeholder" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+                          <rect width="48" height="48" rx="6" fill="var(--surface)" />
+                          <path d="M14 34l8-10 5 6 4-5 7 9H14z" fill="var(--border)" />
+                          <circle cx="31" cy="18" r="4" fill="var(--border)" />
+                        </svg>
+                      </span>
+                    {/if}
                   </span>
                   <span class="gallery-info">
                     <span class="meal-time-badge">{section.mealTime.name}</span>
@@ -225,8 +249,8 @@
                     {#if menu.components.length > 0}
                       <span class="menu-components">{sortedByPScore(menu.components).map((component) => component.name).join(' · ')}</span>
                     {/if}
-                    {#if score !== null}
-                      <span class="ps-badge {pScoreColor(score)}">P {score}</span>
+                    {#if menu.nutrition?.calories != null}
+                      <span class="kcal-badge">{Math.round(menu.nutrition.calories)} kcal</span>
                     {/if}
                   </span>
                 </button>
@@ -238,14 +262,34 @@
     {/if}
   </section>
 
-  <section class="cta-panel" aria-label="Welplan 바로가기">
-    <a class="promo-button" href="/restaurants">내 식당 메뉴도 Welplan에서 보기</a>
-    <a class="home-button" href="/">Welplan으로 가기</a>
+  <section class="cta-panel" aria-label="Welplan 식당 등록 안내">
+    <div class="promo-bg-circle" aria-hidden="true"></div>
+    <div class="promo-content">
+      <p class="promo-eyebrow">
+        <span class="promo-dot" aria-hidden="true"></span>Welplan
+      </p>
+      <p class="promo-headline">내 회사 식당을 등록하고<br />손쉽게 확인해 보세요</p>
+      <p class="promo-desc">웰스토리·신세계푸드 식당을 등록하면 오늘의 메뉴와 영양 정보를 한눈에 볼 수 있습니다.</p>
+    </div>
+    {#if registered}
+      <a class="register-button register-button-done" href="/restaurants">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="register-icon">
+          <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        등록됨 · 내 식당 보기
+      </a>
+    {:else}
+      <button class="register-button" type="button" onclick={registerRestaurant}>
+        식당 등록하기
+        <svg class="register-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    {/if}
   </section>
 </article>
 
 {#if zoomedMenu}
-  {@const score = pScore(zoomedMenu.nutrition, app.pWeights)}
   <div
     class="lightbox"
     role="button"
@@ -261,7 +305,9 @@
       onkeydown={(event) => event.stopPropagation()}
     >
       <div class="lightbox-left">
-        <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        {#if zoomedMenu.imageUrl}
+          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        {/if}
         <div class="lightbox-info">
           <div class="lightbox-text">
             <span class="meal-time-badge">{mealTimeName(zoomedMenu.mealTimeId)}</span>
@@ -270,8 +316,8 @@
               <span class="lightbox-components">{sortedByPScore(zoomedMenu.components).map((component) => component.name).join(' · ')}</span>
             {/if}
           </div>
-          {#if score !== null}
-            <span class="ps-badge {pScoreColor(score)}">P {score}</span>
+          {#if zoomedMenu.nutrition?.calories != null}
+            <span class="kcal-badge">{Math.round(zoomedMenu.nutrition.calories)} kcal</span>
           {/if}
         </div>
       </div>
@@ -300,7 +346,6 @@
               <thead>
                 <tr>
                   <th class="detail-col-name">항목</th>
-                  <th class="detail-col-ps">P-Score</th>
                   {#each detailMetrics as { label }}
                     <th class="detail-col-num">{label}</th>
                   {/each}
@@ -309,16 +354,8 @@
               <tbody>
                 {#each detailRows as dish}
                   {@const nutrition = dish.nutrition}
-                  {@const detailScore = pScore(nutrition, app.pWeights)}
                   <tr>
                     <td class="detail-col-name dish-name">{dish.name}</td>
-                    <td class="detail-col-ps">
-                      {#if detailScore !== null}
-                        <span class="ps-badge {pScoreColor(detailScore)}">P {detailScore}</span>
-                      {:else}
-                        <span class="ps-na">—</span>
-                      {/if}
-                    </td>
                     {#each detailMetrics as { key, unit }}
                       <td class="detail-col-num">{formatMetric(nutrition?.[key], unit)}</td>
                     {/each}
@@ -508,6 +545,21 @@
     transform: scale(1.04);
   }
 
+  .no-image-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+  }
+
+  .no-image-placeholder svg {
+    width: 60%;
+    height: 60%;
+    opacity: 0.5;
+  }
+
   .gallery-info {
     display: flex;
     flex: 1;
@@ -530,20 +582,19 @@
     line-height: 1.45;
   }
 
-  .ps-badge {
+  .kcal-badge {
     display: inline-block;
     align-self: flex-start;
     margin-top: auto;
     padding: 3px 8px;
     border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
   }
-
-  .ps-green { background: var(--green-dim); color: var(--green); }
-  .ps-yellow { background: #fef9c3; color: #ca8a04; }
-  .ps-red { background: #fee2e2; color: #b91c1c; }
 
   .empty-state {
     padding: 42px 16px;
@@ -554,46 +605,114 @@
   }
 
   .cta-panel {
+    position: relative;
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    padding: 14px;
+    gap: 20px;
+    padding: 28px 28px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #f8fafc 100%);
+    border-color: #86efac;
   }
 
-  .promo-button,
-  .home-button {
+  .promo-bg-circle {
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .promo-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .promo-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #059669;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .promo-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+
+  .promo-headline {
+    color: #064e3b;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+  }
+
+  .promo-desc {
+    color: #065f46;
+    font-size: 12px;
+    line-height: 1.6;
+    opacity: 0.75;
+  }
+
+  .register-button {
+    position: relative;
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     justify-content: center;
-    min-height: 38px;
-    padding: 0 14px;
+    flex-shrink: 0;
+    min-height: 42px;
+    padding: 0 20px;
     border-radius: 999px;
+    background: #059669;
+    color: #fff;
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+    transition: background 0.12s, box-shadow 0.12s, transform 0.12s;
   }
 
-  .promo-button {
-    background: var(--green);
-    color: var(--bg);
+  .register-button:hover {
+    background: #047857;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
+    transform: translateY(-1px);
   }
 
-  .promo-button:hover {
-    background: #059669;
+  .register-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
 
-  .home-button {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text-muted);
+  .register-button-done {
+    background: #047857;
+    box-shadow: none;
+    cursor: default;
   }
 
-  .home-button:hover {
-    border-color: var(--border-focus);
-    background: var(--surface-hover);
-    color: var(--text);
+  .register-button-done:hover {
+    background: #065f46;
+    transform: none;
+    box-shadow: none;
   }
 
   .lightbox {
@@ -758,10 +877,8 @@
   }
 
   .detail-col-name { min-width: 140px; }
-  .detail-col-ps { width: 72px; text-align: center; }
   .detail-col-num { width: 80px; text-align: right; white-space: nowrap; }
   .dish-name { color: var(--text-muted); }
-  .ps-na { color: var(--text-dim); font-size: 12px; }
 
   .lightbox-close {
     position: absolute;
@@ -791,10 +908,10 @@
   @media (prefers-reduced-motion: reduce) {
     .gallery-card,
     .image-wrap img,
-    .promo-button,
-    .home-button,
+    .register-button,
     .lightbox-close {
       transition: none;
+      transform: none;
     }
 
     .shimmer {
@@ -831,9 +948,11 @@
       padding: 12px;
     }
 
-    .cta-panel,
-    .promo-button,
-    .home-button {
+    .cta-panel {
+      flex-direction: column;
+    }
+
+    .register-button {
       width: 100%;
     }
 

@@ -42,18 +42,22 @@ export const GET: RequestHandler = async ({ url }) => {
       const cachedMenuDates = service.getCachedMenuDates(dates)
 
       return restaurants
-        .flatMap((restaurant) => [...(cachedMenuDates.get(restaurant.id) ?? [])].flatMap((entryDate) => [
-          {
-            path: restaurantDatedPath(restaurant, entryDate),
-            changefreq: 'weekly' as const,
-            priority: '0.6'
-          },
-          {
-            path: restaurantDatedRssPath(restaurant, entryDate),
-            changefreq: 'daily' as const,
-            priority: '0.4'
-          }
-        ]))
+        .flatMap((restaurant) => {
+          // Always include today; add any additional cached dates on top
+          const entryDates = new Set([date, ...(cachedMenuDates.get(restaurant.id) ?? [])])
+          return [...entryDates].flatMap((entryDate) => [
+            {
+              path: restaurantDatedPath(restaurant, entryDate),
+              changefreq: 'weekly' as const,
+              priority: '0.6'
+            },
+            {
+              path: restaurantDatedRssPath(restaurant, entryDate),
+              changefreq: 'daily' as const,
+              priority: '0.4'
+            }
+          ])
+        })
         .sort((a, b) => a.path.localeCompare(b.path, 'ko'))
     })
     .catch(() => [])

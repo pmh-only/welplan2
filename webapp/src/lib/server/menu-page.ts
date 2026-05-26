@@ -265,3 +265,31 @@ export async function redirectToCurrentMenuRoute(
   if (mealTimeId) redirect(302, `${basePath}/${date}/${mealTimeId}`)
   redirect(302, '/restaurants')
 }
+
+export function buildRestaurantPageDescription(
+  restaurant: Restaurant,
+  vendorLabel: string,
+  menus: Menu[],
+  mealTimes: MealTime[]
+): string {
+  const base = `${vendorLabel} ${restaurant.name} 식단표.`
+  const mainMenus = menus.filter((m) => !m.isTakeOut)
+
+  const groups = mealTimes.flatMap((mt) => {
+    const names = mainMenus
+      .filter((m) => m.mealTimeId === mt.id)
+      .map((m) => m.name)
+    if (names.length === 0) return []
+    const listed = names.slice(0, 4).join(', ')
+    const tail = names.length > 4 ? ` 외 ${names.length - 4}개` : ''
+    return [`${mt.name}: ${listed}${tail}`]
+  })
+
+  if (groups.length === 0) {
+    return `${base} Welplan에서 오늘의 메뉴와 영양정보를 확인하세요.`
+  }
+
+  const body = groups.join(' · ')
+  const full = `${base} ${body}`
+  return full.length <= 155 ? full : full.slice(0, 152) + '...'
+}

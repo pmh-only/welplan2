@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit'
 import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
-import { loadGalleryMenusForRestaurantDate } from '$lib/server/menu-page'
+import { buildRestaurantPageDescription, loadGalleryMenusForRestaurantDate } from '$lib/server/menu-page'
 import { service } from '$lib/server/service'
 import { todayStr } from '$lib/utils'
 import type { PageServerLoad } from './$types'
@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
   const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
   const { menus, mealTimeMenus } = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, date)
+  const vendorLabel = restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
 
   return {
     restaurant,
@@ -40,6 +41,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     date,
     routeMode: 'plural' as const,
     canonicalPath: restaurantDatedPath(restaurant, date),
-    detailPath
+    detailPath,
+    pageDescription: buildRestaurantPageDescription(restaurant, vendorLabel, menus, mealTimes)
   }
 }
