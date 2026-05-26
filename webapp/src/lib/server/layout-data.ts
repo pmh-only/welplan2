@@ -9,7 +9,7 @@ const DEFAULT_RESTAURANTS_BY_ID = new Map(DEFAULT_RESTAURANTS.map((r) => [r.id, 
 export async function loadLayoutData(cookies: Cookies) {
   const raw = cookies.get(COOKIE)
   const isFirstVisit = raw == null
-  let restaurants: Restaurant[] = []
+  let restaurants: Restaurant[] = isFirstVisit ? [...DEFAULT_RESTAURANTS] : []
   if (raw) {
     try {
       restaurants = JSON.parse(decodeURIComponent(raw))
