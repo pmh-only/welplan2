@@ -9,8 +9,7 @@
     API_CATALOG_PATH,
     API_DOC_PATH,
     OPENAPI_PATH,
-    WEB_MCP_TOOLS,
-    routeForAgentPage
+    WEB_MCP_TOOLS
   } from '$lib/agent'
   import { app } from '$lib/state.svelte'
   import type { MealTime, Restaurant } from '$lib/types'
@@ -280,36 +279,37 @@
           annotations: { readOnlyHint: tool.readOnlyHint },
           execute: async (input: Record<string, unknown>) => {
             switch (tool.name) {
-              case 'welplan.open-page': {
-                const pageName = typeof input.page === 'string' ? input.page : ''
-                const date = typeof input.date === 'string' ? input.date : undefined
-                const time = typeof input.time === 'string' ? input.time : undefined
-                const target = routeForAgentPage(pageName, date, time)
-                if (!target) throw new Error('Invalid page name')
-                await goto(target)
-                return { ok: true, url: new URL(target, window.location.origin).toString() }
-              }
               case 'welplan.search-restaurants': {
                 const query = typeof input.query === 'string' ? input.query.trim() : ''
                 if (!query) throw new Error('query is required')
 
                 const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
                 if (!response.ok) throw new Error(`Search failed with status ${response.status}`)
-                return {
-                  query,
-                  results: await response.json()
-                }
+                return { query, results: await response.json() }
+              }
+              case 'welplan.open-restaurant': {
+                const vendor = typeof input.vendor === 'string' ? input.vendor : ''
+                const id = typeof input.id === 'string' ? input.id : ''
+                if (!vendor || !id) throw new Error('vendor and id are required')
+
+                const searchResponse = await fetch(`/proxy/search?q=${encodeURIComponent(id)}`)
+                if (!searchResponse.ok) throw new Error('Could not resolve restaurant')
+                const results: { id: string; name: string; vendor: string }[] = await searchResponse.json()
+                const restaurant = results.find((r) => r.id === id && r.vendor === vendor)
+                if (!restaurant) throw new Error(`Restaurant ${id} not found`)
+
+                const slug = restaurant.name
+                  .normalize('NFKC').trim().toLowerCase()
+                  .replace(/[^\p{Letter}\p{Number}]+/gu, '-').replace(/^-+|-+$/g, '') || 'restaurant'
+                const date = typeof input.date === 'string' ? input.date : ''
+                const target = date
+                  ? `/restaurants/${vendor}/${id}/${slug}/${date}`
+                  : `/restaurants/${vendor}/${id}/${slug}`
+                await goto(target)
+                return { ok: true, url: new URL(target, window.location.origin).toString() }
               }
               case 'welplan.get-current-page':
                 return pageSummary()
-              case 'welplan.get-cache-status': {
-                const response = await fetch('/api/cache/status')
-                if (!response.ok) throw new Error(`Cache status failed with status ${response.status}`)
-                return {
-                  ...pageSummary(),
-                  cache: await response.json()
-                }
-              }
               default:
                 throw new Error(`Unsupported tool '${tool.name}'`)
             }

@@ -8,8 +8,6 @@ export const OPENAPI_PATH = '/openapi.json'
 export const AGENT_SKILLS_INDEX_PATH = '/.well-known/agent-skills/index.json'
 export const MCP_SERVER_CARD_PATH = '/.well-known/mcp/server-card.json'
 
-export type AgentPageName = 'gallery' | 'takein' | 'takeout' | 'restaurants' | 'settings'
-
 export type WebMcpToolDefinition = {
   name: string
   title: string
@@ -20,35 +18,9 @@ export type WebMcpToolDefinition = {
 
 export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
   {
-    name: 'welplan.open-page',
-    title: 'Open Welplan page',
-    description:
-      'Navigate to the gallery, take-in, takeout, restaurant settings, or application settings views.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        page: {
-          type: 'string',
-          enum: ['gallery', 'takein', 'takeout', 'restaurants', 'settings']
-        },
-        date: {
-          type: 'string',
-          description: 'Optional date in YYYYMMDD format for gallery, takein, or takeout views.'
-        },
-        time: {
-          type: 'string',
-          description: 'Optional meal time id for gallery, takein, or takeout views.'
-        }
-      },
-      required: ['page'],
-      additionalProperties: false
-    },
-    readOnlyHint: false
-  },
-  {
     name: 'welplan.search-restaurants',
-    title: 'Search restaurants',
-    description: 'Search available Welstory and Shinsegae Food restaurants by name or keyword.',
+    title: '식당 검색',
+    description: 'Search Welstory and Shinsegae Food restaurants by name or keyword. Returns id, name, vendor, and path for each match.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -63,19 +35,35 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
     readOnlyHint: true
   },
   {
-    name: 'welplan.get-current-page',
-    title: 'Get current page',
-    description: 'Return a structured summary of the currently visible Welplan page.',
+    name: 'welplan.open-restaurant',
+    title: '식당 메뉴 보기',
+    description: 'Navigate to a restaurant\'s daily menu gallery page. Use search-restaurants first to obtain the vendor and id.',
     inputSchema: {
       type: 'object',
+      properties: {
+        vendor: {
+          type: 'string',
+          enum: ['welstory', 'shinsegae'],
+          description: 'Restaurant vendor.'
+        },
+        id: {
+          type: 'string',
+          description: 'Restaurant identifier returned by search-restaurants.'
+        },
+        date: {
+          type: 'string',
+          description: 'Date in YYYYMMDD format. Defaults to today when omitted.'
+        }
+      },
+      required: ['vendor', 'id'],
       additionalProperties: false
     },
     readOnlyHint: true
   },
   {
-    name: 'welplan.get-cache-status',
-    title: 'Get cache status',
-    description: 'Inspect server-side cache counts used by the Welplan web application.',
+    name: 'welplan.get-current-page',
+    title: '현재 페이지 정보',
+    description: 'Return a structured summary of the currently visible Welplan page.',
     inputSchema: {
       type: 'object',
       additionalProperties: false
@@ -83,25 +71,3 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
     readOnlyHint: true
   }
 ]
-
-export function routeForAgentPage(page: string, date?: string, time?: string): string | null {
-  switch (page) {
-    case 'gallery': {
-      const params = new URLSearchParams()
-      if (date) params.set('date', date)
-      if (time) params.set('time', time)
-      const query = params.toString()
-      return query ? `/?${query}` : '/'
-    }
-    case 'takein':
-      return date && time ? `/takein/${date}/${time}` : '/takein'
-    case 'takeout':
-      return date && time ? `/takeout/${date}/${time}` : '/takeout'
-    case 'restaurants':
-      return '/restaurants'
-    case 'settings':
-      return '/settings'
-    default:
-      return null
-  }
-}
