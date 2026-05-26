@@ -35,6 +35,7 @@ function shouldAdvertiseDiscovery(pathname: string): boolean {
     pathname.startsWith('/takein/') ||
     pathname.startsWith('/takeout/') ||
     pathname === '/restaurants' ||
+    pathname.startsWith('/restaurants/') ||
     pathname === '/settings'
   )
 }

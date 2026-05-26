@@ -8,13 +8,15 @@ import {
   MCP_SERVER_CARD_PATH,
   OPENAPI_PATH
 } from '$lib/agent'
-import { formatKoreanDate } from '$lib/utils'
+import { formatKoreanDate, todayStr } from '$lib/utils'
 import {
   loadGalleryMenusForRoute,
   loadTakeInMenusForRoute,
   loadTakeOutMenusForRoute
 } from '$lib/server/menu-page'
 import { loadLayoutData } from '$lib/server/layout-data'
+import { service } from '$lib/server/service'
+import { restaurantDatedRssPath } from '$lib/restaurant-routes'
 
 type LayoutData = Awaited<ReturnType<typeof loadLayoutData>>
 
@@ -339,6 +341,68 @@ function renderApiDocsMarkdown(url: URL) {
   ].join('\n')
 }
 
+async function renderRestaurantDateMarkdown(
+  url: URL,
+  vendor: string,
+  id: string,
+  date: string
+): Promise<string | null> {
+  const restaurant = await service.getRestaurant(id).catch(() => null)
+  if (!restaurant || restaurant.vendor !== vendor) return null
+
+  const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+  const vendorLabel = restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
+  const dateLabel = formatKoreanDate(date)
+  const title = `${restaurant.name} 식단표 — ${dateLabel}`
+  const rssUrl = `${url.origin}${restaurantDatedRssPath(restaurant, date)}`
+
+  const sections = (
+    await Promise.all(
+      mealTimes.map(async (mealTime) => {
+        const menus = await service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+        const visible = menus.filter((menu) => (menu.nutrition?.calories ?? 1) !== 0)
+        if (visible.length === 0) return null
+
+        const items = visible
+          .map((menu) => {
+            const nutrition = nutritionSummary(menu.nutrition)
+            const components =
+              menu.components.length > 0
+                ? `\n  - Components: ${menu.components.map((c) => c.name).join(', ')}`
+                : ''
+            return `- ${menu.name}\n  - Nutrition: ${nutrition}${components}`
+          })
+          .join('\n')
+
+        return `## ${mealTime.name}\n\n${items}`
+      })
+    )
+  ).filter(Boolean) as string[]
+
+  const body = [
+    frontmatter(
+      title,
+      url,
+      `${vendorLabel} ${restaurant.name} 식단표. ${dateLabel} 메뉴와 영양정보.`
+    ),
+    '',
+    `# ${title}`,
+    '',
+    `- Vendor: ${vendorLabel}`,
+    `- Date: ${dateLabel}`,
+    '',
+    sections.length > 0 ? sections.join('\n\n') : 'No menus available.',
+    '',
+    '## Discovery',
+    '',
+    `- RSS: ${rssUrl}`,
+    `- API docs: ${url.origin}${API_DOC_PATH}`,
+    `- OpenAPI: ${url.origin}${OPENAPI_PATH}`
+  ]
+
+  return body.join('\n')
+}
+
 export async function renderMarkdownPage(event: RequestEvent): Promise<string | null> {
   const { pathname } = event.url
 
@@ -385,6 +449,30 @@ export async function renderMarkdownPage(event: RequestEvent): Promise<string | 
       event.url,
       layoutData,
       { ...data, menus: visibleTakeOutMenus(data) }
+    )
+  }
+
+  // /restaurants/{vendor}/{id}/{slug}/{date}
+  const restaurantDatedMatch = pathname.match(/^\/restaurants\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/)
+  if (restaurantDatedMatch) {
+    const [, vendorEncoded, idEncoded, , dateEncoded] = restaurantDatedMatch
+    return renderRestaurantDateMarkdown(
+      event.url,
+      decodeURIComponent(vendorEncoded),
+      decodeURIComponent(idEncoded),
+      decodeURIComponent(dateEncoded)
+    )
+  }
+
+  // /restaurants/{vendor}/{id}/{slug} (undated — defaults to today)
+  const restaurantMatch = pathname.match(/^\/restaurants\/([^/]+)\/([^/]+)\/([^/]+)$/)
+  if (restaurantMatch) {
+    const [, vendorEncoded, idEncoded] = restaurantMatch
+    return renderRestaurantDateMarkdown(
+      event.url,
+      decodeURIComponent(vendorEncoded),
+      decodeURIComponent(idEncoded),
+      todayStr()
     )
   }
 
