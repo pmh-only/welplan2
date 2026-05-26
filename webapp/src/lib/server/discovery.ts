@@ -296,7 +296,8 @@ export function buildDiscoveryLinkHeader(pathnameAndSearch: string): string {
     `<${OPENAPI_PATH}>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"; title="${APP_NAME} OpenAPI document"`,
     `</api/health>; rel="status"; type="application/json"; title="${APP_NAME} service health"`,
     `<${AGENT_SKILLS_INDEX_PATH}>; rel="describedby"; type="application/json"; title="${APP_NAME} agent skills index"`,
-    `<${MCP_SERVER_CARD_PATH}>; rel="describedby"; type="application/json"; title="${APP_NAME} MCP server card"`
+    `<${MCP_SERVER_CARD_PATH}>; rel="describedby"; type="application/json"; title="${APP_NAME} MCP server card"`,
+    `</llms.txt>; rel="describedby"; type="text/plain"; title="${APP_NAME} LLM usage guide"`
   ].join(', ')
 }
 

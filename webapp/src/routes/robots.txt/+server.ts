@@ -8,7 +8,8 @@ export const GET: RequestHandler = ({ url }) => {
     'Disallow: /api/',
     'Disallow: /proxy/',
     `Content-Signal: ${CONTENT_SIGNAL}`,
-    `Sitemap: ${url.origin}/sitemap.xml`
+    `Sitemap: ${url.origin}/sitemap.xml`,
+    `LLMs: ${url.origin}/llms.txt`
   ].join('\n')
 
   return new Response(body, {

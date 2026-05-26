@@ -363,6 +363,7 @@
   <link rel="service-doc" href={API_DOC_PATH} />
   <link rel="service-desc" href={OPENAPI_PATH} />
   <link rel="describedby" href={AGENT_SKILLS_INDEX_PATH} />
+  <link rel="describedby" type="text/plain" href="/llms.txt" title="LLM usage guide" />
 </svelte:head>
 
 <div class="app">
