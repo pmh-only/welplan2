@@ -48,6 +48,7 @@
     '신세계푸드 메뉴 조회',
     '신세계푸드 식단표'
   ].join(', ')
+  const PAGE_TIP_DISMISSED_STORAGE_KEY = 'welplan_page_tip_dismissed'
 
   function mealTimeName (mealTimes: MealTime[], id: string): string {
     if (id === ALL_MEAL_TIME_ID) return '전체'
@@ -210,6 +211,12 @@
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
+  let pageTipDismissed = $state(false)
+
+  function dismissPageTip () {
+    pageTipDismissed = true
+    localStorage.setItem(PAGE_TIP_DISMISSED_STORAGE_KEY, '1')
+  }
 
   $effect(() => {
     if (isNavigating) {
@@ -233,6 +240,7 @@
 
   onMount(() => {
     app.loadFromStorage()
+    pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
 
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
@@ -336,6 +344,7 @@
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
   const showFirstVisitGuide = $derived(showGlobalChrome && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
+  const showPageTip = $derived(showGlobalChrome && !pageTipDismissed)
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
 </script>
@@ -444,7 +453,7 @@
       </section>
     {/if}
 
-    {#if showGlobalChrome}
+    {#if showPageTip}
       <aside class="page-tip" aria-label={pageTip.title}>
         <div class="page-tip-icon" aria-hidden="true">💡</div>
         <div class="page-tip-body">
@@ -455,6 +464,7 @@
             {/each}
           </ul>
         </div>
+        <button type="button" class="page-tip-close" aria-label="팁 닫기" onclick={dismissPageTip}>×</button>
       </aside>
     {/if}
 
@@ -694,8 +704,9 @@
   }
 
   .page-tip {
+    position: relative;
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 12px;
     align-items: flex-start;
     margin-bottom: 14px;
@@ -719,6 +730,24 @@
 
   .page-tip-body {
     min-width: 0;
+  }
+
+  .page-tip-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-top: -4px;
+    margin-right: -6px;
+    border-radius: 999px;
+    color: #1e3a8a;
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  .page-tip-close:hover {
+    background: rgba(59, 130, 246, 0.12);
   }
 
   .page-tip-title {
@@ -794,7 +823,7 @@
     .tab-btn.active::after { bottom: -9px; }
     .brand-sub { display: none; }
     .content { padding: 14px 12px; }
-    .page-tip { grid-template-columns: 1fr; gap: 10px; }
+    .page-tip { grid-template-columns: auto 1fr auto; gap: 10px; }
     .page-tip-icon { width: 30px; height: 30px; }
   }
 </style>

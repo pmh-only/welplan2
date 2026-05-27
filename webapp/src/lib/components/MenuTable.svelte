@@ -315,18 +315,6 @@
 {#if visibleMenus.length === 0}
   <div class="empty-state"><p>{emptyMessage}</p></div>
 {:else}
-  {#if enableSelection}
-    <div class="selection-bar">
-      <div class="selection-meta">
-        <span class="selection-count">선택 {selectedMenus.length}개</span>
-      </div>
-      <div class="selection-actions">
-        <button type="button" class="selection-btn" onclick={selectAllVisible}>전체 선택</button>
-        <button type="button" class="selection-btn" onclick={clearSelection}>선택 해제</button>
-      </div>
-    </div>
-  {/if}
-
   <div class={enableSelection ? 'table-wrap selection-mode' : 'table-wrap'}>
     <table class={enableSelection ? 'menu-table selection-mode' : 'menu-table'}>
       <thead>

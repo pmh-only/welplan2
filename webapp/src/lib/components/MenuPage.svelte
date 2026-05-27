@@ -149,7 +149,6 @@
   <div class="section">
     <div class="controls-row">
       <div class="form-group">
-        <label for="date-input">날짜</label>
         <div class="date-row">
           <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">‹</button>
           <input
@@ -163,7 +162,6 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="meal-time-select">식사 시간</label>
         <select
           id="meal-time-select"
           class="select-input"
@@ -178,10 +176,6 @@
           {/each}
         </select>
       </div>
-      <div class="date-label">{formatKoreanDate(data.date)}</div>
-    </div>
-
-    <div class="filter-row">
       {#if kind === 'takein'}
         <div class="chip-group">
           <button
@@ -207,7 +201,6 @@
         </div>
       {:else if kind === 'takeout'}
         <div class="form-group takeout-restaurant-group">
-          <label for="takeout-restaurant-select">식당</label>
           <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
             {#each takeOutRestaurants as restaurant (restaurant.id)}
               <option value={restaurant.id}>{restaurant.name}</option>
@@ -227,7 +220,6 @@
           </button>
         </div>
       {/if}
-
     </div>
   </div>
 

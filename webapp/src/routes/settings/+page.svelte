@@ -57,7 +57,7 @@
 
   <div class="section-body">
     <p class="desc">
-      낮을수록 좋습니다 — <span class="tag tag-green">🟢 ≤50 좋음</span> <span class="tag tag-yellow">🟡 ≤100 보통</span> <span class="tag tag-red">🔴 &gt;100 주의</span>
+      <span class="tag tag-green">🟢 ≤50 좋음</span> <span class="tag tag-yellow">🟡 ≤100 보통</span> <span class="tag tag-red">🔴 &gt;100 주의</span>
     </p>
 
     <div class="fields">
