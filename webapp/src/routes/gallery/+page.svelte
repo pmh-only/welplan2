@@ -80,6 +80,10 @@
     return nutrientDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
   }
 
+  function hasMenuImage (menu: Menu): boolean {
+    return Boolean(menu.imageUrl)
+  }
+
   async function openZoom (menu: GalleryMenu) {
     zoomedMenu = menu
     detail = []
@@ -167,8 +171,8 @@
     const allRestaurantIds = new Map<string, Set<string>>()
 
     for (const menu of data.menus as Menu[]) {
-      if (!menu.imageUrl) continue
       if (menu.name.includes('죽')) continue
+      if (!hasMenuImage(menu) && menu.isTakeOut) continue
       if (menu.isTakeOut && !menu.name.includes('도시락')) continue
 
       const key = galleryMenuKey(menu)
@@ -199,8 +203,6 @@
   function restaurantNames (ids: string[]): string {
     return ids.map(restaurantName).join(', ')
   }
-
-  const showRanking = $derived(sortBy.startsWith('pscore'))
 
 </script>
 
@@ -264,7 +266,7 @@
 
     {#if galleryMenus.length === 0}
       <div class="hint-block">
-        <p class="hint">이미지가 있는 메뉴가 없습니다.</p>
+        <p class="hint">표시할 메뉴가 없습니다.</p>
       </div>
     {:else if isAllMealTime}
       <div class="gallery-sections">
@@ -287,11 +289,15 @@
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
                   {@const ps = pScore(menu.nutrition, app.pWeights)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
-                    {#if showRanking && i < 3}
-                      <span class="medal">{(['🥇', '🥈', '🥉'])[i]}</span>
-                    {/if}
                     <div class="gallery-img-wrap">
-                      <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+                      {#if hasMenuImage(menu)}
+                        <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+                      {:else}
+                        <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
+                          <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+                          <span>이미지 준비중</span>
+                        </div>
+                      {/if}
                     </div>
                     {#if showLabels}
                       <div class="gallery-info">
@@ -319,11 +325,15 @@
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           {@const ps = pScore(menu.nutrition, app.pWeights)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
-            {#if showRanking && i < 3}
-              <span class="medal">{(['🥇', '🥈', '🥉'])[i]}</span>
-            {/if}
             <div class="gallery-img-wrap">
-              <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+              {#if hasMenuImage(menu)}
+                <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+              {:else}
+                <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
+                  <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+                  <span>이미지 준비중</span>
+                </div>
+              {/if}
             </div>
             {#if showLabels}
               <div class="gallery-info">
@@ -363,7 +373,14 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="lightbox-left">
-        <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        {#if hasMenuImage(zoomedMenu)}
+          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        {:else}
+          <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
+            <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+            <span>이미지 준비중</span>
+          </div>
+        {/if}
         <div class="lightbox-info">
           <div class="lightbox-text">
             <span class="lightbox-name">{zoomedMenu.name}</span>
@@ -681,11 +698,43 @@
   }
   .lightbox-close:hover { background: rgba(0,0,0,0.75); }
 
-  .medal { position: absolute; top: 7px; left: 7px; font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4)); z-index: 1; }
-
   .gallery-img-wrap { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--surface); }
   .gallery-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.2s; }
   .gallery-card:hover .gallery-img { transform: scale(1.04); }
+  .gallery-placeholder,
+  .lightbox-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    min-height: 160px;
+    padding: 18px;
+    background:
+      linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.08)),
+      var(--surface);
+    color: var(--text-dim);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .placeholder-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 20px;
+  }
+  .lightbox-placeholder {
+    aspect-ratio: 1;
+    min-height: 260px;
+  }
 
   .gallery-info { padding: 9px 10px; background: white; border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
