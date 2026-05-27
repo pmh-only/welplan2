@@ -1,6 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-import { ALL_MEAL_TIME_ID } from '$lib/utils'
+import { ALL_MEAL_TIME_ID, formatKoreanDate, todayStr } from '$lib/utils'
 import {
   APP_NAME,
   AGENT_SKILLS_INDEX_PATH,
@@ -9,7 +9,6 @@ import {
   MCP_SERVER_CARD_PATH,
   OPENAPI_PATH
 } from '$lib/agent'
-import { formatKoreanDate, todayStr } from '$lib/utils'
 import {
   loadGalleryMenusForRoute,
   loadTakeInMenusForRoute,

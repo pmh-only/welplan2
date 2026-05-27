@@ -37,6 +37,10 @@ class CafeteriaService {
     return this.normalizeSearchText(value).replace(/\s+/g, '')
   }
 
+  private isClosedRestaurant(restaurant: Restaurant): boolean {
+    return this.normalizeSearchText(restaurant.name).includes('(운영종료)')
+  }
+
   private collectSearchValues(value: unknown, values: Set<string>): void {
     if (typeof value === 'string') {
       const normalized = this.normalizeSearchText(value)
@@ -744,7 +748,7 @@ class CafeteriaService {
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
-    const fromCache = this.readRestaurants()
+    const fromCache = this.readRestaurants().filter((restaurant) => !this.isClosedRestaurant(restaurant))
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
     const fromWelstory = await Promise.resolve()
@@ -763,6 +767,7 @@ class CafeteriaService {
             typeof r.id === 'string' &&
             r.id.length > 0 &&
             typeof r.name === 'string' &&
+            !this.isClosedRestaurant(r) &&
             typeof r.vendor === 'string'
         )
       )
