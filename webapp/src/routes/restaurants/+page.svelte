@@ -69,7 +69,6 @@
         <p class="welcome-guide-eyebrow">첫 방문 안내</p>
         <h2>먼저 내 식당을 추가해 주세요</h2>
       </div>
-      <span class="welcome-guide-badge">1분 설정</span>
     </div>
 
     <ol class="welcome-guide-steps">

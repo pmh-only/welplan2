@@ -92,36 +92,6 @@
   </div>
 </div>
 
-<div class="section">
-  <div class="section-head">
-    <div class="section-head-left">
-      <h2>캐시 상태</h2>
-    </div>
-    <div class="section-actions">
-      <button class="ghost-btn" onclick={loadCacheStatus} disabled={cacheLoading}>상태 조회</button>
-      <button class="danger-btn" onclick={clearCache} disabled={cacheLoading}>캐시 삭제</button>
-    </div>
-  </div>
-
-  <div class="section-body">
-    <p class="desc">서버에 저장된 식당 · 식사 시간 · 메뉴 · 상세 메뉴 캐시를 확인하거나 삭제합니다.</p>
-
-    {#if cacheMessage}
-      <p class="cache-message">{cacheMessage}</p>
-    {/if}
-
-    {#if cacheStatus}
-      <div class="cache-grid">
-        {#each Object.entries(cacheStatus) as [key, value]}
-          <div class="cache-card">
-            <span class="cache-key">{key}</span>
-            <span class="cache-value">{String(value)}</span>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
-</div>
 
 <style>
   .section {

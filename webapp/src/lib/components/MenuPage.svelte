@@ -143,7 +143,7 @@
   <div class="empty-page">
     <div class="empty-icon">🏪</div>
     <p class="empty-title">식당이 없습니다</p>
-    <p class="empty-sub"><a href="/restaurants">식당 설정</a>에서 식당을 추가하면 메뉴가 표시됩니다</p>
+    <p class="empty-sub"><a href="/restaurants">식당 선택</a>에서 식당을 추가하면 메뉴가 표시됩니다</p>
   </div>
 {:else}
   <div class="section">

@@ -241,7 +241,7 @@
 
   {#if data.restaurants.length === 0}
     <div class="hint-block">
-      <p class="hint"><a href="/restaurants">식당 설정</a>에서 식당을 추가하면 갤러리가 표시됩니다</p>
+      <p class="hint"><a href="/restaurants">식당 선택</a>에서 식당을 추가하면 갤러리가 표시됩니다</p>
     </div>
   {:else}
     <div class="gallery-filters">

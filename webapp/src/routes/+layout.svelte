@@ -126,7 +126,7 @@
     if (pathname.startsWith('/restaurants')) {
       return {
         ...baseMeta,
-        title: '식당 설정 | Welplan',
+        title: '식당 선택 | Welplan',
         description: 'Welplan에서 조회할 삼성웰스토리·신세계푸드 식당을 추가하고 관리합니다.',
         robots: NOINDEX_ROBOTS
       }
@@ -149,8 +149,7 @@
       return {
         title: '갤러리 팁',
         items: [
-          '메뉴 이미지를 누르면 크게 확대해서 자세히 볼 수 있습니다.',
-          '날짜와 식사 시간을 바꾸면 다른 날 식단 사진도 바로 확인할 수 있습니다.'
+          '메뉴 이미지를 누르면 크게 확대해서 자세히 볼 수 있습니다.'
         ]
       }
     }
@@ -159,7 +158,6 @@
       return {
         title: '테이크인 팁',
         items: [
-          '식당 설정 탭에서 웰스토리/신세계푸드 식당을 추가할 수 있습니다.',
           '테이블 헤더를 클릭하여 영양소 별로 정렬할 수 있습니다'
         ]
       }
@@ -169,15 +167,14 @@
       return {
         title: '테이크아웃 팁',
         items: [
-          '식당 설정 탭에서 활성화한 식당을 여기서 볼 수 있습니다.',
-          'NEW! 드실 테이크아웃 메뉴를 클릭하면 4코인 계산을 자동으로 지원합니다. (팔코 지원 예정)'
+          '테이크아웃 메뉴를 클릭하면 4코인 계산을 자동으로 지원합니다.'
         ]
       }
     }
 
     if (pathname.startsWith('/restaurants')) {
       return {
-        title: '식당 설정 팁',
+        title: '식당 선택 팁',
         items: [
           '식당 이름 일부만 입력해도 검색할 수 있어 원하는 식당을 빠르게 추가할 수 있습니다.',
           '추가한 식당 목록은 저장되어 다음 방문 때도 그대로 유지됩니다.'
@@ -189,15 +186,14 @@
       return {
         title: '설정 팁',
         items: [
-          'P-Score는 낮을수록 좋은 점수라서 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.',
-          '메뉴가 오래된 것 같으면 캐시 상태를 확인하고 캐시 삭제로 새로고침할 수 있습니다.'
+          'P-Score는 낮을수록 좋은 점수라서 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.'
         ]
       }
     }
 
     return {
       title: 'Welplan 팁',
-      items: ['상단 탭으로 갤러리, 테이크인, 테이크아웃, 식당 설정 화면을 빠르게 이동할 수 있습니다.']
+      items: ['상단 탭으로 갤러리, 테이크인, 테이크아웃, 식당 선택 화면을 빠르게 이동할 수 있습니다.']
     }
   }
 
@@ -207,7 +203,7 @@
     { href: '/takein', label: '테이크 인', icon: '🍽️' },
     { href: '/takeout', label: '테이크 아웃', icon: '📦' },
     { href: '/', label: '갤러리', icon: '📸' },
-    { href: '/restaurants', label: '식당 설정', icon: '🏪' },
+    { href: '/restaurants', label: '식당 선택', icon: '🏪' },
     { href: '/settings', label: '설정', icon: '⚙️' }
   ]
 
@@ -435,11 +431,6 @@
         </div>
       {/if}
     </header>
-
-    <div class="notice-bar" role="banner" aria-label="서비스 업데이트 공지">
-      <span class="notice-bar-badge">NEW</span>
-      이제 신세계푸드 식당(패밀리홀 등) 도 지원합니다!
-    </div>
   {/if}
 
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
@@ -447,13 +438,9 @@
       <section class="setup-banner" aria-label="첫 방문 안내">
         <div class="setup-banner-icon" aria-hidden="true">🏪</div>
         <div class="setup-banner-body">
-          <p class="setup-banner-title">처음 방문하셨다면 먼저 식당 설정을 해주세요</p>
-          <p class="setup-banner-text">
-            갤러리와 메뉴 화면은 식당 설정에 추가한 식당 기준으로 표시됩니다. 먼저 자주 사용하는
-            웰스토리 또는 신세계푸드 식당을 추가해 두면 더 정확하게 볼 수 있습니다.
-          </p>
+          <p class="setup-banner-title">처음 방문하셨다면 먼저 식당 선택을 해주세요</p>
         </div>
-        <a class="setup-banner-link" href="/restaurants">식당 설정으로 이동</a>
+        <a class="setup-banner-link" href="/restaurants">식당 선택으로 이동</a>
       </section>
     {/if}
 
