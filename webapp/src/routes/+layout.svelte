@@ -187,7 +187,7 @@
       return {
         title: '설정 팁',
         items: [
-          'P-Score는 낮을수록 좋은 점수라서 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.'
+          'P-Score는 영양소의 따른 선호 점수로 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.'
         ]
       }
     }
@@ -241,6 +241,9 @@
   onMount(() => {
     app.loadFromStorage()
     pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
+    if (page.url.pathname === '/' && page.url.search === '' && app.startPage !== '/') {
+      goto(app.startPage, { replaceState: true })
+    }
 
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {

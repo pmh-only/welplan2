@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app, DEFAULT_WEIGHTS } from '$lib/state.svelte'
+  import { app, DEFAULT_WEIGHTS, START_PAGE_OPTIONS } from '$lib/state.svelte'
   import { pScore } from '$lib/utils'
 
   const EXAMPLE_NUTRITION = { calories: 650, carbohydrates: 80, sugar: 8, fat: 20, protein: 30 }
@@ -47,53 +47,86 @@
   }
 </script>
 
-<div class="section">
-  <div class="section-head">
-    <div class="section-head-left">
-      <h2>P-Score 가중치</h2>
+<div class="settings-layout">
+  <div class="section">
+    <div class="section-head">
+      <div class="section-head-left">
+        <h2>시작 페이지</h2>
+      </div>
     </div>
-    <button class="ghost-btn" onclick={() => app.resetWeights()}>기본값 복원</button>
+
+    <div class="section-body">
+      <div class="field">
+        <div class="field-head">
+          <label for="start-page-select">처음 열 화면</label>
+        </div>
+        <select
+          id="start-page-select"
+          class="select-input"
+          bind:value={app.startPage}
+          onchange={() => app.saveStartPage()}
+        >
+          {#each START_PAGE_OPTIONS as option (option.path)}
+            <option value={option.path}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
   </div>
 
-  <div class="section-body">
-    <p class="desc">
-      <span class="tag tag-green">🟢 ≤50 좋음</span> <span class="tag tag-yellow">🟡 ≤100 보통</span> <span class="tag tag-red">🔴 &gt;100 주의</span>
-    </p>
-
-    <div class="fields">
-      {#each FIELDS as f}
-        <div class="field">
-          <div class="field-head">
-            <label for="w-{f.key}">{f.label}</label>
-            <div class="field-right">
-              <span class="field-desc">{f.desc}</span>
-              <span class="field-val">{app.pWeights[f.key].toFixed(1)}</span>
-            </div>
-          </div>
-          <input
-            id="w-{f.key}"
-            type="range"
-            min="0"
-            max="5"
-            step="0.1"
-            bind:value={app.pWeights[f.key]}
-            oninput={() => app.savePWeights()}
-          />
-        </div>
-      {/each}
+  <div class="section">
+    <div class="section-head">
+      <div class="section-head-left">
+        <h2>P-Score 가중치</h2>
+      </div>
+      <button class="ghost-btn" onclick={() => app.resetWeights()}>기본값 복원</button>
     </div>
 
-    <div class="example">
-      <span class="example-label">예시 (650kcal · 탄 80g · 당 8g · 지 20g · 단 30g)</span>
-      <span class="example-score" class:green={exampleScore !== null && exampleScore <= 50} class:yellow={exampleScore !== null && exampleScore > 50 && exampleScore <= 100} class:red={exampleScore !== null && exampleScore > 100}>
-        P-Score {exampleScore ?? '—'}
-      </span>
+    <div class="section-body">
+      <p class="desc">
+        <span class="tag tag-green">🟢 ≤50 좋음</span> <span class="tag tag-yellow">🟡 ≤100 보통</span> <span class="tag tag-red">🔴 &gt;100 주의</span>
+      </p>
+
+      <div class="fields">
+        {#each FIELDS as f}
+          <div class="field">
+            <div class="field-head">
+              <label for="w-{f.key}">{f.label}</label>
+              <div class="field-right">
+                <span class="field-desc">{f.desc}</span>
+                <span class="field-val">{app.pWeights[f.key].toFixed(1)}</span>
+              </div>
+            </div>
+            <input
+              id="w-{f.key}"
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              bind:value={app.pWeights[f.key]}
+              oninput={() => app.savePWeights()}
+            />
+          </div>
+        {/each}
+      </div>
+
+      <div class="example">
+        <span class="example-label">예시 (650kcal · 탄 80g · 당 8g · 지 20g · 단 30g)</span>
+        <span class="example-score" class:green={exampleScore !== null && exampleScore <= 50} class:yellow={exampleScore !== null && exampleScore > 50 && exampleScore <= 100} class:red={exampleScore !== null && exampleScore > 100}>
+          P-Score {exampleScore ?? '—'}
+        </span>
+      </div>
     </div>
   </div>
 </div>
 
 
 <style>
+  .settings-layout {
+    display: grid;
+    gap: 14px;
+  }
+
   .section {
     background: #fff;
     border: 1px solid var(--border);
@@ -150,6 +183,19 @@
   .field-desc { font-size: 11px; color: var(--text-dim); text-align: right; }
   .field-val { font-size: 13px; color: var(--green); font-weight: 700; min-width: 28px; text-align: right; }
 
+  .select-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .select-input:focus { border-color: var(--border-focus); }
+
   input[type='range'] { width: 100%; accent-color: var(--green); cursor: pointer; height: 4px; }
 
   .example {
@@ -171,4 +217,11 @@
   .cache-card { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
   .cache-key { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
   .cache-value { font-size: 18px; font-weight: 700; color: var(--text); }
+
+  @media (min-width: 900px) {
+    .settings-layout {
+      grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+      align-items: start;
+    }
+  }
 </style>
