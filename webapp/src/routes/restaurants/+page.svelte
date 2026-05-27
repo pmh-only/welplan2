@@ -83,69 +83,23 @@
   </div>
 {/if}
 
-<div class="section">
-  <div class="section-head">
-    <div class="section-head-left">
-      <h2>내 식당</h2>
-      <span class="count-badge">{restaurants.length}개</span>
-    </div>
-  </div>
-
-  {#if restaurants.length === 0}
-    <div class="hint-block">
-      <p class="hint">추가된 식당이 없습니다. 아래에서 검색해 추가하세요.</p>
-    </div>
-  {:else}
-    <ul class="rest-list">
-      {#each restaurants as r (r.id)}
-        <li class="rest-item">
-          <div class="rest-info">
-            <div class="rest-copy">
-              <p class="rest-name">{r.name}</p>
-              {#if pathText(r)}
-                <span class="rest-path">{pathText(r)}</span>
-              {/if}
-            </div>
-            <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
-          </div>
-          <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-</div>
-
-<div class="section">
-  <div class="section-head">
-    <div class="section-head-left">
-      <h2>식당 검색</h2>
-    </div>
-  </div>
-
-  <div class="search-area">
-    <div class="search-row">
-      <span class="search-icon">🔍</span>
-      <input
-        class="search-input"
-        type="text"
-        placeholder="식당 이름을 입력하세요..."
-        bind:value={query}
-        oninput={search}
-      />
-      {#if searching}<span class="search-spinner">검색 중...</span>{/if}
-    </div>
-
-    {#if searchError}
-      <p class="error">{searchError}</p>
-    {:else if searchResults.length === 0 && query.trim() && !searching}
-      <div class="hint-block">
-        <p class="hint">검색 결과가 없습니다.</p>
+<div class="restaurants-layout">
+  <div class="section">
+    <div class="section-head">
+      <div class="section-head-left">
+        <h2>내 식당</h2>
+        <span class="count-badge">{restaurants.length}개</span>
       </div>
-    {:else if searchResults.length > 0}
+    </div>
+
+    {#if restaurants.length === 0}
+      <div class="hint-block">
+        <p class="hint">추가된 식당이 없습니다. 아래에서 검색해 추가하세요.</p>
+      </div>
+    {:else}
       <ul class="rest-list">
-        {#each searchResults as r (r.id)}
-          {@const added = myIds.has(r.id)}
-          <li class="rest-item" class:rest-item-added={added}>
+        {#each restaurants as r (r.id)}
+          <li class="rest-item">
             <div class="rest-info">
               <div class="rest-copy">
                 <p class="rest-name">{r.name}</p>
@@ -155,15 +109,63 @@
               </div>
               <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
             </div>
-            {#if added}
-              <span class="added-tag">✓ 추가됨</span>
-            {:else}
-              <button class="add-btn" onclick={() => addRestaurant(r)}>+ 추가</button>
-            {/if}
+            <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
           </li>
         {/each}
       </ul>
     {/if}
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-head-left">
+        <h2>식당 검색</h2>
+      </div>
+    </div>
+
+    <div class="search-area">
+      <div class="search-row">
+        <span class="search-icon">🔍</span>
+        <input
+          class="search-input"
+          type="text"
+          placeholder="식당 이름을 입력하세요..."
+          bind:value={query}
+          oninput={search}
+        />
+        {#if searching}<span class="search-spinner">검색 중...</span>{/if}
+      </div>
+
+      {#if searchError}
+        <p class="error">{searchError}</p>
+      {:else if searchResults.length === 0 && query.trim() && !searching}
+        <div class="hint-block">
+          <p class="hint">검색 결과가 없습니다.</p>
+        </div>
+      {:else if searchResults.length > 0}
+        <ul class="rest-list">
+          {#each searchResults as r (r.id)}
+            {@const added = myIds.has(r.id)}
+            <li class="rest-item" class:rest-item-added={added}>
+              <div class="rest-info">
+                <div class="rest-copy">
+                  <p class="rest-name">{r.name}</p>
+                  {#if pathText(r)}
+                    <span class="rest-path">{pathText(r)}</span>
+                  {/if}
+                </div>
+                <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
+              </div>
+              {#if added}
+                <span class="added-tag">✓ 추가됨</span>
+              {:else}
+                <button class="add-btn" onclick={() => addRestaurant(r)}>+ 추가</button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -224,12 +226,16 @@
     font-size: 12px;
   }
 
+  .restaurants-layout {
+    display: grid;
+    gap: 14px;
+  }
+
   .section {
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
-    margin-bottom: 14px;
     box-shadow: var(--shadow-sm);
   }
 
@@ -301,4 +307,11 @@
     font-size: 13px; color: var(--text); background: transparent; outline: none;
   }
   .search-spinner { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+
+  @media (min-width: 900px) {
+    .restaurants-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
 </style>
