@@ -372,7 +372,7 @@
           {@const n = menu.nutrition}
           {@const imgSrc = proxyImg(menu.imageUrl)}
           {@const ps = pScore(n, app.pWeights)}
-          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
+          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
                 <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(key)} />
@@ -897,8 +897,8 @@
 
   .menu-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
   .menu-row.selected { background: #f0fdf4; }
-  .menu-row.expandable { cursor: pointer; }
-  .menu-row.expandable:hover { background: var(--surface-hover); }
+  .menu-row.clickable { cursor: pointer; }
+  .menu-row.clickable:not(.selected):hover { background: var(--surface-hover); }
   .menu-row.expanded { background: var(--surface); border-bottom-color: transparent; }
   .menu-row td { padding: 10px 12px; vertical-align: middle; }
   .menu-row .col-img { padding: 6px 8px; }

@@ -57,3 +57,21 @@ input,
 select {
   font-family: inherit;
 }
+
+select,
+input[type='button'],
+input[type='checkbox'],
+input[type='color'],
+input[type='date'],
+input[type='datetime-local'],
+input[type='file'],
+input[type='month'],
+input[type='radio'],
+input[type='range'],
+input[type='reset'],
+input[type='submit'],
+input[type='time'],
+input[type='week'],
+[role='button'] {
+  cursor: pointer;
+}
