@@ -188,16 +188,20 @@
             type="button"
             class="chip"
             class:chip-active={takeInFilterMainOnly}
+            aria-pressed={takeInFilterMainOnly}
             onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
           >
+            <span class="chip-checkbox" aria-hidden="true">{takeInFilterMainOnly ? '✓' : ''}</span>
             메인 메뉴만
           </button>
           <button
             type="button"
             class="chip"
             class:chip-active={takeInFilterExcludeOptional}
+            aria-pressed={takeInFilterExcludeOptional}
             onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
           >
+            <span class="chip-checkbox" aria-hidden="true">{takeInFilterExcludeOptional ? '✓' : ''}</span>
             추가찬 제외
           </button>
         </div>
@@ -215,8 +219,10 @@
             type="button"
             class="chip"
             class:chip-active={takeOutFilterDrinks}
+            aria-pressed={takeOutFilterDrinks}
             onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
           >
+            <span class="chip-checkbox" aria-hidden="true">{takeOutFilterDrinks ? '✓' : ''}</span>
             음료수 제외
           </button>
         </div>
@@ -305,6 +311,9 @@
 
   .chip-group { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
   .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 5px 12px;
     border-radius: 20px;
     border: 1px solid var(--border);
@@ -315,6 +324,24 @@
     cursor: pointer;
     transition: all 0.12s;
     white-space: nowrap;
+  }
+  .chip-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    background: #fff;
+    color: #047857;
+    font-size: 10px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .chip-active .chip-checkbox {
+    border-color: var(--green);
+    background: #dcfce7;
   }
   .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
   .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }

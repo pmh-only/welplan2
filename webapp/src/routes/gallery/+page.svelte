@@ -232,8 +232,10 @@
         type="button"
         class="chip"
         class:chip-active={showLabels}
+        aria-pressed={showLabels}
         onclick={() => { showLabels = !showLabels }}
       >
+        <span class="chip-checkbox" aria-hidden="true">{showLabels ? '✓' : ''}</span>
         메뉴명 표시
       </button>
     </div>
@@ -478,6 +480,9 @@
   .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 5px 12px;
     border-radius: 20px;
     border: 1px solid var(--border);
@@ -488,6 +493,24 @@
     cursor: pointer;
     transition: all 0.12s;
     white-space: nowrap;
+  }
+  .chip-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    background: #fff;
+    color: #047857;
+    font-size: 10px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .chip-active .chip-checkbox {
+    border-color: var(--green);
+    background: #dcfce7;
   }
   .chip:hover { border-color: var(--green); color: #047857; background: #f0fdf4; }
   .chip-active { border-color: var(--green); color: #047857; background: #f0fdf4; font-weight: 600; }
