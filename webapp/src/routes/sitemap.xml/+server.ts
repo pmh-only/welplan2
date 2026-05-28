@@ -1,7 +1,5 @@
 import { service } from '$lib/server/service'
-import { restaurantDatedPath } from '$lib/restaurant-routes'
-import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '$lib/utils'
-import { menuScanDates } from '$lib/server/menu-availability'
+import { restaurantDetailPath } from '$lib/restaurant-routes'
 import type { RequestHandler } from './$types'
 
 type SitemapEntry = {
@@ -20,39 +18,15 @@ function xmlEscape(value: string): string {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-  const entries: SitemapEntry[] = [
-    { path: '/', changefreq: 'hourly', priority: '1.0' }
-  ]
-  const date = todayStr()
-
-  entries.push({ path: `/takein/${date}/${ALL_MEAL_TIME_ID}`, changefreq: 'daily', priority: '0.8' })
-
-  const mealTimes = await service.getAllMealTimes().catch(() => [])
-  const currentMealTimeId = autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
-  if (currentMealTimeId) {
-    entries.push({ path: `/takeout/${date}/${currentMealTimeId}`, changefreq: 'daily', priority: '0.8' })
-  }
-
-  const dates = menuScanDates(date)
-  const restaurantEntries = await service.getRestaurants()
-    .then((restaurants) => {
-      const cachedMenuDates = service.getCachedMenuDates(dates)
-
-      return restaurants
-        .flatMap((restaurant) => {
-          // Always include today; add any additional cached dates on top
-          const entryDates = new Set([date, ...(cachedMenuDates.get(restaurant.id) ?? [])])
-          return [...entryDates].map((entryDate) => ({
-            path: restaurantDatedPath(restaurant, entryDate),
-            changefreq: 'weekly' as const,
-            priority: '0.6'
-          }))
-        })
-        .sort((a, b) => a.path.localeCompare(b.path, 'ko'))
-    })
+  const entries = await service.getRestaurants()
+    .then((restaurants) => restaurants
+      .map((restaurant) => ({
+        path: restaurantDetailPath(restaurant),
+        changefreq: 'weekly' as const,
+        priority: '0.6'
+      }))
+      .sort((a, b) => a.path.localeCompare(b.path, 'ko')))
     .catch(() => [])
-
-  entries.push(...restaurantEntries)
 
   const lastmod = new Date().toISOString()
   const body = `<?xml version="1.0" encoding="UTF-8"?>

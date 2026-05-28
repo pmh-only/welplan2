@@ -37,10 +37,17 @@
   const NOINDEX_ROBOTS = 'noindex, follow'
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
+    '웰스토리 식단표',
     '웰스토리 식단',
+    '웰스토리 메뉴',
     '삼성웰스토리 메뉴',
     '웰스토리 메뉴 조회',
     '삼성웰스토리 식단',
+    '삼성웰스토리 식단 조회',
+    '삼성웰스토리 식단표',
+    '웰스토리 api',
+    '웰스토리 식단 조회 api',
+    '웰스토리 식단 조회 어플',
     '삼성전자 식단 조회',
     '삼성전자 식단표',
     '삼성전자 웰스토리 메뉴',
@@ -49,6 +56,11 @@
     '신세계푸드 식단표'
   ].join(', ')
   const PAGE_TIP_DISMISSED_STORAGE_KEY = 'welplan_page_tip_dismissed'
+
+  function mergeKeywords (...groups: string[]): string {
+    const keywords = groups.flatMap((group) => group.split(',').map((keyword) => keyword.trim()))
+    return [...new Set(keywords.filter(Boolean))].join(', ')
+  }
 
   function mealTimeName (mealTimes: MealTime[], id: string): string {
     if (id === ALL_MEAL_TIME_ID) return '전체'
@@ -91,9 +103,9 @@
     if (pathname === '/' || pathname.startsWith('/gallery')) {
       return {
         ...baseMeta,
-        title: '웰스토리 메뉴 갤러리 | 웰스토리·신세계푸드 식단 조회 | Welplan',
-        ogTitle: '웰스토리·신세계푸드 메뉴 갤러리 | Welplan',
-        description: '웰스토리·신세계푸드 사내 식당 메뉴를 한 화면에서. 날짜·식사 시간별 메뉴 사진, P-Score 영양 점수, 상세 영양정보를 빠르게 확인할 수 있습니다.'
+        title: '웰스토리 식단 조회 | 웰스토리 식단표·메뉴 조회 | Welplan',
+        ogTitle: '웰스토리 식단 조회와 메뉴 갤러리 | Welplan',
+        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, P-Score 영양 점수, 상세 영양정보를 빠르게 볼 수 있습니다.'
       }
     }
 
@@ -114,13 +126,26 @@
       const vendorLabel = vendorName(restaurant.vendor)
       const lastSegment = pathname.split('/').filter(Boolean).pop() ?? ''
       const dateLabel = /^\d{8}$/.test(lastSegment) ? ` ${formatKoreanDate(lastSegment)}` : ''
+      const restaurantKeywords = restaurant.vendor === 'welstory'
+        ? ['웰스토리 식단 조회', '웰스토리 식단표', '삼성웰스토리 식단 조회', '웰스토리 메뉴 조회']
+        : ['신세계푸드 식단 조회', '신세계푸드 메뉴 조회', '신세계푸드 식단표']
 
       return {
         ...baseMeta,
-        title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표`,
-        ogTitle: `${restaurant.name} 식단표 | ${vendorLabel}`,
+        title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표 조회 | Welplan`,
+        ogTitle: `${restaurant.name} ${vendorLabel} 식단표 조회`,
         description: `${vendorLabel} ${restaurant.name} 식단표. 메뉴 사진과 영양정보를 한눈에.`,
-        keywords: [restaurant.name, vendorLabel, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS].join(', ')
+        keywords: mergeKeywords(restaurant.name, vendorLabel, ...restaurantKeywords, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS)
+      }
+    }
+
+    if (pathname.startsWith('/docs/api')) {
+      return {
+        ...baseMeta,
+        title: '웰스토리 API | 웰스토리 식단 조회 API 문서 | Welplan',
+        ogTitle: '웰스토리 식단 조회 API 문서 | Welplan',
+        description: '웰스토리 API와 웰스토리 식단 조회 API 사용법을 확인하세요. 식당 검색, 날짜별 메뉴 조회, RSS, OpenAPI 문서를 Welplan에서 제공합니다.',
+        keywords: mergeKeywords('웰스토리 api', '웰스토리 식단 조회 api', '웰스토리 메뉴 조회 api', '삼성웰스토리 api', DEFAULT_KEYWORDS)
       }
     }
 

@@ -40,6 +40,6 @@ export const load: PageServerLoad = async ({ params, url }) => {
     routeMode: 'dated' as const,
     canonicalPath,
     detailPath: restaurantDetailPath(restaurant),
-    pageDescription: buildRestaurantPageDescription(restaurant, vendorLabel, menus, mealTimes)
+    pageDescription: buildRestaurantPageDescription(restaurant, vendorLabel)
   }
 }

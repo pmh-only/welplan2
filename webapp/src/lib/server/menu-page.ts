@@ -290,28 +290,11 @@ export async function redirectToCurrentMenuRoute(
 
 export function buildRestaurantPageDescription(
   restaurant: Restaurant,
-  vendorLabel: string,
-  menus: Menu[],
-  mealTimes: MealTime[]
+  vendorLabel: string
 ): string {
-  const base = `${vendorLabel} ${restaurant.name} 식단표.`
-  const mainMenus = menus.filter((m) => !m.isTakeOut)
-
-  const groups = mealTimes.flatMap((mt) => {
-    const names = mainMenus
-      .filter((m) => m.mealTimeId === mt.id)
-      .map((m) => m.name)
-    if (names.length === 0) return []
-    const listed = names.slice(0, 4).join(', ')
-    const tail = names.length > 4 ? ` 외 ${names.length - 4}개` : ''
-    return [`${mt.name}: ${listed}${tail}`]
-  })
-
-  if (groups.length === 0) {
-    return `${base} 오늘의 메뉴와 영양정보를 확인하세요.`
+  if (restaurant.vendor === 'welstory') {
+    return `${vendorLabel} ${restaurant.name} 식단표를 Welplan에서 조회하세요. 웰스토리 식단 조회, 메뉴 사진, 날짜별 식단표, 칼로리와 영양정보를 한눈에 확인할 수 있습니다.`
   }
 
-  const body = groups.join(' · ')
-  const full = `${base} ${body}`
-  return full.length <= 80 ? full : full.slice(0, 77) + '...'
+  return `${vendorLabel} ${restaurant.name} 식단표를 Welplan에서 조회하세요. 신세계푸드 메뉴 조회, 날짜별 식단표, 메뉴 사진과 영양정보를 한눈에 확인할 수 있습니다.`
 }

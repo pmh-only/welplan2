@@ -1,5 +1,5 @@
 import type { MealTime, Menu, Restaurant } from '$lib/types'
-import { restaurantDatedPath } from '$lib/restaurant-routes'
+import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
 import { service } from '$lib/server/service'
 import { formatKoreanDate } from '$lib/utils'
 
@@ -86,7 +86,8 @@ export function buildCachedDateRangeFeedItems(
   origin: string,
   restaurants: Restaurant[],
   dates: string[],
-  mealTimes: MealTime[]
+  mealTimes: MealTime[],
+  linkMode: 'dated' | 'restaurant' = 'dated'
 ): RssFeedItem[] {
   const items: RssFeedItem[] = []
 
@@ -95,7 +96,7 @@ export function buildCachedDateRangeFeedItems(
       for (const [index, mealTime] of mealTimes.entries()) {
         const menus = service.getCachedMenus(restaurant.id, date, mealTime.id)
         if (menus && menus.length > 0) {
-          items.push(buildRestaurantMealTimeItemFromMenus(origin, restaurant, date, mealTime, index, menus))
+          items.push(buildRestaurantMealTimeItemFromMenus(origin, restaurant, date, mealTime, index, menus, linkMode))
         }
       }
     }
@@ -132,15 +133,16 @@ function buildRestaurantMealTimeItemFromMenus(
   date: string,
   mealTime: MealTime,
   mealTimeIndex: number,
-  menus: Menu[]
+  menus: Menu[],
+  linkMode: 'dated' | 'restaurant' = 'dated'
 ): RssFeedItem {
-  const path = restaurantDatedPath(restaurant, date)
+  const path = linkMode === 'restaurant' ? restaurantDetailPath(restaurant) : restaurantDatedPath(restaurant, date)
   const title = `${restaurant.name} ${formatKoreanDate(date)} ${mealTime.name} 메뉴`
 
   return {
     title,
     link: `${origin}${path}`,
-    guid: `${origin}${path}?mealTime=${encodeURIComponent(mealTime.id)}`,
+    guid: `${restaurant.vendor}:${restaurant.id}:${date}:${mealTime.id}`,
     description: menuDescription(menus),
     pubDate: feedDate(date, mealTimeIndex),
     date,
