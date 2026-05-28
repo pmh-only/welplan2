@@ -304,6 +304,8 @@
                         <span class="gallery-name">{menu.name}</span>
                         {#if menu.components.length > 0}
                           <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                        {:else if menu.vendor === 'shinsegae'}
+                          <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
                         {/if}
                         <div class="gallery-meta">
                           {#if ps !== null}
@@ -340,6 +342,8 @@
                 <span class="gallery-name">{menu.name}</span>
                 {#if menu.components.length > 0}
                   <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                {:else if menu.vendor === 'shinsegae'}
+                  <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
                 {/if}
                 <div class="gallery-meta">
                   {#if ps !== null}
@@ -411,6 +415,8 @@
               <div class="shimmer"></div>
             {/each}
           </div>
+        {:else if zoomedMenu.vendor === 'shinsegae'}
+          <p class="detail-empty">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</p>
         {:else if detail.length > 0}
           {@const detailRows = detailRowsFor(zoomedMenu)}
           {@const detailMetrics = activeDetailNutrients(detailRows)}
@@ -670,6 +676,7 @@
   }
 
   .detail-loading { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 6px; background: var(--surface); border-top: 1px solid var(--border); }
+  .detail-empty { padding: 12px 16px 14px; border-top: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font-size: 12px; font-style: italic; }
   .shimmer { height: 13px; border-radius: 3px; background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
@@ -739,6 +746,7 @@
   .gallery-info { padding: 9px 10px; background: white; border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
   .gallery-components { display: block; font-size: 10px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px; }
+  .gallery-detail-unavailable { font-style: italic; }
   .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }
   .gallery-restaurant { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

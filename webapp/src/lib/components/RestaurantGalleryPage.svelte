@@ -357,6 +357,8 @@
               <div class="shimmer"></div>
             {/each}
           </div>
+        {:else if zoomedMenu.vendor === 'shinsegae'}
+          <p class="detail-empty">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</p>
         {:else if detail.length > 0}
           {@const detailRows = detailRowsFor(zoomedMenu)}
           {@const detailMetrics = activeDetailNutrients(detailRows)}
@@ -850,6 +852,14 @@
     padding: 10px 16px 14px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+  }
+  .detail-empty {
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 12px;
+    font-style: italic;
   }
 
   .shimmer {

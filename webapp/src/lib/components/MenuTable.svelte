@@ -255,7 +255,7 @@
   }
 
   function isExpandable (menu: Menu): boolean {
-    return (menu.hallNo != null && menu.courseType != null) || menu.components.length > 0
+    return menu.vendor === 'shinsegae' || (menu.hallNo != null && menu.courseType != null) || menu.components.length > 0
   }
 
   function isWelstoryTakeOutDetail (menu: Menu): boolean {
@@ -288,7 +288,9 @@
     expandedMenuId = key
     detail = []
 
-    if (preferInlineComponents && menu.components.length > 0) {
+    if (menu.vendor === 'shinsegae') {
+      loadingDetail = false
+    } else if (preferInlineComponents && menu.components.length > 0) {
       detail = menu.components
     } else if (menu.hallNo && menu.courseType) {
       loadingDetail = true
@@ -389,6 +391,8 @@
               {#if menu.isTakeOut}<span class="badge">포장</span>{/if}
               {#if preferInlineComponents && menu.components.length > 0}
                 <span class="menu-desc">{menu.components.map((c) => c.name).join(' · ')}</span>
+              {:else if preferInlineComponents && menu.vendor === 'shinsegae'}
+                <span class="menu-desc menu-desc-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
               {/if}
             </td>
             <td class="col-ps" data-label="P-Score">
@@ -415,7 +419,7 @@
                     {/each}
                   </div>
                 {:else if detail.length === 0}
-                  <p class="detail-empty">구성 정보 없음</p>
+                  <p class="detail-empty">{menu.vendor === 'shinsegae' ? '(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)' : '구성 정보 없음'}</p>
                 {:else}
                   {@const detailRows = detailRowsFor(menu)}
                   {@const detailMetrics = detailMetricsFor(detailRows)}
@@ -900,6 +904,7 @@
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
   .menu-name { font-weight: 500; color: var(--text); line-height: 1.4; }
   .menu-desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+  .menu-desc-unavailable { font-style: italic; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-sans); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
 
   .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
