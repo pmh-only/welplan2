@@ -203,17 +203,10 @@ class CafeteriaService {
     return { restaurantId, date, mealTimeId }
   }
 
-  private isSelectionMenu(menu: Menu): boolean {
-    return menu.name.includes('선택') || menu.name.includes('상시제공')
-  }
-
   private normalizeMenus(menus: Menu[]): { menus: Menu[], takeOutAdjustments: number } {
     let takeOutAdjustments = 0
     for (const menu of menus) {
-      if (menu.isTakeOut && this.isSelectionMenu(menu)) {
-        menu.isTakeOut = false
-      }
-      if (!menu.isTakeOut && !this.isSelectionMenu(menu) && (menu.nutrition?.calories ?? 0) > 2000) {
+      if (!menu.isTakeOut && (menu.nutrition?.calories ?? 0) > 3000) {
         menu.isTakeOut = true
         takeOutAdjustments++
       }

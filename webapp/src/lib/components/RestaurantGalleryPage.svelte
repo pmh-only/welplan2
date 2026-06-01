@@ -270,6 +270,7 @@
         time=""
         emptyMessage={`${menuKindLabel} 메뉴가 없습니다`}
         enableSelection={true}
+        groupByMealTime={true}
       />
     </section>
   {:else}

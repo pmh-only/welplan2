@@ -127,9 +127,10 @@ export async function loadGalleryMenusForRestaurantDate(
     mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
       try {
         const rawMenus = await service.getMenus(restaurant.id, date, mealTime.id)
-        const menus = options.enrichNutrientDetails === false
+        const enrichedMenus = options.enrichNutrientDetails === false
           ? rawMenus
           : await enrichGalleryMenus(rawMenus, date)
+        const menus = await flattenTakeOutMenus(enrichedMenus.map(normalizeHighCalorieTakeOut), date)
 
         return {
           menus,
@@ -216,6 +217,11 @@ function normalizeMenuName(name: string): string {
   return name.replace(/\s*포장$/, '').trim()
 }
 
+function normalizeHighCalorieTakeOut(menu: Menu): Menu {
+  if (menu.isTakeOut || (menu.nutrition?.calories ?? 0) <= 3000) return menu
+  return { ...menu, isTakeOut: true }
+}
+
 function hasZeroNutrition(nutrition?: NutritionInfo): boolean {
   if (!nutrition) return true
   return (
@@ -257,9 +263,14 @@ function flattenTakeOutMenuItems(menu: Menu, detail: MenuComponent[]): Menu[] {
 
 export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string, time: string) {
   const data = await loadMenusForRoute(parent, date, time)
+  const menus = await flattenTakeOutMenus(data.menus, date)
 
-  const menus = await Promise.all(
-    data.menus.map(async (menu) => {
+  return { ...data, menus }
+}
+
+async function flattenTakeOutMenus(menus: Menu[], date: string): Promise<Menu[]> {
+  return Promise.all(
+    menus.map(async (menu) => {
       if (!(menu.vendor === 'welstory' && menu.isTakeOut && menu.hallNo && menu.courseType)) {
         return [menu]
       }
@@ -278,8 +289,6 @@ export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string,
       }
     })
   ).then((results) => results.flat())
-
-  return { ...data, menus }
 }
 
 export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, time: string) {
