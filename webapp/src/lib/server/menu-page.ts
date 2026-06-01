@@ -30,6 +30,23 @@ async function selectedRestaurantMealTimes(
   return selectedMealTimes(mealTimes, time)
 }
 
+function displayMealTimeId(mealTimes: MealTime[], mealTime: MealTime): string {
+  if (!mealTime.type) return mealTime.id
+  return mealTimes.find((candidate) => candidate.type === mealTime.type)?.id ?? mealTime.id
+}
+
+function tagMenusWithDisplayMealTime(
+  menus: Menu[],
+  mealTimes: MealTime[],
+  restaurant: Restaurant,
+  mealTime: MealTime
+): Menu[] {
+  if (restaurant.vendor === 'welstory') return menus
+  const mealTimeId = displayMealTimeId(mealTimes, mealTime)
+  if (mealTimeId === mealTime.id) return menus
+  return menus.map((menu) => ({ ...menu, mealTimeId }))
+}
+
 export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string) {
   const { restaurants, mealTimes } = await parent()
   const menus = await Promise.all(
@@ -37,7 +54,10 @@ export async function loadMenusForRoute(parent: ParentLoad, date: string, time: 
       const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, time)
       return Promise.all(
         targetMealTimes.map((mealTime) =>
-          service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+          service
+            .getMenus(restaurant.id, date, mealTime.id)
+            .then((menus) => tagMenusWithDisplayMealTime(menus, mealTimes, restaurant, mealTime))
+            .catch(() => [])
         )
       ).then((results) => results.flat())
     })
@@ -58,7 +78,10 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
       const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, mealTimeId)
       return Promise.all(
         targetMealTimes.map((mealTime) =>
-          service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+          service
+            .getMenus(restaurant.id, date, mealTime.id)
+            .then((menus) => tagMenusWithDisplayMealTime(menus, mealTimes, restaurant, mealTime))
+            .catch(() => [])
         )
       ).then((results) => results.flat())
     })
