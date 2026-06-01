@@ -12,7 +12,8 @@ function dateFromSearch(url: URL): string {
   return date && /^\d{8}$/.test(date) ? date : todayStr()
 }
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, parent, url }) => {
+  const { restaurants } = await parent()
   const restaurant = await service.getRestaurant(params.id)
 
   if (!restaurant || restaurant.vendor !== params.vendor) {
@@ -29,7 +30,9 @@ export const load: PageServerLoad = async ({ params, url }) => {
   }
 
   const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
-  const { menus, mealTimeMenus } = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, date)
+  const { menus, mealTimeMenus } = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, date, {
+    enrichNutrientDetails: restaurants.some((selected) => selected.id === restaurant.id)
+  })
   const vendorLabel = restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
 
   return {

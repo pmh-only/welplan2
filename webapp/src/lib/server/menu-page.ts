@@ -120,13 +120,16 @@ export async function loadGalleryMenusForRestaurant(
 export async function loadGalleryMenusForRestaurantDate(
   restaurant: Restaurant,
   mealTimes: MealTime[],
-  date: string
+  date: string,
+  options: { enrichNutrientDetails?: boolean } = {}
 ) {
   const mealTimeResults = await Promise.all(
     mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
       try {
         const rawMenus = await service.getMenus(restaurant.id, date, mealTime.id)
-        const menus = await enrichGalleryMenus(rawMenus, date)
+        const menus = options.enrichNutrientDetails === false
+          ? rawMenus
+          : await enrichGalleryMenus(rawMenus, date)
 
         return {
           menus,
