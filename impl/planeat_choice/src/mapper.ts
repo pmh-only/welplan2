@@ -45,7 +45,7 @@ export function mapMenu(
     id: `${params.date}-${params.storCd}-${params.mealCd}-${index}`,
     name: raw.itemNmDp ?? `Menu ${index + 1}`,
     date: params.date,
-    mealTimeId: params.mealCd,
+    mealTimeId: raw.mealCd ?? params.mealCd,
     restaurantId: restaurant.id,
     vendor: restaurant.vendor,
     components: [],

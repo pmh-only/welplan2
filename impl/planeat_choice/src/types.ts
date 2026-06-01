@@ -30,6 +30,7 @@ export interface PcMealTimeEntry {
 
 // GET /portal/dailyMenu — response: { ds: PcDailyMenuItem[] }
 export interface PcDailyMenuItem {
+  mealCd?: string
   itemNmDp?: string // display name (Korean)
   itemNmDpEn?: string // display name (English)
   itemCd?: string // item code

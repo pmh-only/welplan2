@@ -26,6 +26,10 @@ async function selectedRestaurantMealTimes(
   fallbackMealTimes: MealTime[],
   time: string
 ): Promise<MealTime[]> {
+  if (restaurant.vendor === 'shinsegae' && time === ALL_MEAL_TIME_ID) {
+    return [{ id: '6', name: '전체' }]
+  }
+
   const mealTimes = await service.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
   return selectedMealTimes(mealTimes, time)
 }

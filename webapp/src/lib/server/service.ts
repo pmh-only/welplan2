@@ -443,10 +443,11 @@ class CafeteriaService {
   }
 
   async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
+    const restaurant = await this.resolveRestaurant(restaurantId)
     const key = this.menuCacheKey(restaurantId, date, mealTimeId)
     const cached = db.select().from(menusCache).where(eq(menusCache.key, key)).get()
 
-    if (cached) {
+    if (cached && !(restaurant.vendor === 'shinsegae' && mealTimeId === '6')) {
       const menus = JSON.parse(cached.data) as Menu[]
       if (menus.length === 0) {
         db.delete(menusCache).where(eq(menusCache.key, key)).run()
@@ -467,8 +468,6 @@ class CafeteriaService {
     }
 
     syncLog.info('menu cache miss', { restaurantId, date, mealTimeId })
-
-    const restaurant = await this.resolveRestaurant(restaurantId)
 
     try {
       const menus = await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
