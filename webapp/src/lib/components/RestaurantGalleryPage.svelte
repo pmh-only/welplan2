@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
   import { page } from '$app/state'
+  import MenuTable from '$lib/components/MenuTable.svelte'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { app } from '$lib/state.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -51,6 +52,7 @@
   let zoomedMenu = $state<Menu | null>(null)
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
+  let menuKind = $state<'takein' | 'takeout'>('takein')
 
   const COOKIE = 'welplan_restaurants'
 
@@ -128,11 +130,16 @@
     return data.mealTimes.find((mealTime) => mealTime.id === mealTimeId)?.name ?? mealTimeId
   }
 
+  const takeInMenus = $derived(data.menus.filter((menu) => !menu.isTakeOut))
+  const takeOutMenus = $derived(data.menus.filter((menu) => menu.isTakeOut))
+  const filteredMenus = $derived(menuKind === 'takeout' ? takeOutMenus : takeInMenus)
+  const menuKindLabel = $derived(menuKind === 'takeout' ? '테이크 아웃' : '테이크 인')
+
   const gallerySections = $derived.by<GallerySection[]>(() => data.mealTimes
     .map((mealTime) => ({
       mealTime,
       info: data.mealTimeMenus.find((result) => result.id === mealTime.id),
-      menus: data.menus
+      menus: filteredMenus
         .filter((menu) => menu.mealTimeId === mealTime.id)
         .sort(compareMenus)
     }))
@@ -224,13 +231,52 @@
           oninput={(event) => navigate(fromInputDate(event.currentTarget.value))}
         />
       </label>
+      <div class="kind-toggle" role="group" aria-label="식사 형태 선택">
+        <button
+          type="button"
+          class:active={menuKind === 'takein'}
+          aria-pressed={menuKind === 'takein'}
+          onclick={() => { menuKind = 'takein' }}
+        >
+          테이크 인 <span>{takeInMenus.length}</span>
+        </button>
+        <button
+          type="button"
+          class:active={menuKind === 'takeout'}
+          aria-pressed={menuKind === 'takeout'}
+          onclick={() => { menuKind = 'takeout' }}
+        >
+          테이크 아웃 <span>{takeOutMenus.length}</span>
+        </button>
+      </div>
     </div>
   </section>
 
-  <section class="gallery-panel" aria-label={`${data.restaurant.name} 전체 메뉴 사진`}>
+  {#if menuKind === 'takeout'}
+    <section class="gallery-panel table-panel" aria-label={`${data.restaurant.name} ${menuKindLabel} 메뉴 표`}>
+      <div class="section-head">
+        <div class="section-head-left">
+          <h2>{menuKindLabel}</h2>
+          {#if takeOutMenus.length > 0}
+            <span class="menu-count">{takeOutMenus.length}개</span>
+          {/if}
+        </div>
+      </div>
+      <MenuTable
+        menus={takeOutMenus}
+        restaurants={[data.restaurant]}
+        mealTimes={data.mealTimes}
+        date={data.date}
+        time=""
+        emptyMessage={`${menuKindLabel} 메뉴가 없습니다`}
+        enableSelection={true}
+      />
+    </section>
+  {:else}
+  <section class="gallery-panel" aria-label={`${data.restaurant.name} ${menuKindLabel} 메뉴 사진`}>
     {#if galleryMenus.length === 0}
       <div class="empty-state">
-        <p>이미지가 있는 메뉴가 없습니다.</p>
+        <p>{menuKindLabel} 메뉴가 없습니다.</p>
       </div>
     {:else}
       {#each gallerySections as section (section.mealTime.id)}
@@ -265,6 +311,7 @@
                   <span class="gallery-info">
                     <span class="meal-time-badge">{section.mealTime.name}</span>
                     <span class="menu-name">{menu.name}</span>
+                    {#if menu.isTakeOut}<span class="takeout-badge">포장</span>{/if}
                     {#if menu.components.length > 0}
                       <span class="menu-components">{sortedByPScore(menu.components).map((component) => component.name).join(' · ')}</span>
                     {/if}
@@ -280,6 +327,7 @@
       {/each}
     {/if}
   </section>
+  {/if}
 
   <section class="cta-panel" aria-label="Welplan 식당 등록 안내">
     <div class="promo-bg-circle" aria-hidden="true"></div>
@@ -331,6 +379,7 @@
           <div class="lightbox-text">
             <span class="meal-time-badge">{mealTimeName(zoomedMenu.mealTimeId)}</span>
             <span class="lightbox-name">{zoomedMenu.name}</span>
+            {#if zoomedMenu.isTakeOut}<span class="takeout-badge">포장</span>{/if}
             {#if zoomedMenu.components.length > 0}
               <span class="lightbox-components">{sortedByPScore(zoomedMenu.components).map((component) => component.name).join(' · ')}</span>
             {/if}
@@ -465,6 +514,41 @@
     border-color: var(--border-focus);
   }
 
+  .kind-toggle {
+    display: inline-flex;
+    min-height: 36px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+
+  .kind-toggle button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+  }
+
+  .kind-toggle button.active {
+    background: var(--bg);
+    color: var(--green);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .kind-toggle span {
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
   .all-day-pill,
   .meal-count,
   .meal-time-badge {
@@ -491,6 +575,40 @@
 
   .gallery-panel {
     overflow: hidden;
+  }
+
+  .table-panel {
+    background: var(--bg);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-head h2 {
+    padding-left: 10px;
+    border-left: 3px solid var(--green);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .menu-count {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 12px;
   }
 
   .meal-section + .meal-section {
@@ -614,6 +732,20 @@
     color: var(--text-muted);
     font-size: 11px;
     font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .takeout-badge {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #c2410c;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
     white-space: nowrap;
   }
 
