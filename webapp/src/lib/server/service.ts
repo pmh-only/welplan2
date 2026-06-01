@@ -399,13 +399,14 @@ class CafeteriaService {
   }
 
   async getMealTimes(restaurantId: string): Promise<MealTime[]> {
+    const restaurant = await this.resolveRestaurant(restaurantId)
     const cached = db
       .select()
       .from(mealTimesCache)
       .where(eq(mealTimesCache.restaurantId, restaurantId))
       .get()
 
-    if (cached) {
+    if (cached && restaurant.vendor !== 'shinsegae') {
       const mealTimes = JSON.parse(cached.data) as MealTime[]
       syncLog.info('meal-time cache hit', {
         restaurantId,
@@ -416,7 +417,6 @@ class CafeteriaService {
 
     syncLog.info('meal-time cache miss', { restaurantId })
 
-    const restaurant = await this.resolveRestaurant(restaurantId)
     try {
       const mealTimes = await this.getClient(restaurant.vendor).getMealTimes(restaurant)
       db.insert(mealTimesCache)
