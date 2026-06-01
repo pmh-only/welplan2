@@ -193,6 +193,24 @@ class CafeteriaService {
     return { restaurantId, date, mealTimeId }
   }
 
+  private isSelectionMenu(menu: Menu): boolean {
+    return menu.name.includes('선택') || menu.name.includes('상시제공')
+  }
+
+  private normalizeMenus(menus: Menu[]): { menus: Menu[], takeOutAdjustments: number } {
+    let takeOutAdjustments = 0
+    for (const menu of menus) {
+      if (menu.isTakeOut && this.isSelectionMenu(menu)) {
+        menu.isTakeOut = false
+      }
+      if (!menu.isTakeOut && !this.isSelectionMenu(menu) && (menu.nutrition?.calories ?? 0) > 2000) {
+        menu.isTakeOut = true
+        takeOutAdjustments++
+      }
+    }
+    return { menus, takeOutAdjustments }
+  }
+
   private async populateCache(): Promise<void> {
     const startedAt = this.now()
     syncLog.info('restaurant sync started')
@@ -457,27 +475,24 @@ class CafeteriaService {
           mealTimeId
         })
       } else {
+        const normalized = this.normalizeMenus(menus)
         syncLog.info('menu cache hit', {
           restaurantId,
           date,
           mealTimeId,
-          menuCount: menus.length
+          menuCount: normalized.menus.length,
+          takeOutAdjustments: normalized.takeOutAdjustments
         })
-        return menus
+        return normalized.menus
       }
     }
 
     syncLog.info('menu cache miss', { restaurantId, date, mealTimeId })
 
     try {
-      const menus = await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
-      let takeOutAdjustments = 0
-      for (const menu of menus) {
-        if (!menu.isTakeOut && (menu.nutrition?.calories ?? 0) > 2000) {
-          menu.isTakeOut = true
-          takeOutAdjustments++
-        }
-      }
+      const { menus, takeOutAdjustments } = this.normalizeMenus(
+        await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
+      )
 
       if (menus.length > 0) {
         db.insert(menusCache)
