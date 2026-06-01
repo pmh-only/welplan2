@@ -22,6 +22,7 @@ import {
 import { eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
+const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
 
 class CafeteriaService {
   private welstory: WelstoryPlusClient | null = null
@@ -177,6 +178,15 @@ class CafeteriaService {
 
   private now(): number {
     return Date.now()
+  }
+
+  private menuCacheTtlMs(): number {
+    const ttl = Number(env.MENU_CACHE_TTL_MS)
+    return Number.isFinite(ttl) && ttl >= 0 ? ttl : DEFAULT_MENU_CACHE_TTL_MS
+  }
+
+  private isFreshCache(cachedAt: number): boolean {
+    return this.now() - cachedAt < this.menuCacheTtlMs()
   }
 
   private menuCacheKey(restaurantId: string, date: string, mealTimeId: string): string {
@@ -465,7 +475,7 @@ class CafeteriaService {
     const key = this.menuCacheKey(restaurantId, date, mealTimeId)
     const cached = db.select().from(menusCache).where(eq(menusCache.key, key)).get()
 
-    if (cached && !(restaurant.vendor === 'shinsegae' && mealTimeId === '6')) {
+    if (cached && !(restaurant.vendor === 'shinsegae' && mealTimeId === '6') && this.isFreshCache(cached.cachedAt)) {
       const menus = JSON.parse(cached.data) as Menu[]
       if (menus.length === 0) {
         db.delete(menusCache).where(eq(menusCache.key, key)).run()
@@ -485,6 +495,14 @@ class CafeteriaService {
         })
         return normalized.menus
       }
+    } else if (cached) {
+      syncLog.info('menu cache stale', {
+        restaurantId,
+        date,
+        mealTimeId,
+        cachedAgeMs: this.now() - cached.cachedAt,
+        cacheTtlMs: this.menuCacheTtlMs()
+      })
     }
 
     syncLog.info('menu cache miss', { restaurantId, date, mealTimeId })
@@ -535,7 +553,7 @@ class CafeteriaService {
     const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
     const cached = db.select().from(menuDetailCache).where(eq(menuDetailCache.key, key)).get()
 
-    if (cached) {
+    if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
       syncLog.info('menu detail cache hit', {
         restaurantId,
@@ -546,6 +564,16 @@ class CafeteriaService {
         componentCount: detail.length
       })
       return detail
+    } else if (cached) {
+      syncLog.info('menu detail cache stale', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        cachedAgeMs: this.now() - cached.cachedAt,
+        cacheTtlMs: this.menuCacheTtlMs()
+      })
     }
 
     syncLog.info('menu detail cache miss', {
@@ -609,7 +637,7 @@ class CafeteriaService {
       .where(eq(menuNutrientDetailCache.key, key))
       .get()
 
-    if (cached) {
+    if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
       syncLog.info('menu nutrient detail cache hit', {
         restaurantId,
@@ -620,6 +648,16 @@ class CafeteriaService {
         componentCount: detail.length
       })
       return detail
+    } else if (cached) {
+      syncLog.info('menu nutrient detail cache stale', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        cachedAgeMs: this.now() - cached.cachedAt,
+        cacheTtlMs: this.menuCacheTtlMs()
+      })
     }
 
     syncLog.info('menu nutrient detail cache miss', {
