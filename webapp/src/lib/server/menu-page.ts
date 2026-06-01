@@ -21,17 +21,26 @@ function selectedMealTimes(mealTimes: MealTime[], time: string): MealTime[] {
   return mealTimes.filter((mealTime) => mealTime.id === time)
 }
 
+async function selectedRestaurantMealTimes(
+  restaurant: Restaurant,
+  fallbackMealTimes: MealTime[],
+  time: string
+): Promise<MealTime[]> {
+  const mealTimes = await service.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
+  return selectedMealTimes(mealTimes, time)
+}
+
 export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string) {
   const { restaurants, mealTimes } = await parent()
-  const targetMealTimes = selectedMealTimes(mealTimes, time)
-  if (!targetMealTimes.length) return { menus: [], date, time }
-
   const menus = await Promise.all(
-    restaurants.flatMap((restaurant) =>
-      targetMealTimes.map((mealTime) =>
-        service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
-      )
-    )
+    restaurants.map(async (restaurant) => {
+      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, time)
+      return Promise.all(
+        targetMealTimes.map((mealTime) =>
+          service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+        )
+      ).then((results) => results.flat())
+    })
   ).then((results) => results.flat())
 
   return { menus, date, time }
@@ -43,15 +52,16 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
   const date = url.searchParams.get('date') ?? todayStr()
   const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
   if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
-  const targetMealTimes = selectedMealTimes(mealTimes, mealTimeId)
-  if (!targetMealTimes.length) return { menus: [], date, time: mealTimeId }
 
   const rawMenus = await Promise.all(
-    restaurants.flatMap((restaurant) =>
-      targetMealTimes.map((mealTime) =>
-        service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
-      )
-    )
+    restaurants.map(async (restaurant) => {
+      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, mealTimeId)
+      return Promise.all(
+        targetMealTimes.map((mealTime) =>
+          service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+        )
+      ).then((results) => results.flat())
+    })
   ).then((results) => results.flat())
 
   const menus = await enrichGalleryMenus(rawMenus, date)
