@@ -428,20 +428,20 @@
 </svelte:head>
 
 <div class="app">
-  {#if showGlobalChrome}
-    <a
-      class="github-ribbon"
-      href="https://github.com/pmh-only/welplan2"
-      target="_blank"
-      rel="noreferrer"
-      aria-label="Welplan GitHub 저장소 열기"
-    >
-      <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
-      </svg>
-      <span class="github-label-desktop">Star on GitHub</span>
-    </a>
+  <a
+    class="github-ribbon"
+    href="https://github.com/pmh-only/welplan2"
+    target="_blank"
+    rel="noreferrer"
+    aria-label="Welplan GitHub 저장소 열기"
+  >
+    <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
+    </svg>
+    <span class="github-label-desktop">Star on GitHub</span>
+  </a>
 
+  {#if showGlobalChrome}
     <header>
       <div class="header-inner">
         <a href="/" class="brand">
@@ -830,10 +830,6 @@
   }
 
   @media (max-width: 640px) {
-    .github-ribbon {
-      display: none;
-    }
-
     .setup-banner {
       grid-template-columns: 1fr;
       gap: 10px;
@@ -844,13 +840,37 @@
       width: 100%;
     }
 
-    .header-inner { height: auto; padding: 10px 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
-    .header-nav { width: 100%; overflow-x: auto; scrollbar-width: none; gap: 2px; }
+    .header-inner { height: auto; padding: 10px 16px; }
+    .header-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 130;
+      width: 100%;
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+      background: rgba(15, 23, 42, 0.96);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.22);
+      overflow-x: auto;
+      scrollbar-width: none;
+      gap: 2px;
+    }
     .header-nav::-webkit-scrollbar { display: none; }
-    .tab-btn { padding: 5px 10px; }
-    .tab-btn.active::after { bottom: -9px; }
+    .tab-btn {
+      flex: 1 0 64px;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+      min-height: 48px;
+      padding: 6px 4px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .tab-icon { font-size: 16px; }
+    .tab-btn.active::after { top: 3px; bottom: auto; width: 18px; }
     .brand-sub { display: none; }
-    .content { padding: 14px 12px; }
+    .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }
     .page-tip { grid-template-columns: auto 1fr auto; gap: 10px; }
     .page-tip-icon { width: 30px; height: 30px; }
   }
