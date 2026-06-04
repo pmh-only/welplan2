@@ -254,7 +254,7 @@ function renderMenuMarkdown(
 }
 
 function renderRestaurantsMarkdown(layoutData: LayoutData, url: URL) {
-  const title = `${APP_NAME} Restaurant Settings`
+  const title = `${APP_NAME} Restaurants`
   const description =
     'Markdown view of the currently selected restaurants and restaurant search endpoints.'
   const restaurants = layoutData.restaurants
@@ -282,32 +282,6 @@ function renderRestaurantsMarkdown(layoutData: LayoutData, url: URL) {
     '',
     `- Search endpoint: ${url.origin}/proxy/search?q=<query>`,
     `- API docs: ${url.origin}${API_DOC_PATH}`
-  ].join('\n')
-}
-
-function renderSettingsMarkdown(url: URL) {
-  const title = `${APP_NAME} Settings`
-  const description = 'Markdown view of the Welplan settings and cache management endpoints.'
-
-  return [
-    frontmatter(title, url, description),
-    '',
-    `# ${title}`,
-    '',
-    '- The browser settings page lets users choose the first page shown locally.',
-    '- Cache inspection is available through the JSON endpoints below.',
-    '',
-    '## Endpoints',
-    '',
-    `- Health: ${url.origin}/api/health`,
-    `- Cache status: ${url.origin}/api/cache/status`,
-    `- Cache clear (POST): ${url.origin}/api/cache/clear`,
-    '',
-    '## Discovery',
-    '',
-    `- API catalog: ${url.origin}${API_CATALOG_PATH}`,
-    `- Agent skills: ${url.origin}${AGENT_SKILLS_INDEX_PATH}`,
-    `- MCP server card: ${url.origin}${MCP_SERVER_CARD_PATH}`
   ].join('\n')
 }
 
@@ -409,10 +383,6 @@ export async function renderMarkdownPage(event: RequestEvent): Promise<string | 
 
   if (pathname === '/docs/api') {
     return renderApiDocsMarkdown(event.url)
-  }
-
-  if (pathname === '/settings') {
-    return renderSettingsMarkdown(event.url)
   }
 
   const layoutData = await loadLayoutData(event.cookies)

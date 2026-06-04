@@ -87,7 +87,6 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/takein`: redirect to the current take-in menu.
 - `/takeout`: redirect to the current take-out menu.
 - `/restaurants`: manage the restaurant list stored in the `welplan_restaurants` cookie.
-- `/settings`: choose the first page shown and inspect or clear the server cache.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
 

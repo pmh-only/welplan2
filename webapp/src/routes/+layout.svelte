@@ -11,7 +11,6 @@
     OPENAPI_PATH,
     WEB_MCP_TOOLS
   } from '$lib/agent'
-  import { app } from '$lib/state.svelte'
   import type { MealTime, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, formatKoreanDate } from '$lib/utils'
 
@@ -158,15 +157,6 @@
       }
     }
 
-    if (pathname.startsWith('/settings')) {
-      return {
-        ...baseMeta,
-        title: '설정 | Welplan',
-        description: 'Welplan의 시작 화면과 캐시 상태를 관리합니다.',
-        robots: NOINDEX_ROBOTS
-      }
-    }
-
     return baseMeta
   }
 
@@ -208,15 +198,6 @@
       }
     }
 
-    if (pathname.startsWith('/settings')) {
-      return {
-        title: '설정 팁',
-        items: [
-          '처음 열 화면을 설정해 자주 보는 메뉴 화면으로 바로 이동할 수 있습니다.'
-        ]
-      }
-    }
-
     return {
       title: 'Welplan 팁',
       items: ['상단 탭으로 갤러리, 테이크인, 테이크아웃, 식당 선택 화면을 빠르게 이동할 수 있습니다.']
@@ -226,11 +207,10 @@
   let { data, children }: { data: LayoutData, children: Snippet } = $props()
 
   const navLinks = [
+    { href: '/', label: '갤러리', icon: '📸' },
     { href: '/takein', label: '테이크 인', icon: '🍽️' },
     { href: '/takeout', label: '테이크 아웃', icon: '📦' },
-    { href: '/', label: '갤러리', icon: '📸' },
-    { href: '/restaurants', label: '식당 선택', icon: '🏪' },
-    { href: '/settings', label: '설정', icon: '⚙️' }
+    { href: '/restaurants', label: '식당 선택', icon: '🏪' }
   ]
 
   const isNavigating = $derived(navigating.to !== null)
@@ -264,11 +244,7 @@
   })
 
   onMount(() => {
-    app.loadFromStorage()
     pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
-    if (page.url.pathname === '/' && page.url.search === '' && app.startPage !== '/') {
-      goto(app.startPage, { replaceState: true })
-    }
 
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
