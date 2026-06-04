@@ -1,4 +1,4 @@
-import type { MealTime, NutritionInfo, PScoreWeights } from './types'
+import type { MealTime } from './types'
 
 export const ALL_MEAL_TIME_ID = 'all'
 
@@ -49,24 +49,6 @@ export function autoSelectMealTime(times: MealTime[]): string | null {
     if (m) return m.id
   }
   return times[0].id
-}
-
-export function pScore(n: NutritionInfo | undefined, w: PScoreWeights): number | null {
-  if (!n) return null
-  const cal = n.calories ?? 0
-  const carb = n.carbohydrates ?? 0
-  const sugar = n.sugar ?? 0
-  const fat = n.fat ?? 0
-  const protein = n.protein ?? 0
-  if (!cal && !carb && !fat && !protein) return null
-  return Math.round(
-    cal * w.cal + carb * w.carb + sugar * w.sugar + fat * w.fat - protein * w.protein
-  )
-}
-
-export function pScoreColor(score: number | null): string {
-  if (score === null) return ''
-  return score <= 50 ? 'ps-green' : score <= 100 ? 'ps-yellow' : 'ps-red'
 }
 
 export function proxyImg(url: string | undefined): string | undefined {

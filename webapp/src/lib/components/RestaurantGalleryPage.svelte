@@ -3,9 +3,8 @@
   import { page } from '$app/state'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
-  import { app } from '$lib/state.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { fromInputDate, pScore, proxyImg, toInputDate } from '$lib/utils'
+  import { fromInputDate, proxyImg, toInputDate } from '$lib/utils'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -91,14 +90,14 @@
     return rows.length > 0 ? rows : detail
   }
 
-  function sortedByPScore (components: MenuComponent[]): MenuComponent[] {
+  function sortedByCalories (components: MenuComponent[]): MenuComponent[] {
     return [...components].sort((a, b) => {
-      const aScore = pScore(a.nutrition, app.pWeights)
-      const bScore = pScore(b.nutrition, app.pWeights)
-      if (aScore === null && bScore === null) return 0
-      if (aScore === null) return 1
-      if (bScore === null) return -1
-      return bScore - aScore
+      const aCalories = a.nutrition?.calories ?? null
+      const bCalories = b.nutrition?.calories ?? null
+      if (aCalories === null && bCalories === null) return 0
+      if (aCalories === null) return 1
+      if (bCalories === null) return -1
+      return bCalories - aCalories
     })
   }
 
@@ -121,9 +120,9 @@
   }
 
   function compareMenus (a: Menu, b: Menu): number {
-    const aScore = pScore(a.nutrition, app.pWeights) ?? 999999
-    const bScore = pScore(b.nutrition, app.pWeights) ?? 999999
-    return aScore - bScore || a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id, 'ko')
+    const aCalories = a.nutrition?.calories ?? 999999
+    const bCalories = b.nutrition?.calories ?? 999999
+    return aCalories - bCalories || a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id, 'ko')
   }
 
   function mealTimeName (mealTimeId: string): string {
@@ -314,7 +313,7 @@
                     <span class="menu-name">{menu.name}</span>
                     {#if menu.isTakeOut}<span class="takeout-badge">포장</span>{/if}
                     {#if menu.components.length > 0}
-                      <span class="menu-components">{sortedByPScore(menu.components).map((component) => component.name).join(' · ')}</span>
+                      <span class="menu-components">{sortedByCalories(menu.components).map((component) => component.name).join(' · ')}</span>
                     {/if}
                     {#if menu.nutrition?.calories != null}
                       <span class="kcal-badge">{Math.round(menu.nutrition.calories)} kcal</span>
@@ -382,7 +381,7 @@
             <span class="lightbox-name">{zoomedMenu.name}</span>
             {#if zoomedMenu.isTakeOut}<span class="takeout-badge">포장</span>{/if}
             {#if zoomedMenu.components.length > 0}
-              <span class="lightbox-components">{sortedByPScore(zoomedMenu.components).map((component) => component.name).join(' · ')}</span>
+              <span class="lightbox-components">{sortedByCalories(zoomedMenu.components).map((component) => component.name).join(' · ')}</span>
             {/if}
           </div>
           {#if zoomedMenu.nutrition?.calories != null}

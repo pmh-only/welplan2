@@ -8,7 +8,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 
 - Aggregates restaurant and meal-time data from Welstory Plus and PlanEAT Choice.
 - Supports gallery, take-in, and take-out menu views.
-- Calculates and customizes a nutrition-based `P-Score` in the web UI.
+- Displays calories and detailed nutrition in the web UI.
 - Caches restaurants, meal times, menus, and menu details in SQLite.
 - Periodically prefetches menus for cached restaurants with meal info over the next 7 days.
 - Builds and publishes a Docker image to GHCR.
@@ -87,7 +87,7 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/takein`: redirect to the current take-in menu.
 - `/takeout`: redirect to the current take-out menu.
 - `/restaurants`: manage the restaurant list stored in the `welplan_restaurants` cookie.
-- `/settings`: tune `P-Score` weights and inspect or clear the server cache.
+- `/settings`: choose the first page shown and inspect or clear the server cache.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
 

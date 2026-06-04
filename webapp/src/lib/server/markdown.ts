@@ -294,7 +294,7 @@ function renderSettingsMarkdown(url: URL) {
     '',
     `# ${title}`,
     '',
-    '- The browser settings page lets users tune P-Score weights locally.',
+    '- The browser settings page lets users choose the first page shown locally.',
     '- Cache inspection is available through the JSON endpoints below.',
     '',
     '## Endpoints',

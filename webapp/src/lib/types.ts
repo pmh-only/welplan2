@@ -46,11 +46,3 @@ export interface Menu {
   courseType?: string
   imageUrl?: string
 }
-
-export type PScoreWeights = {
-  cal: number
-  carb: number
-  sugar: number
-  fat: number
-  protein: number
-}

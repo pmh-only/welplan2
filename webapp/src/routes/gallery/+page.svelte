@@ -1,8 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
-  import { app } from '$lib/state.svelte'
-  import { ALL_MEAL_TIME_ID, autoSelectMealTime, pScore, pScoreColor, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, autoSelectMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
 
@@ -42,7 +41,7 @@
   let { data }: { data: PageData } = $props()
 
   let showLabels = $state(true)
-  let sortBy = $state<'pscore-asc' | 'pscore-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('pscore-asc')
+  let sortBy = $state<'calories-asc' | 'calories-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('calories-asc')
   let zoomedMenu = $state<GalleryMenu | null>(null)
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
@@ -65,14 +64,14 @@
     return rows.length > 0 ? rows : detail
   }
 
-  function sortedByPScore (components: MenuComponent[]): MenuComponent[] {
+  function sortedByCalories (components: MenuComponent[]): MenuComponent[] {
     return [...components].sort((a, b) => {
-      const aScore = pScore(a.nutrition, app.pWeights)
-      const bScore = pScore(b.nutrition, app.pWeights)
-      if (aScore === null && bScore === null) return 0
-      if (aScore === null) return 1
-      if (bScore === null) return -1
-      return bScore - aScore
+      const aCalories = a.nutrition?.calories ?? null
+      const bCalories = b.nutrition?.calories ?? null
+      if (aCalories === null && bCalories === null) return 0
+      if (aCalories === null) return 1
+      if (bCalories === null) return -1
+      return bCalories - aCalories
     })
   }
 
@@ -149,12 +148,12 @@
   }
 
   function compareMenus (a: Menu, b: Menu): number {
-    const aScore = pScore(a.nutrition, app.pWeights) ?? 999999
-    const bScore = pScore(b.nutrition, app.pWeights) ?? 999999
+    const aCalories = a.nutrition?.calories ?? 999999
+    const bCalories = b.nutrition?.calories ?? 999999
 
     switch (sortBy) {
-      case 'pscore-asc': return aScore - bScore
-      case 'pscore-desc': return bScore - aScore
+      case 'calories-asc': return aCalories - bCalories
+      case 'calories-desc': return bCalories - aCalories
       case 'name-asc': return a.name.localeCompare(b.name, 'ko')
       case 'name-desc': return b.name.localeCompare(a.name, 'ko')
       case 'restaurant-asc': return restaurantName(a.restaurantId).localeCompare(restaurantName(b.restaurantId), 'ko')
@@ -224,8 +223,8 @@
     </div>
     <div class="controls">
       <select class="sort-select" bind:value={sortBy} aria-label="정렬 기준">
-        <option value="pscore-asc">P-Score 낮은순</option>
-        <option value="pscore-desc">P-Score 높은순</option>
+        <option value="calories-asc">칼로리 낮은순</option>
+        <option value="calories-desc">칼로리 높은순</option>
         <option value="name-asc">메뉴명 A-Z</option>
         <option value="name-desc">메뉴명 Z-A</option>
         <option value="restaurant-asc">식당명 A-Z</option>
@@ -287,7 +286,6 @@
             {#if isExpanded}
               <div class="gallery-grid" id={`gallery-meal-panel-${section.mealTime.id}`}>
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
-                  {@const ps = pScore(menu.nutrition, app.pWeights)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
                       {#if hasMenuImage(menu)}
@@ -303,13 +301,13 @@
                       <div class="gallery-info">
                         <span class="gallery-name">{menu.name}</span>
                         {#if menu.components.length > 0}
-                          <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                          <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
                         {:else if menu.vendor === 'shinsegae'}
                           <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
                         {/if}
                         <div class="gallery-meta">
-                          {#if ps !== null}
-                            <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+                          {#if menu.nutrition?.calories != null}
+                            <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
                           {/if}
                           <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
                         </div>
@@ -325,7 +323,6 @@
     {:else}
       <div class="gallery-grid">
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
-          {@const ps = pScore(menu.nutrition, app.pWeights)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
               {#if hasMenuImage(menu)}
@@ -341,13 +338,13 @@
               <div class="gallery-info">
                 <span class="gallery-name">{menu.name}</span>
                 {#if menu.components.length > 0}
-                  <span class="gallery-components">{sortedByPScore(menu.components).map((c) => c.name).join(' · ')}</span>
+                  <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
                 {:else if menu.vendor === 'shinsegae'}
                   <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
                 {/if}
                 <div class="gallery-meta">
-                  {#if ps !== null}
-                    <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+                  {#if menu.nutrition?.calories != null}
+                    <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
                   {/if}
                   <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
                 </div>
@@ -361,7 +358,6 @@
 </div>
 
 {#if zoomedMenu}
-  {@const ps = pScore(zoomedMenu.nutrition, app.pWeights)}
   <div
     class="lightbox"
     role="button"
@@ -389,12 +385,12 @@
           <div class="lightbox-text">
             <span class="lightbox-name">{zoomedMenu.name}</span>
             {#if zoomedMenu.components.length > 0}
-              <span class="lightbox-components">{sortedByPScore(zoomedMenu.components).map((c) => c.name).join(' · ')}</span>
+              <span class="lightbox-components">{sortedByCalories(zoomedMenu.components).map((c) => c.name).join(' · ')}</span>
             {/if}
             <span class="lightbox-restaurant">{restaurantNames(zoomedMenu.restaurantIds)}</span>
           </div>
-          {#if ps !== null}
-            <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
+          {#if zoomedMenu.nutrition?.calories != null}
+            <span class="kcal-badge">{formatMetric(zoomedMenu.nutrition.calories, ' kcal')}</span>
           {/if}
         </div>
       </div>
@@ -425,7 +421,6 @@
               <thead>
                 <tr>
                   <th class="detail-col-name">항목</th>
-                  <th class="detail-col-ps">P-Score</th>
                   {#each detailMetrics as { label }}
                     <th class="detail-col-num">{label}</th>
                   {/each}
@@ -434,16 +429,8 @@
               <tbody>
                 {#each detailRows as dish}
                   {@const dn = dish.nutrition}
-                  {@const dps = pScore(dn, app.pWeights)}
                   <tr>
                     <td class="detail-col-name dish-name">{dish.name}</td>
-                    <td class="detail-col-ps">
-                      {#if dps !== null}
-                        <span class="ps-badge {pScoreColor(dps)}">{dps}</span>
-                      {:else}
-                        <span class="ps-na">—</span>
-                      {/if}
-                    </td>
                     {#each detailMetrics as { key, unit }}
                       <td class="detail-col-num">{formatMetric(dn?.[key], unit)}</td>
                     {/each}
@@ -687,10 +674,8 @@
   .detail-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .detail-table tbody tr:last-child td { border-bottom: none; }
   .detail-col-name { min-width: 140px; }
-  .detail-col-ps { width: 72px; text-align: center; }
   .detail-col-num { width: 80px; text-align: right; font-family: var(--font-sans); white-space: nowrap; }
   .dish-name { color: var(--text-muted); }
-  .ps-na { color: var(--text-dim); font-size: 12px; }
 
 .lightbox-close {
     position: absolute; top: 10px; right: 10px;
@@ -750,10 +735,7 @@
   .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }
   .gallery-restaurant { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-  .ps-green { background: #dcfce7; color: #16a34a; }
-  .ps-yellow { background: #fef9c3; color: #ca8a04; }
-  .ps-red { background: #fee2e2; color: #b91c1c; }
+  .kcal-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 
   @media (max-width: 640px) {
     .controls { width: 100%; }

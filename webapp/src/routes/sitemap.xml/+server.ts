@@ -2,12 +2,6 @@ import { service } from '$lib/server/service'
 import { restaurantDetailPath } from '$lib/restaurant-routes'
 import type { RequestHandler } from './$types'
 
-type SitemapEntry = {
-  path: string
-  changefreq: 'daily' | 'hourly' | 'weekly'
-  priority: string
-}
-
 function xmlEscape(value: string): string {
   return value
     .replaceAll('&', '&amp;')

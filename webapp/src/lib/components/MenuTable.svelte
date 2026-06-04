@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { app } from '$lib/state.svelte'
-  import { autoSelectMealTime, pScore, pScoreColor, proxyImg } from '$lib/utils'
+  import { autoSelectMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
 
   let {
@@ -45,7 +44,6 @@
   type SortKey =
     | 'restaurant'
     | 'name'
-    | 'pscore'
     | 'calories'
     | 'carbohydrates'
     | 'sugar'
@@ -179,7 +177,6 @@
     switch (key) {
       case 'restaurant': return restaurantName(menu.restaurantId)
       case 'name': return menu.name
-      case 'pscore': return pScore(nutrition, app.pWeights)
       case 'calories': return nutrition?.calories ?? null
       case 'carbohydrates': return nutrition?.carbohydrates ?? null
       case 'sugar': return nutrition?.sugar ?? null
@@ -237,7 +234,6 @@
       {} as NutritionInfo
     )
   )
-  const selectedPScore = $derived(selectedMenus.length > 0 ? pScore(selectedNutrition, app.pWeights) : null)
   const selectedItemsText = $derived(selectedMenus.map((menu) => menu.name).join(', '))
 
   function extractCoin (name: string): number {
@@ -325,7 +321,6 @@
           {#if hasAnyImage}<th class="col-img"></th>{/if}
           <th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>
           <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
-          <th class="col-ps"><button type="button" class="sort-btn sort-btn-center" onclick={() => toggleSort('pscore')}>P-Score {sortArrow('pscore')}</button></th>
           <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('calories')}>칼로리 {sortArrow('calories')}</button></th>
           <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('carbohydrates')}>탄수화물 {sortArrow('carbohydrates')}</button></th>
           <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('sugar')}>당 {sortArrow('sugar')}</button></th>
@@ -339,7 +334,7 @@
           {#if row.type === 'mealTime'}
             {@const isExpanded = isMealTimeExpanded(row.mealTime.id)}
             <tr class="meal-time-row">
-              <th colspan={enableSelection ? 11 : 10}>
+              <th colspan={enableSelection ? 10 : 9}>
                 <button
                   type="button"
                   class="meal-time-toggle"
@@ -361,7 +356,6 @@
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
           {@const imgSrc = proxyImg(menu.imageUrl)}
-          {@const ps = pScore(n, app.pWeights)}
           <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
@@ -395,13 +389,6 @@
                 <span class="menu-desc menu-desc-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
               {/if}
             </td>
-            <td class="col-ps" data-label="P-Score">
-              {#if ps !== null}
-                <span class="ps-badge {pScoreColor(ps)}">{ps}</span>
-              {:else}
-                <span class="ps-na">—</span>
-              {/if}
-            </td>
             <td class="col-num" data-label="칼로리">{n?.calories != null ? `${n.calories.toLocaleString()} kcal` : '—'}</td>
             <td class="col-num hide-sm" data-label="탄수화물">{n?.carbohydrates != null ? `${n.carbohydrates}g` : '—'}</td>
             <td class="col-num hide-sm" data-label="당">{n?.sugar != null ? `${n.sugar}g` : '—'}</td>
@@ -411,7 +398,7 @@
           </tr>
           {#if isExpanded}
             <tr class="detail-row">
-              <td colspan={enableSelection ? 11 : 10}>
+              <td colspan={enableSelection ? 10 : 9}>
                 {#if loadingDetail}
                   <div class="detail-loading">
                     {#each Array(4) as _}
@@ -429,7 +416,6 @@
                         <thead>
                           <tr>
                             <th class="detail-col-name">항목</th>
-                            <th class="detail-col-ps">P-Score</th>
                             {#each detailMetrics as metric}
                               <th class="detail-col-num">{metric.label}</th>
                             {/each}
@@ -438,16 +424,8 @@
                         <tbody>
                           {#each detailRows as dish}
                             {@const dn = dish.nutrition}
-                            {@const dps = pScore(dn, app.pWeights)}
                             <tr>
                               <td class="detail-col-name dish-name">{dish.name}</td>
-                              <td class="detail-col-ps" data-label="P-Score">
-                                {#if dps !== null}
-                                  <span class="ps-badge {pScoreColor(dps)}">{dps}</span>
-                                {:else}
-                                  <span class="ps-na">—</span>
-                                {/if}
-                              </td>
                               {#each detailMetrics as metric}
                                 <td class="detail-col-num" data-label={metric.label}>
                                   {formatMetric(dn?.[metric.key], metric.unit)}
@@ -505,13 +483,9 @@
       <div class="coin-total" class:coin-over={selectedCoinTotal > 4}>🪙 {selectedCoinTotal}/4{selectedCoinTotal > 4 ? ' ⚠️ 초과' : ''}</div>
 
       <div class="nutrition-summary">
-        <div class="nutrition-item pscore-item">
-          <div class="nutrition-label">P-Score</div>
-          <div class="nutrition-value pscore-value">{selectedPScore ?? '—'}</div>
-        </div>
-        <div class="nutrition-item">
+        <div class="nutrition-item calorie-item">
           <div class="nutrition-label">칼로리</div>
-          <div class="nutrition-value">{formatMetric(selectedNutrition.calories, ' kcal')}</div>
+          <div class="nutrition-value calorie-value">{formatMetric(selectedNutrition.calories, ' kcal')}</div>
         </div>
         <div class="nutrition-item">
           <div class="nutrition-label">탄수화물</div>
@@ -568,11 +542,7 @@
       </div>
 
       <div class="selection-total-grid">
-        <div class="selection-total-card pscore-card">
-          <span class="selection-total-label">P-Score</span>
-          <span class="selection-total-value">{selectedPScore ?? '—'}</span>
-        </div>
-        <div class="selection-total-card">
+        <div class="selection-total-card calorie-card">
           <span class="selection-total-label">칼로리</span>
           <span class="selection-total-value">{formatMetric(selectedNutrition.calories, ' kcal')}</span>
         </div>
@@ -613,7 +583,7 @@
                   <strong>{menu.name}</strong>
                   <div class="selection-item-context">{menuContext(menu)}</div>
                 </td>
-                <td data-label="칼로리">{formatMetric(menu.nutrition?.calories)}</td>
+                <td data-label="칼로리">{formatMetric(menu.nutrition?.calories, ' kcal')}</td>
                 <td data-label="탄수화물">{formatMetric(menu.nutrition?.carbohydrates, 'g')}</td>
                 <td data-label="당분">{formatMetric(menu.nutrition?.sugar, 'g')}</td>
                 <td data-label="지방">{formatMetric(menu.nutrition?.fat, 'g')}</td>
@@ -794,8 +764,8 @@
     color: var(--text);
     font-family: var(--font-sans);
   }
-  .pscore-item { grid-column: span 2; }
-  .pscore-value { color: #16a34a; font-size: 16px; }
+  .calorie-item { grid-column: span 2; }
+  .calorie-value { color: #16a34a; font-size: 16px; }
   .float-actions { display: flex; gap: 8px; }
   .btn-float {
     flex: 1;
@@ -864,7 +834,7 @@
     font-family: var(--font-sans);
     color: var(--text);
   }
-  .pscore-card .selection-total-value { color: #16a34a; }
+  .calorie-card .selection-total-value { color: #16a34a; }
   .selection-detail-wrap { padding: 0 18px 18px; overflow-x: auto; }
   .selection-detail-table { width: 100%; border-collapse: collapse; }
   .selection-detail-table th,
@@ -877,14 +847,12 @@
   .selection-item-context { margin-top: 4px; font-size: 11px; color: var(--text-dim); }
   .sort-btn { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: color 0.1s; }
   .sort-btn:hover { color: var(--text); }
-  .sort-btn-center { text-align: center; }
   .sort-btn-right { text-align: right; }
 
   .col-check { width: 40px; text-align: center; }
   .col-img { width: 60px; padding: 0 8px; }
   .col-rest { width: 90px; }
   .col-name { min-width: 140px; }
-  .col-ps { width: 80px; text-align: center; }
   .col-num { width: 90px; text-align: right; font-family: var(--font-sans); }
 
   .menu-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
@@ -907,12 +875,6 @@
   .menu-desc-unavailable { font-style: italic; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-sans); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
 
-  .ps-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-  .ps-green { background: #dcfce7; color: #16a34a; }
-  .ps-yellow { background: #fef9c3; color: #ca8a04; }
-  .ps-red { background: #fee2e2; color: #dc2626; }
-  .ps-na { color: var(--text-dim); font-size: 12px; }
-
   .detail-row td { padding: 0 12px 14px 76px; background: var(--surface); border-bottom: 1px solid var(--border); }
   .detail-table-wrap { overflow-x: auto; }
   .detail-table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 12px; }
@@ -921,7 +883,6 @@
   .detail-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .detail-table tbody tr:last-child td { border-bottom: none; }
   .detail-col-name { min-width: 220px; }
-  .detail-col-ps { width: 80px; text-align: center; }
   .detail-col-num { width: 88px; text-align: right; font-family: var(--font-sans); white-space: nowrap; }
   .dish-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
   .dish-table tr { border-bottom: 1px solid var(--border); }
@@ -1016,7 +977,6 @@
       grid-row: 2;
       min-width: 0;
     }
-    .menu-table.selection-mode .menu-row .col-ps,
     .menu-table.selection-mode .menu-row .col-num {
       display: flex;
       align-items: center;
@@ -1034,26 +994,11 @@
       line-height: 1.2;
       white-space: nowrap;
     }
-    .menu-table.selection-mode .menu-row .col-ps::before,
     .menu-table.selection-mode .menu-row .col-num::before {
       content: attr(data-label);
       color: var(--text-dim);
       font-family: var(--font-sans);
     }
-    .menu-table.selection-mode .menu-row .col-ps {
-      border-color: #bbf7d0;
-      background: #f0fdf4;
-      color: #16a34a;
-      font-weight: 700;
-    }
-    .menu-table.selection-mode .menu-row .col-ps::before { color: #16a34a; }
-    .menu-table.selection-mode .menu-row .col-ps .ps-badge {
-      padding: 0;
-      background: transparent;
-      color: inherit;
-      font-size: 11px;
-    }
-    .menu-table.selection-mode .menu-row .col-ps .ps-na { color: inherit; font-size: 11px; }
     .menu-table.selection-mode .detail-row {
       display: block;
       margin: 0 0 10px;
@@ -1101,7 +1046,6 @@
       font-weight: 600;
     }
     .menu-table.selection-mode .detail-table .detail-col-name::before { display: none; }
-    .menu-table.selection-mode .detail-col-ps,
     .menu-table.selection-mode .detail-col-num {
       width: auto;
       text-align: right;

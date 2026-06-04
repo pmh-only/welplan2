@@ -105,7 +105,7 @@
         ...baseMeta,
         title: '웰스토리 식단 조회 | 웰스토리 식단표·메뉴 조회 | Welplan',
         ogTitle: '웰스토리 식단 조회와 메뉴 갤러리 | Welplan',
-        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, P-Score 영양 점수, 상세 영양정보를 빠르게 볼 수 있습니다.'
+        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, 칼로리, 상세 영양정보를 빠르게 볼 수 있습니다.'
       }
     }
 
@@ -162,7 +162,7 @@
       return {
         ...baseMeta,
         title: '설정 | Welplan',
-        description: 'Welplan의 메뉴 점수와 캐시 상태를 관리합니다.',
+        description: 'Welplan의 시작 화면과 캐시 상태를 관리합니다.',
         robots: NOINDEX_ROBOTS
       }
     }
@@ -212,7 +212,7 @@
       return {
         title: '설정 팁',
         items: [
-          'P-Score는 영양소의 따른 선호 점수로 가중치를 바꾸며 내 기준에 맞게 조정할 수 있습니다.'
+          '처음 열 화면을 설정해 자주 보는 메뉴 화면으로 바로 이동할 수 있습니다.'
         ]
       }
     }
