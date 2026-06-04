@@ -11,21 +11,37 @@ export default defineConfig({
       includeAssets: [
         'favicon.svg',
         'offline.html',
-        'og-image.png'
+        'og-image.png',
+        'og-image.webp'
       ],
       includeManifestIcons: true,
       manifest: {
+        id: '/',
         name: 'Welplan',
         short_name: 'Welplan',
         description: '웰스토리와 신세계푸드 메뉴를 빠르게 확인할 수 있는 식단 조회 웹앱',
         theme_color: '#0f172a',
         background_color: '#f8fafc',
         display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone', 'browser'],
         lang: 'ko-KR',
         start_url: '/',
         scope: '/',
         orientation: 'any',
+        categories: ['food', 'productivity', 'utilities'],
         icons: [
+          {
+            src: '/manifest-icon-192.webp',
+            sizes: '192x192',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-512.webp',
+            sizes: '512x512',
+            type: 'image/webp',
+            purpose: 'any maskable'
+          },
           {
             src: '/manifest-icon-192.png',
             sizes: '192x192',
@@ -43,11 +59,69 @@ export default defineConfig({
             sizes: 'any',
             type: 'image/svg+xml'
           }
+        ],
+        screenshots: [
+          {
+            src: '/pwa-screenshot-desktop.webp',
+            sizes: '1280x720',
+            type: 'image/webp',
+            form_factor: 'wide',
+            label: 'Welplan desktop menu gallery'
+          },
+          {
+            src: '/pwa-screenshot-mobile.webp',
+            sizes: '390x844',
+            type: 'image/webp',
+            form_factor: 'narrow',
+            label: 'Welplan mobile menu gallery'
+          }
+        ],
+        shortcuts: [
+          {
+            name: '메뉴 갤러리',
+            short_name: '갤러리',
+            description: '오늘의 메뉴 사진과 영양정보를 확인합니다.',
+            url: '/',
+            icons: [
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+            ]
+          },
+          {
+            name: '테이크 인 식단',
+            short_name: '테이크 인',
+            description: '매장 식사 메뉴와 영양정보를 엽니다.',
+            url: '/takein',
+            icons: [
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+            ]
+          },
+          {
+            name: '테이크 아웃 식단',
+            short_name: '테이크 아웃',
+            description: '포장 메뉴와 코인 계산 화면을 엽니다.',
+            url: '/takeout',
+            icons: [
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+            ]
+          },
+          {
+            name: '식당 선택',
+            short_name: '식당 선택',
+            description: '조회할 식당을 검색하고 저장합니다.',
+            url: '/restaurants',
+            icons: [
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+            ]
+          }
         ]
       },
       workbox: {
         globPatterns: [
-          'client/**/*.{js,css,html,svg,png,webmanifest,json,txt}'
+          'client/**/*.{js,css,html,svg,png,webp,webmanifest,json,txt}'
         ],
         globIgnores: ['**/node_modules/**', '**/workbox-*.js'],
         cleanupOutdatedCaches: true,

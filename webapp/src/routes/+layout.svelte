@@ -351,6 +351,8 @@
   const showPageTip = $derived(showGlobalChrome && !pageTipDismissed)
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
+  const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
+  const ogImagePngUrl = $derived(new URL('/og-image.png', page.url.origin).toString())
 </script>
 
 <svelte:head>
@@ -366,13 +368,18 @@
   <meta property="og:title" content={routeMeta.ogTitle} />
   <meta property="og:description" content={routeMeta.description} />
   <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={new URL('/og-image.png', page.url.origin).toString()} />
+  <meta property="og:image" content={ogImageWebpUrl} />
+  <meta property="og:image:type" content="image/webp" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image" content={ogImagePngUrl} />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={routeMeta.ogTitle} />
   <meta name="twitter:description" content={routeMeta.description} />
-  <meta name="twitter:image" content={new URL('/og-image.png', page.url.origin).toString()} />
+  <meta name="twitter:image" content={ogImageWebpUrl} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
   <link rel="alternate" type="application/rss+xml" title="Welplan RSS" href={rssUrl} />
