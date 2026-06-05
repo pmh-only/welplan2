@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   import { autoSelectMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
+  import { BarChart3, ChevronDown, ChevronRight, Coins, TriangleAlert, X } from '@lucide/svelte'
 
   let {
     menus,
@@ -341,7 +342,11 @@
                   aria-expanded={isExpanded}
                   onclick={() => toggleMealTime(row.mealTime.id)}
                 >
-                  <span class="meal-time-caret" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+                  {#if isExpanded}
+                    <ChevronDown class="meal-time-caret" aria-hidden="true" />
+                  {:else}
+                    <ChevronRight class="meal-time-caret" aria-hidden="true" />
+                  {/if}
                   <span class="meal-time-title">{row.mealTime.name}</span>
                   <span class="meal-time-count">{row.count}개</span>
                 </button>
@@ -463,7 +468,10 @@
   <div class="mobile-nutrition-toolbar">
     <div class="toolbar-content">
       <div class="selected-info">
-        <div class="selected-count-mobile">📊 {selectedMenus.length}개 항목 선택</div>
+        <div class="selected-count-mobile">
+          <BarChart3 class="inline-icon" aria-hidden="true" />
+          {selectedMenus.length}개 항목 선택
+        </div>
         <div class="selected-items-mobile">{selectedItemsText}</div>
       </div>
       <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true }}>영양성분 보기</button>
@@ -474,13 +482,29 @@
 {#if enableSelection && selectedMenus.length > 0 && !selectionFloatDismissed}
   <aside class="aggregated-nutrition-float">
     <div class="float-header">
-      <h3 class="float-title">📊 선택된 {selectedMenus.length}개 항목</h3>
-      <button type="button" class="float-close" onclick={() => { selectionFloatDismissed = true }} aria-label="요약 닫기">×</button>
+      <h3 class="float-title">
+        <BarChart3 class="float-title-icon" aria-hidden="true" />
+        선택된 {selectedMenus.length}개 항목
+      </h3>
+      <button type="button" class="float-close" onclick={() => { selectionFloatDismissed = true }} aria-label="요약 닫기">
+        <X class="float-close-icon" aria-hidden="true" />
+      </button>
     </div>
     <div class="float-content">
       <div class="selected-items-count">{selectedItemsText}</div>
 
-      <div class="coin-total" class:coin-over={selectedCoinTotal > 4}>🪙 {selectedCoinTotal}/4{selectedCoinTotal > 4 ? ' ⚠️ 초과' : ''}</div>
+      <div class="coin-total" class:coin-over={selectedCoinTotal > 4}>
+        <span class="coin-total-main">
+          <Coins class="coin-icon" aria-hidden="true" />
+          {selectedCoinTotal}/4
+        </span>
+        {#if selectedCoinTotal > 4}
+          <span class="coin-warning">
+            <TriangleAlert class="warning-icon" aria-hidden="true" />
+            초과
+          </span>
+        {/if}
+      </div>
 
       <div class="nutrition-summary">
         <div class="nutrition-item calorie-item">
@@ -529,15 +553,28 @@
   >
     <div class="selection-modal" role="dialog" aria-modal="true" aria-label="선택 항목 영양성분" tabindex="0" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       <div class="selection-modal-head">
-        <h3>📊 선택된 {selectedMenus.length}개 항목 통합 영양성분</h3>
-        <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">×</button>
+        <h3>
+          <BarChart3 class="float-title-icon" aria-hidden="true" />
+          선택된 {selectedMenus.length}개 항목 통합 영양성분
+        </h3>
+        <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">
+          <X class="float-close-icon" aria-hidden="true" />
+        </button>
       </div>
 
       <div class="modal-coin-panel" role="group" aria-label="선택 코인 합계">
         <span class="modal-coin-label">포장 코인 합계</span>
         <div class="coin-total modal-coin-total" class:coin-over={selectedCoinTotal > 4}>
-          <span>🪙 {selectedCoinTotal}/4 Coin</span>
-          {#if selectedCoinTotal > 4}<span class="modal-coin-warning">⚠️ 초과</span>{/if}
+          <span class="coin-total-main">
+            <Coins class="coin-icon" aria-hidden="true" />
+            {selectedCoinTotal}/4 Coin
+          </span>
+          {#if selectedCoinTotal > 4}
+            <span class="modal-coin-warning">
+              <TriangleAlert class="warning-icon" aria-hidden="true" />
+              초과
+            </span>
+          {/if}
         </div>
       </div>
 
@@ -645,10 +682,11 @@
     text-align: left;
   }
   .meal-time-toggle:hover { background: var(--surface-hover); }
-  .meal-time-caret {
+  :global(.meal-time-caret) {
     width: 14px;
+    height: 14px;
     color: var(--text-dim);
-    font-size: 12px;
+    flex-shrink: 0;
   }
   .meal-time-title { font-weight: 700; }
   .meal-time-count { color: var(--text-dim); font-weight: 600; }
@@ -679,7 +717,8 @@
     background: var(--surface);
     border-radius: 14px 14px 0 0;
   }
-  .float-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .float-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text); }
+  :global(.float-title-icon) { width: 15px; height: 15px; color: #059669; flex-shrink: 0; }
   .float-close {
     background: none;
     border: 0;
@@ -687,10 +726,10 @@
     height: 26px;
     border-radius: var(--radius-sm);
     color: var(--text-dim);
-    font-size: 16px;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
+  :global(.float-close-icon) { width: 16px; height: 16px; }
   .float-close:hover { background: var(--surface-hover); color: var(--text); }
   .float-content { padding: 16px; }
   .selected-items-count {
@@ -711,7 +750,21 @@
     font-size: 14px;
     font-weight: 700;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
+  .coin-total-main,
+  .coin-warning,
+  .modal-coin-warning {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  :global(.coin-icon) { width: 16px; height: 16px; flex-shrink: 0; }
+  :global(.warning-icon) { width: 15px; height: 15px; flex-shrink: 0; }
   .coin-over {
     background: #fee2e2;
     color: #dc2626;
@@ -809,7 +862,7 @@
     padding: 16px 18px;
     border-bottom: 1px solid var(--border);
   }
-  .selection-modal-head h3 { font-size: 18px; font-weight: 700; color: var(--text); }
+  .selection-modal-head h3 { display: inline-flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 700; color: var(--text); }
   .selection-total-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1069,7 +1122,8 @@
     }
     .toolbar-content { display: flex; align-items: center; gap: 12px; }
     .selected-info { min-width: 0; flex: 1; }
-    .selected-count-mobile { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .selected-count-mobile { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    :global(.inline-icon) { width: 15px; height: 15px; color: #059669; flex-shrink: 0; }
     .selected-items-mobile {
       font-size: 11px;
       color: var(--text-dim);

@@ -4,6 +4,7 @@
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
+  import { Check, ChevronLeft, ChevronRight, Store } from '@lucide/svelte'
 
   const LS_TAKEOUT_RESTAURANT = 'welplan_takeout_restaurant'
 
@@ -141,7 +142,9 @@
 
 {#if data.restaurants.length === 0}
   <div class="empty-page">
-    <div class="empty-icon">🏪</div>
+    <div class="empty-icon" aria-hidden="true">
+      <Store />
+    </div>
     <p class="empty-title">식당이 없습니다</p>
     <p class="empty-sub"><a href="/restaurants">식당 선택</a>에서 식당을 추가하면 메뉴가 표시됩니다</p>
   </div>
@@ -150,7 +153,9 @@
     <div class="controls-row">
       <div class="form-group">
         <div class="date-row">
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">‹</button>
+          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">
+            <ChevronLeft class="date-nav-icon" aria-hidden="true" />
+          </button>
           <input
             id="date-input"
             class="date-input"
@@ -158,7 +163,9 @@
             value={toInputDate(data.date)}
             oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time)}
           />
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">›</button>
+          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">
+            <ChevronRight class="date-nav-icon" aria-hidden="true" />
+          </button>
         </div>
       </div>
       <div class="form-group">
@@ -185,7 +192,9 @@
             aria-pressed={takeInFilterMainOnly}
             onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
           >
-            <span class="chip-checkbox" aria-hidden="true">{takeInFilterMainOnly ? '✓' : ''}</span>
+            <span class="chip-checkbox" aria-hidden="true">
+              {#if takeInFilterMainOnly}<Check class="chip-check-icon" />{/if}
+            </span>
             메인 메뉴만
           </button>
           <button
@@ -195,7 +204,9 @@
             aria-pressed={takeInFilterExcludeOptional}
             onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
           >
-            <span class="chip-checkbox" aria-hidden="true">{takeInFilterExcludeOptional ? '✓' : ''}</span>
+            <span class="chip-checkbox" aria-hidden="true">
+              {#if takeInFilterExcludeOptional}<Check class="chip-check-icon" />{/if}
+            </span>
             추가찬 제외
           </button>
         </div>
@@ -215,7 +226,9 @@
             aria-pressed={takeOutFilterDrinks}
             onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
           >
-            <span class="chip-checkbox" aria-hidden="true">{takeOutFilterDrinks ? '✓' : ''}</span>
+            <span class="chip-checkbox" aria-hidden="true">
+              {#if takeOutFilterDrinks}<Check class="chip-check-icon" />{/if}
+            </span>
             음료수 제외
           </button>
         </div>
@@ -266,7 +279,8 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
   }
-  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 999px; background: rgba(16, 185, 129, 0.12); color: #059669; }
+  .empty-icon :global(svg) { width: 26px; height: 26px; }
   .empty-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
   .empty-sub { font-size: 13px; color: var(--text-muted); }
   .empty-sub a { color: var(--accent); text-decoration: none; }
@@ -327,10 +341,10 @@
     border-radius: 3px;
     background: #fff;
     color: #047857;
-    font-size: 10px;
     line-height: 1;
     flex-shrink: 0;
   }
+  :global(.chip-check-icon) { width: 11px; height: 11px; }
   .chip-active .chip-checkbox {
     border-color: var(--green);
     background: #dcfce7;
@@ -350,11 +364,11 @@
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text-muted);
-    font-size: 16px;
     line-height: 1;
     cursor: pointer;
     transition: all 0.12s;
   }
+  :global(.date-nav-icon) { width: 16px; height: 16px; }
   .date-nav-btn:hover { background: var(--surface-hover); color: var(--text); }
 
   .date-input {

@@ -5,6 +5,7 @@
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { fromInputDate, proxyImg, toInputDate } from '$lib/utils'
+  import { X } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -436,7 +437,9 @@
           </div>
         {/if}
       </div>
-      <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">×</button>
+      <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">
+        <X class="lightbox-close-icon" aria-hidden="true" />
+      </button>
     </div>
   </div>
 {/if}
@@ -1053,8 +1056,12 @@
     border-radius: 999px;
     background: var(--text);
     color: var(--bg);
-    font-size: 18px;
     transition: background 0.12s;
+  }
+
+  :global(.lightbox-close-icon) {
+    width: 17px;
+    height: 17px;
   }
 
   .lightbox-close:hover {

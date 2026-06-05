@@ -55,6 +55,9 @@ importers:
 
   webapp:
     dependencies:
+      '@lucide/svelte':
+        specifier: ^1.17.0
+        version: 1.17.0(svelte@5.53.7)
       '@pmh-only/welplan2-model':
         specifier: workspace:*
         version: link:../model
@@ -1294,6 +1297,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/svelte@1.17.0':
+    resolution: {integrity: sha512-q06YCFBN5CO8cd1ADmLCxWRVMVb7xxvHzqC0lvNoxGa+FLW6Cd1Y1AOxgbQk4Iwe68vkAMCRveNHint4WoaVKg==}
+    peerDependencies:
+      svelte: ^5
 
   '@napi-rs/wasm-runtime@0.2.12':
     resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
@@ -4536,6 +4544,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lucide/svelte@1.17.0(svelte@5.53.7)':
+    dependencies:
+      svelte: 5.53.7
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:

@@ -4,6 +4,7 @@
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
+  import { Camera, Lightbulb, Package, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -207,10 +208,10 @@
   let { data, children }: { data: LayoutData, children: Snippet } = $props()
 
   const navLinks = [
-    { href: '/', label: '갤러리', icon: '📸' },
-    { href: '/takein', label: '테이크 인', icon: '🍽️' },
-    { href: '/takeout', label: '테이크 아웃', icon: '📦' },
-    { href: '/restaurants', label: '식당 선택', icon: '🏪' }
+    { href: '/', label: '갤러리', icon: Camera },
+    { href: '/takein', label: '테이크 인', icon: Utensils },
+    { href: '/takeout', label: '테이크 아웃', icon: Package },
+    { href: '/restaurants', label: '식당 선택', icon: Store }
   ]
 
   const isNavigating = $derived(navigating.to !== null)
@@ -428,7 +429,7 @@
     <header>
       <div class="header-inner">
         <a href="/" class="brand">
-          <span class="brand-icon">🍽️</span>
+          <Utensils class="brand-icon" aria-hidden="true" />
           <div class="brand-text">
             <span class="brand-name">Welplan</span>
             <span class="brand-sub">웰스토리 · 신세계푸드</span>
@@ -436,8 +437,9 @@
         </a>
         <nav class="header-nav">
           {#each navLinks as link}
+            {@const Icon = link.icon}
             <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')}>
-              <span class="tab-icon">{link.icon}</span>
+              <Icon class="tab-icon" aria-hidden="true" />
               <span class="tab-label">{link.label}</span>
             </a>
           {/each}
@@ -456,7 +458,9 @@
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
     {#if showFirstVisitGuide}
       <section class="setup-banner" aria-label="첫 방문 안내">
-        <div class="setup-banner-icon" aria-hidden="true">🏪</div>
+        <div class="setup-banner-icon" aria-hidden="true">
+          <Store />
+        </div>
         <div class="setup-banner-body">
           <p class="setup-banner-title">처음 방문하셨다면 먼저 식당 선택을 해주세요</p>
         </div>
@@ -466,7 +470,9 @@
 
     {#if showPageTip}
       <aside class="page-tip" aria-label={pageTip.title}>
-        <div class="page-tip-icon" aria-hidden="true">💡</div>
+        <div class="page-tip-icon" aria-hidden="true">
+          <Lightbulb />
+        </div>
         <div class="page-tip-body">
           <p class="page-tip-title">{pageTip.title}</p>
           <ul class="page-tip-list">
@@ -475,7 +481,9 @@
             {/each}
           </ul>
         </div>
-        <button type="button" class="page-tip-close" aria-label="팁 닫기" onclick={dismissPageTip}>×</button>
+        <button type="button" class="page-tip-close" aria-label="팁 닫기" onclick={dismissPageTip}>
+          <X class="page-tip-close-icon" aria-hidden="true" />
+        </button>
       </aside>
     {/if}
 
@@ -605,7 +613,7 @@
     text-decoration: none;
     flex-shrink: 0;
   }
-  .brand-icon { font-size: 1.4rem; line-height: 1; }
+  :global(.brand-icon) { width: 22px; height: 22px; color: #10b981; flex-shrink: 0; }
   .brand-text { display: flex; flex-direction: column; gap: 0; }
   .brand-name { font-size: 1rem; font-weight: 700; color: #f8fafc; line-height: 1.2; letter-spacing: -0.01em; }
   .brand-sub { font-size: 0.7rem; color: #94a3b8; line-height: 1; }
@@ -627,7 +635,7 @@
     position: relative;
   }
 
-  .tab-icon { font-size: 14px; line-height: 1; }
+  :global(.tab-icon) { width: 14px; height: 14px; flex-shrink: 0; }
   .tab-label { }
 
   .tab-btn:hover { color: #cbd5e1; background: rgba(255, 255, 255, 0.07); }
@@ -676,7 +684,12 @@
     height: 38px;
     border-radius: 999px;
     background: rgba(16, 185, 129, 0.12);
-    font-size: 18px;
+    color: #059669;
+  }
+
+  .setup-banner-icon :global(svg) {
+    width: 19px;
+    height: 19px;
   }
 
   .setup-banner-body {
@@ -736,7 +749,12 @@
     height: 34px;
     border-radius: 999px;
     background: rgba(59, 130, 246, 0.12);
-    font-size: 16px;
+    color: #2563eb;
+  }
+
+  .page-tip-icon :global(svg) {
+    width: 17px;
+    height: 17px;
   }
 
   .page-tip-body {
@@ -755,6 +773,11 @@
     color: #1e3a8a;
     font-size: 17px;
     line-height: 1;
+  }
+
+  :global(.page-tip-close-icon) {
+    width: 16px;
+    height: 16px;
   }
 
   .page-tip-close:hover {
@@ -850,7 +873,7 @@
       border-radius: 10px;
       font-size: 11px;
     }
-    .tab-icon { font-size: 16px; }
+    :global(.tab-icon) { width: 16px; height: 16px; }
     .tab-btn.active::after { top: 3px; bottom: auto; width: 18px; }
     .brand-sub { display: none; }
     .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }

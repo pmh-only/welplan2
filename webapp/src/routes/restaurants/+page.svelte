@@ -3,6 +3,7 @@
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
   import { todayStr } from '$lib/utils'
+  import { Check, Search } from '@lucide/svelte'
 
   type RestaurantsPageData = {
     restaurants: Restaurant[]
@@ -125,7 +126,7 @@
 
     <div class="search-area">
       <div class="search-row">
-        <span class="search-icon">🔍</span>
+        <Search class="search-icon" aria-hidden="true" />
         <input
           class="search-input"
           type="text"
@@ -157,7 +158,10 @@
                 <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
               </div>
               {#if added}
-                <span class="added-tag">✓ 추가됨</span>
+                <span class="added-tag">
+                  <Check class="added-tag-icon" aria-hidden="true" />
+                  추가됨
+                </span>
               {:else}
                 <button class="add-btn" onclick={() => addRestaurant(r)}>+ 추가</button>
               {/if}
@@ -296,12 +300,13 @@
   }
   .add-btn:hover { background: #d1fae5; border-color: #34d399; }
 
-  .added-tag { flex-shrink: 0; font-size: 12px; color: #059669; font-weight: 600; }
+  .added-tag { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 12px; color: #059669; font-weight: 600; }
+  .added-tag-icon { width: 13px; height: 13px; }
 
   .search-area { padding: 14px 16px 8px; }
   .search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px; transition: border-color 0.12s; }
   .search-row:focus-within { border-color: var(--border-focus); background: #fff; }
-  .search-icon { font-size: 14px; color: var(--text-dim); flex-shrink: 0; }
+  .search-icon { width: 14px; height: 14px; color: var(--text-dim); flex-shrink: 0; }
   .search-input {
     flex: 1; padding: 9px 4px; border: none;
     font-size: 13px; color: var(--text); background: transparent; outline: none;

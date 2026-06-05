@@ -4,6 +4,7 @@
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
+  import { Check, ChevronDown, ChevronRight, Utensils, X } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -236,7 +237,9 @@
         aria-pressed={showLabels}
         onclick={() => { showLabels = !showLabels }}
       >
-        <span class="chip-checkbox" aria-hidden="true">{showLabels ? '✓' : ''}</span>
+        <span class="chip-checkbox" aria-hidden="true">
+          {#if showLabels}<Check class="chip-check-icon" />{/if}
+        </span>
         메뉴명 표시
       </button>
     </div>
@@ -279,7 +282,11 @@
               aria-controls={`gallery-meal-panel-${section.mealTime.id}`}
               onclick={() => toggleMealTime(section.mealTime.id)}
             >
-              <span class="meal-section-caret" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+              {#if isExpanded}
+                <ChevronDown class="meal-section-caret" aria-hidden="true" />
+              {:else}
+                <ChevronRight class="meal-section-caret" aria-hidden="true" />
+              {/if}
               <span class="meal-section-title" id={`gallery-meal-${section.mealTime.id}`}>{section.mealTime.name}</span>
               <span>{section.menus.length}개</span>
             </button>
@@ -292,7 +299,9 @@
                         <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
                       {:else}
                         <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
-                          <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+                          <span class="placeholder-icon" aria-hidden="true">
+                            <Utensils class="placeholder-icon-svg" />
+                          </span>
                           <span>이미지 준비중</span>
                         </div>
                       {/if}
@@ -329,7 +338,9 @@
                 <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
               {:else}
                 <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
-                  <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+                  <span class="placeholder-icon" aria-hidden="true">
+                    <Utensils class="placeholder-icon-svg" />
+                  </span>
                   <span>이미지 준비중</span>
                 </div>
               {/if}
@@ -377,7 +388,9 @@
           <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
         {:else}
           <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
-            <span class="placeholder-icon" aria-hidden="true">🍽️</span>
+            <span class="placeholder-icon" aria-hidden="true">
+              <Utensils class="placeholder-icon-svg" />
+            </span>
             <span>이미지 준비중</span>
           </div>
         {/if}
@@ -441,7 +454,9 @@
           </div>
         {/if}
       </div>
-      <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">✕</button>
+      <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">
+        <X class="lightbox-close-icon" aria-hidden="true" />
+      </button>
     </div>
   </div>
 {/if}
@@ -514,10 +529,10 @@
     border-radius: 3px;
     background: #fff;
     color: #047857;
-    font-size: 10px;
     line-height: 1;
     flex-shrink: 0;
   }
+  :global(.chip-check-icon) { width: 11px; height: 11px; }
   .chip-active .chip-checkbox {
     border-color: var(--green);
     background: #dcfce7;
@@ -561,7 +576,7 @@
     text-align: left;
   }
   .meal-section-head:hover { background: var(--surface-hover); }
-  .meal-section-caret { width: 14px; color: var(--text-dim); font-size: 12px; }
+  :global(.meal-section-caret) { width: 14px; height: 14px; color: var(--text-dim); flex-shrink: 0; }
   .meal-section-head span { font-size: 12px; color: var(--text-dim); font-weight: 600; }
   .meal-section-head .meal-section-title { font-size: 14px; font-weight: 700; color: var(--text); }
 
@@ -688,6 +703,7 @@
     display: flex; align-items: center; justify-content: center;
     transition: background 0.12s;
   }
+  :global(.lightbox-close-icon) { width: 16px; height: 16px; }
   .lightbox-close:hover { background: rgba(0,0,0,0.75); }
 
   .gallery-img-wrap { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--surface); }
@@ -721,8 +737,9 @@
     border: 1px solid var(--border);
     border-radius: 999px;
     background: #fff;
-    font-size: 20px;
+    color: #059669;
   }
+  :global(.placeholder-icon-svg) { width: 22px; height: 22px; }
   .lightbox-placeholder {
     aspect-ratio: 1;
     min-height: 260px;

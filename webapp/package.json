@@ -10,6 +10,7 @@
     "start": "node build/index.js"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.17.0",
     "@pmh-only/welplan2-model": "workspace:*",
     "@pmh-only/welplan2-planeat-choice": "workspace:*",
     "@pmh-only/welplan2-welstory-plus": "workspace:*",
@@ -22,9 +23,9 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
-    "@vite-pwa/sveltekit": "^1.1.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.0",
+    "@vite-pwa/sveltekit": "^1.1.0",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5.0.0",
     "vite": "^6.0.0"
