@@ -62,18 +62,32 @@ export default defineConfig({
         ],
         screenshots: [
           {
-            src: '/pwa-screenshot-desktop.webp',
+            src: '/pwa-screenshot-home-desktop.png',
             sizes: '1280x720',
-            type: 'image/webp',
+            type: 'image/png',
             form_factor: 'wide',
-            label: 'Welplan desktop menu gallery'
+            label: 'Welplan home desktop'
           },
           {
-            src: '/pwa-screenshot-mobile.webp',
+            src: '/pwa-screenshot-home-mobile.png',
             sizes: '390x844',
-            type: 'image/webp',
+            type: 'image/png',
             form_factor: 'narrow',
-            label: 'Welplan mobile menu gallery'
+            label: 'Welplan home mobile'
+          },
+          {
+            src: '/pwa-screenshot-takein-desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Welplan take-in desktop'
+          },
+          {
+            src: '/pwa-screenshot-takein-mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Welplan take-in mobile'
           }
         ],
         shortcuts: [
