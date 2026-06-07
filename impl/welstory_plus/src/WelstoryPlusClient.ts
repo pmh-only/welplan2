@@ -151,10 +151,10 @@ export class WelstoryPlusClient implements CafeteriaClient {
             responseBytes: text.length
           })
 
-          const shouldRelogin =
-            response.status === 401 ||
-            response.status === 403 ||
-            (response.ok && looksLikeHtmlResponse(response, text))
+          const isAuthStatus = response.status === 401 || response.status === 403
+          const isHtmlSessionResponse = response.ok && looksLikeHtmlResponse(response, text)
+          const isEmptySessionResponse = response.ok && !text.trim()
+          const shouldRelogin = isAuthStatus || isHtmlSessionResponse || isEmptySessionResponse
 
           if (shouldRelogin) {
             authLog.warn('request requires new login', {
@@ -163,15 +163,17 @@ export class WelstoryPlusClient implements CafeteriaClient {
               status: response.status,
               durationMs: Date.now() - startedAt,
               reason:
-                response.status === 401 || response.status === 403
+                isAuthStatus
                   ? 'auth_status'
-                  : 'html_session_response'
+                  : isEmptySessionResponse
+                    ? 'empty_session_response'
+                    : 'html_session_response'
             })
             const error = new WelstoryAuthError(
-              response.status === 401 || response.status === 403
+              isAuthStatus
                 ? `Auth failed: ${response.status} ${response.statusText}`
                 : 'Auth failed: session expired',
-              response.status === 401 || response.status === 403 ? response.status : undefined
+              isAuthStatus ? response.status : undefined
             )
             lastError = error
             if (attempt === 0) continue
