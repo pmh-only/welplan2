@@ -48,3 +48,9 @@ export const userSelectedRestaurants = pgTable('user_selected_restaurants', {
   restaurantId: text('restaurant_id').primaryKey(),
   lastSeenAt: bigint('last_seen_at', { mode: 'number' }).notNull()
 })
+
+export const appSettings = pgTable('app_settings', {
+  key: text('key').primaryKey(),
+  data: text('data').notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+})

@@ -31,7 +31,10 @@ export async function loadLayoutData(cookies: Cookies) {
 
   await Promise.all(restaurants.map((restaurant) => service.registerRestaurant(restaurant).catch(() => undefined)))
 
-  const mealTimes = await service.getMealTimesForRestaurants(restaurants).catch(() => [])
+  const [mealTimes, notice] = await Promise.all([
+    service.getMealTimesForRestaurants(restaurants).catch(() => []),
+    service.getNoticeSettings().catch(() => undefined)
+  ])
 
-  return { restaurants, mealTimes, isFirstVisit }
+  return { restaurants, mealTimes, isFirstVisit, notice }
 }

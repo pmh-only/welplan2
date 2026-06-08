@@ -20,6 +20,14 @@
     cleared?: Record<string, number>
     status?: CacheStatus
     cachePage?: CachePage
+    notice?: NoticeSettings
+  }
+  type NoticeSettings = {
+    enabled: boolean
+    title: string
+    summary: string
+    detail: string
+    updatedAt?: number
   }
 
   let { data, form }: {
@@ -28,11 +36,13 @@
       status: CacheStatus
       cacheTables: string[]
       cachePage: CachePage
+      notice: NoticeSettings
     }
     form?: ActionData
   } = $props()
   const status = $derived(form?.status ?? data.status)
   const cachePage = $derived(form?.cachePage ?? data.cachePage)
+  const notice = $derived(form?.notice ?? data.notice)
   const statusEntries = $derived(Object.entries(status))
   const displayName = $derived(data.user?.name ?? data.user?.email ?? data.user?.id ?? 'admin')
 
@@ -89,6 +99,45 @@
   {/if}
 
   <div class="admin-grid">
+    <section class="panel" aria-labelledby="notice-title">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Notice</p>
+          <h2 id="notice-title">공지 바 관리</h2>
+          <p class="panel-description">모든 페이지 상단에 표시될 클릭형 공지를 작성합니다.</p>
+        </div>
+      </div>
+
+      <form method="POST" action="?/updateNotice" class="notice-form">
+        <label class="toggle-row">
+          <input type="checkbox" name="enabled" checked={notice.enabled} />
+          <span>공지 바 표시</span>
+        </label>
+
+        <label class="field-row" for="notice-title-input">
+          <span>제목</span>
+          <input id="notice-title-input" name="title" value={notice.title} maxlength="80" placeholder="예: 서비스 점검 안내" />
+        </label>
+
+        <label class="field-row" for="notice-summary-input">
+          <span>바 문구</span>
+          <input id="notice-summary-input" name="summary" value={notice.summary} maxlength="180" placeholder="상단 바에 짧게 보일 내용" />
+        </label>
+
+        <label class="field-row" for="notice-detail-input">
+          <span>상세 공지</span>
+          <textarea id="notice-detail-input" name="detail" rows="6" maxlength="5000" placeholder="사용자가 공지 바를 클릭하면 표시될 상세 내용">{notice.detail}</textarea>
+        </label>
+
+        <div class="form-actions">
+          {#if notice.updatedAt}
+            <span>최근 수정: {formatCachedAt(notice.updatedAt)}</span>
+          {/if}
+          <button type="submit" class="primary-button">공지 저장</button>
+        </div>
+      </form>
+    </section>
+
     <section class="panel" aria-labelledby="cache-title">
       <div class="panel-header">
         <div>
@@ -325,6 +374,21 @@
     cursor: pointer;
   }
 
+  .primary-button {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .primary-button:hover {
+    background: #115e59;
+  }
+
   .danger-button:hover {
     background: #b91c1c;
   }
@@ -349,6 +413,71 @@
     margin: 6px 0 0;
     color: #64748b;
     font-size: 13px;
+  }
+
+  .notice-form {
+    display: grid;
+    gap: 14px;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .toggle-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0f766e;
+  }
+
+  .field-row {
+    display: grid;
+    gap: 6px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .field-row input,
+  .field-row textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-weight: 500;
+  }
+
+  .field-row input {
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .field-row textarea {
+    min-height: 140px;
+    padding: 12px;
+    resize: vertical;
+  }
+
+  .field-row input:focus,
+  .field-row textarea:focus {
+    border-color: #0f766e;
+    outline: 3px solid rgba(15, 118, 110, 0.14);
+  }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .browser-header {

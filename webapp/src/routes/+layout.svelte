@@ -4,7 +4,7 @@
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
-  import { Camera, Lightbulb, Package, Store, Utensils, X } from '@lucide/svelte'
+  import { Camera, Lightbulb, Megaphone, Package, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -31,6 +31,15 @@
   type LayoutData = {
     mealTimes?: MealTime[]
     isFirstVisit: boolean
+    notice?: NoticeSettings
+  }
+
+  type NoticeSettings = {
+    enabled: boolean
+    title: string
+    summary: string
+    detail: string
+    updatedAt?: number
   }
 
   const INDEXABLE_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
@@ -228,6 +237,7 @@
   let showLoading = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let pageTipDismissed = $state(false)
+  let noticeOpen = $state(false)
 
   function dismissPageTip () {
     pageTipDismissed = true
@@ -361,6 +371,8 @@
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
   const showFirstVisitGuide = $derived(showGlobalChrome && !isAdminPage && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
   const showPageTip = $derived(showGlobalChrome && !isAdminPage && !pageTipDismissed)
+  const notice = $derived(data.notice)
+  const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -436,6 +448,32 @@
     <span class="github-label-desktop">Star on GitHub</span>
   </a>
 
+  {#if showNotice && notice}
+    <section class="notice-shell" aria-label="공지사항">
+      <button type="button" class="notice-bar" aria-expanded={noticeOpen} onclick={() => { noticeOpen = !noticeOpen }}>
+        <span class="notice-bar-badge">
+          <Megaphone class="notice-icon" aria-hidden="true" />
+          공지
+        </span>
+        <span class="notice-bar-text">
+          {#if notice.title}
+            <strong>{notice.title}</strong>
+          {/if}
+          {notice.summary || notice.detail}
+        </span>
+        <span class="notice-bar-action">자세히</span>
+      </button>
+      {#if noticeOpen}
+        <div class="notice-detail">
+          {#if notice.title}
+            <h2>{notice.title}</h2>
+          {/if}
+          <p>{notice.detail || notice.summary}</p>
+        </div>
+      {/if}
+    </section>
+  {/if}
+
   {#if showGlobalChrome}
     <header>
       <div class="header-inner">
@@ -505,7 +543,15 @@
 <style>
   .app { min-height: 100vh; }
 
+  .notice-shell {
+    position: relative;
+    z-index: 120;
+    background: #111827;
+  }
+
   .notice-bar {
+    width: 100%;
+    border: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -516,11 +562,17 @@
     font-size: 13px;
     font-weight: 600;
     text-align: center;
+    cursor: pointer;
+  }
+
+  .notice-bar:hover {
+    filter: brightness(1.05);
   }
 
   .notice-bar-badge {
     display: inline-flex;
     align-items: center;
+    gap: 5px;
     padding: 2px 7px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.25);
@@ -528,6 +580,51 @@
     font-weight: 800;
     letter-spacing: 0.04em;
     flex-shrink: 0;
+  }
+
+  :global(.notice-icon) {
+    width: 13px;
+    height: 13px;
+  }
+
+  .notice-bar-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notice-bar-text strong {
+    margin-right: 8px;
+  }
+
+  .notice-bar-action {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .notice-detail {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 16px 20px 18px;
+    color: #f8fafc;
+    background: #111827;
+    white-space: pre-wrap;
+  }
+
+  .notice-detail h2 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .notice-detail p {
+    margin: 0;
+    color: #dbeafe;
+    line-height: 1.65;
   }
 
   .github-ribbon {

@@ -63,6 +63,11 @@ const createSchemaSql = `
     restaurant_id TEXT PRIMARY KEY,
     last_seen_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at BIGINT NOT NULL
+  );
 `
 
 let initialized: Promise<void> | null = null

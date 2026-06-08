@@ -12,12 +12,20 @@ import {
   menuNutrientDetailCache,
   precomputedPageCache,
   imageCache,
-  userSelectedRestaurants
+  userSelectedRestaurants,
+  appSettings
 } from './db/schema.js'
 import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
+const NOTICE_SETTINGS_KEY = 'notice'
+const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
+  enabled: false,
+  title: '',
+  summary: '',
+  detail: ''
+}
 
 type CachedCountRow = { count: number | string | bigint }
 
@@ -52,6 +60,14 @@ export type CachedMenus = {
   date: string
   mealTimeId: string
   menus: Menu[]
+}
+
+export type NoticeSettings = {
+  enabled: boolean
+  title: string
+  summary: string
+  detail: string
+  updatedAt?: number
 }
 
 export type ServiceOptions = { allowRemoteFetch?: boolean }
@@ -1047,6 +1063,53 @@ export class CafeteriaService {
       totalPages: Math.max(1, Math.ceil(total / safePageSize)),
       rows
     }
+  }
+
+  private normalizeNoticeSettings(value: Partial<NoticeSettings>): NoticeSettings {
+    const title = typeof value.title === 'string' ? value.title.trim().slice(0, 80) : ''
+    const summary = typeof value.summary === 'string' ? value.summary.trim().slice(0, 180) : ''
+    const detail = typeof value.detail === 'string' ? value.detail.trim().slice(0, 5000) : ''
+
+    return {
+      enabled: value.enabled === true && (summary.length > 0 || detail.length > 0),
+      title,
+      summary,
+      detail,
+      updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : undefined
+    }
+  }
+
+  async getNoticeSettings(): Promise<NoticeSettings> {
+    await ensureDbInitialized()
+    const row = await this.readOne(db.select().from(appSettings).where(eq(appSettings.key, NOTICE_SETTINGS_KEY)))
+    if (!row) return EMPTY_NOTICE_SETTINGS
+
+    try {
+      return this.normalizeNoticeSettings({
+        ...(JSON.parse(row.data) as Partial<NoticeSettings>),
+        updatedAt: row.updatedAt
+      })
+    } catch {
+      return EMPTY_NOTICE_SETTINGS
+    }
+  }
+
+  async setNoticeSettings(value: Partial<NoticeSettings>): Promise<NoticeSettings> {
+    await ensureDbInitialized()
+    const now = this.now()
+    const notice = this.normalizeNoticeSettings({ ...value, updatedAt: now })
+
+    await db
+      .insert(appSettings)
+      .values({ key: NOTICE_SETTINGS_KEY, data: JSON.stringify(notice), updatedAt: now })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { data: JSON.stringify(notice), updatedAt: now }
+      })
+      .execute()
+
+    syncLog.info('notice settings updated', { enabled: notice.enabled })
+    return notice
   }
 
   async clearCaches(): Promise<Record<string, number>> {
