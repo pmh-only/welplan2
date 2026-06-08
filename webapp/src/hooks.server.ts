@@ -1,7 +1,7 @@
 import type { Handle } from '@sveltejs/kit'
 import { API_DOC_PATH } from '$lib/agent'
 import { createServerLogger } from '$lib/server/log'
-import { adminOidcConfigured, getAdminUser } from '$lib/server/admin-auth'
+import { adminOidcConfigured, getAdminUser, redirectResponse } from '$lib/server/admin-auth'
 import {
   appendVaryValue,
   applyContentSignal,
@@ -66,7 +66,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       if (!event.locals.adminUser) {
         const loginUrl = new URL('/admin/login', event.url.origin)
         loginUrl.searchParams.set('returnTo', `${event.url.pathname}${event.url.search}`)
-        return Response.redirect(loginUrl, 302)
+        return redirectResponse(loginUrl)
       }
     }
 

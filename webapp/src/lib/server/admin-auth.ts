@@ -106,6 +106,13 @@ export function adminRedirectUri(origin: string): string {
   return process.env.ADMIN_OIDC_REDIRECT_URI?.trim() || `${origin}/admin/callback`
 }
 
+export function redirectResponse(url: string | URL): Response {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: url.toString() }
+  })
+}
+
 async function discoverOidc(): Promise<OidcDiscovery> {
   const discoveryUrl = process.env.ADMIN_OIDC_DISCOVERY_URL?.trim()
   const issuerUrl = process.env.ADMIN_OIDC_ISSUER_URL?.trim().replace(/\/+$/, '')
@@ -141,7 +148,7 @@ export async function createAdminLoginRedirect(cookies: Cookies, url: URL): Prom
   authorizeUrl.searchParams.set('state', state.state)
   authorizeUrl.searchParams.set('nonce', state.nonce)
 
-  return Response.redirect(authorizeUrl, 302)
+  return redirectResponse(authorizeUrl)
 }
 
 async function exchangeCode(code: string, origin: string): Promise<OidcTokenResponse> {
