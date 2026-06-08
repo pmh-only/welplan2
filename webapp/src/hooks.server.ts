@@ -38,7 +38,7 @@ function shouldAdvertiseDiscovery(pathname: string): boolean {
 }
 
 function isAdminAuthRoute(pathname: string): boolean {
-  return pathname === '/admin/login' || pathname === '/admin/callback' || pathname === '/admin/logout'
+  return pathname === '/admin/login' || pathname === '/admin/callback'
 }
 
 function isProtectedAdminRoute(pathname: string): boolean {

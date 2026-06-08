@@ -14,12 +14,38 @@ import {
   imageCache,
   userSelectedRestaurants
 } from './db/schema.js'
-import { eq, sql } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
 
 type CachedCountRow = { count: number | string | bigint }
+
+export type CacheTableName =
+  | 'restaurants'
+  | 'mealTimes'
+  | 'menus'
+  | 'menuDetails'
+  | 'menuNutrientDetails'
+  | 'precomputedPages'
+  | 'images'
+
+export type CachePageRow = {
+  key: string
+  cachedAt: number
+  contentType?: string
+  dataSize: number
+  dataPreview: string
+}
+
+export type CachePage = {
+  table: CacheTableName
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  rows: CachePageRow[]
+}
 
 export type ServiceOptions = { allowRemoteFetch?: boolean }
 
@@ -882,6 +908,116 @@ export class CafeteriaService {
       images: await this.count(
         db.select({ count: sql<number>`count(*)` }).from(imageCache)
       )
+    }
+  }
+
+  async getCachePage(table: CacheTableName, page: number, pageSize: number): Promise<CachePage> {
+    const safePage = Math.max(1, Math.floor(page))
+    const safePageSize = Math.min(100, Math.max(5, Math.floor(pageSize)))
+    const offset = (safePage - 1) * safePageSize
+
+    const mapRows = (rows: { key: string; data: string; cachedAt: number; contentType?: string }[]): CachePageRow[] => {
+      return rows.map((row) => ({
+        key: row.key,
+        cachedAt: row.cachedAt,
+        contentType: row.contentType,
+        dataSize: row.data.length,
+        dataPreview: row.contentType
+          ? row.data.slice(0, 120)
+          : row.data.replace(/\s+/g, ' ').slice(0, 500)
+      }))
+    }
+
+    let total = 0
+    let rows: CachePageRow[] = []
+
+    switch (table) {
+      case 'restaurants': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable))
+        rows = mapRows(await db
+          .select({ key: restaurantsTable.id, data: restaurantsTable.data, cachedAt: restaurantsTable.cachedAt })
+          .from(restaurantsTable)
+          .orderBy(desc(restaurantsTable.cachedAt), restaurantsTable.id)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'mealTimes': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache))
+        rows = mapRows(await db
+          .select({ key: mealTimesCache.restaurantId, data: mealTimesCache.data, cachedAt: mealTimesCache.cachedAt })
+          .from(mealTimesCache)
+          .orderBy(desc(mealTimesCache.cachedAt), mealTimesCache.restaurantId)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'menus': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache))
+        rows = mapRows(await db
+          .select({ key: menusCache.key, data: menusCache.data, cachedAt: menusCache.cachedAt })
+          .from(menusCache)
+          .orderBy(desc(menusCache.cachedAt), menusCache.key)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'menuDetails': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache))
+        rows = mapRows(await db
+          .select({ key: menuDetailCache.key, data: menuDetailCache.data, cachedAt: menuDetailCache.cachedAt })
+          .from(menuDetailCache)
+          .orderBy(desc(menuDetailCache.cachedAt), menuDetailCache.key)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'menuNutrientDetails': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache))
+        rows = mapRows(await db
+          .select({ key: menuNutrientDetailCache.key, data: menuNutrientDetailCache.data, cachedAt: menuNutrientDetailCache.cachedAt })
+          .from(menuNutrientDetailCache)
+          .orderBy(desc(menuNutrientDetailCache.cachedAt), menuNutrientDetailCache.key)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'precomputedPages': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(precomputedPageCache))
+        rows = mapRows(await db
+          .select({ key: precomputedPageCache.key, data: precomputedPageCache.data, cachedAt: precomputedPageCache.cachedAt })
+          .from(precomputedPageCache)
+          .orderBy(desc(precomputedPageCache.cachedAt), precomputedPageCache.key)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+      case 'images': {
+        total = await this.count(db.select({ count: sql<number>`count(*)` }).from(imageCache))
+        rows = mapRows(await db
+          .select({ key: imageCache.key, data: imageCache.data, cachedAt: imageCache.cachedAt, contentType: imageCache.contentType })
+          .from(imageCache)
+          .orderBy(desc(imageCache.cachedAt), imageCache.key)
+          .limit(safePageSize)
+          .offset(offset)
+          .execute())
+        break
+      }
+    }
+
+    return {
+      table,
+      page: safePage,
+      pageSize: safePageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+      rows
     }
   }
 

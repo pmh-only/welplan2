@@ -1,10 +1,36 @@
-import { service } from '$lib/server/service'
+import { service, type CacheTableName } from '$lib/server/service'
 import type { Actions, PageServerLoad } from './$types'
 
-export const load: PageServerLoad = async ({ locals }) => {
+const CACHE_TABLES: CacheTableName[] = [
+  'restaurants',
+  'mealTimes',
+  'menus',
+  'menuDetails',
+  'menuNutrientDetails',
+  'precomputedPages',
+  'images'
+]
+
+function cacheTableFromUrl(url: URL): CacheTableName {
+  const table = url.searchParams.get('cacheTable')
+  return CACHE_TABLES.includes(table as CacheTableName) ? table as CacheTableName : 'restaurants'
+}
+
+function numberParam(url: URL, name: string, fallback: number): number {
+  const value = Number(url.searchParams.get(name))
+  return Number.isFinite(value) ? value : fallback
+}
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+  const table = cacheTableFromUrl(url)
+  const page = numberParam(url, 'page', 1)
+  const pageSize = numberParam(url, 'pageSize', 20)
+
   return {
     user: locals.adminUser,
-    status: await service.getCacheStatus()
+    status: await service.getCacheStatus(),
+    cacheTables: CACHE_TABLES,
+    cachePage: await service.getCachePage(table, page, pageSize)
   }
 }
 
@@ -16,7 +42,8 @@ export const actions: Actions = {
     return {
       message: '캐시를 삭제했습니다',
       cleared,
-      status: await service.getCacheStatus()
+      status: await service.getCacheStatus(),
+      cachePage: await service.getCachePage('restaurants', 1, 20)
     }
   }
 }
