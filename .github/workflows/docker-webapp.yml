@@ -43,6 +43,9 @@ jobs:
           provenance: false
           sbom: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-amd64
+          build-args: |
+            WELPLAN_COMMIT_SHA=${{ github.sha }}
+            WELPLAN_BUILD_TIME=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -76,6 +79,9 @@ jobs:
           provenance: false
           sbom: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-arm64
+          build-args: |
+            WELPLAN_COMMIT_SHA=${{ github.sha }}
+            WELPLAN_BUILD_TIME=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

@@ -24,3 +24,4 @@ Thumbs.db
 
 # AI Agent
 .sisyphus/
+.playwright-mcp/

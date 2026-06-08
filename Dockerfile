@@ -39,6 +39,9 @@ RUN pnpm install --prod --frozen-lockfile
 
 FROM node:22-bookworm-slim AS runtime
 
+ARG WELPLAN_COMMIT_SHA=unknown
+ARG WELPLAN_BUILD_TIME=unknown
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends tini \
   && rm -rf /var/lib/apt/lists/*
@@ -46,6 +49,8 @@ RUN apt-get update \
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV WELPLAN_COMMIT_SHA=${WELPLAN_COMMIT_SHA}
+ENV WELPLAN_BUILD_TIME=${WELPLAN_BUILD_TIME}
 
 WORKDIR /app
 
