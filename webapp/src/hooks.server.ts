@@ -1,6 +1,7 @@
 import type { Handle } from '@sveltejs/kit'
 import { API_DOC_PATH } from '$lib/agent'
 import { createServerLogger } from '$lib/server/log'
+import { adminOidcConfigured, getAdminUser } from '$lib/server/admin-auth'
 import {
   appendVaryValue,
   applyContentSignal,
@@ -36,6 +37,14 @@ function shouldAdvertiseDiscovery(pathname: string): boolean {
   )
 }
 
+function isAdminAuthRoute(pathname: string): boolean {
+  return pathname === '/admin/login' || pathname === '/admin/callback' || pathname === '/admin/logout'
+}
+
+function isProtectedAdminRoute(pathname: string): boolean {
+  return pathname === '/admin' || (pathname.startsWith('/admin/') && !isAdminAuthRoute(pathname))
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now()
   const requestId = nextRequestId()
@@ -48,6 +57,19 @@ export const handle: Handle = async ({ event, resolve }) => {
   })
 
   try {
+    if (isProtectedAdminRoute(event.url.pathname)) {
+      if (!adminOidcConfigured()) {
+        return new Response('Admin OIDC is not configured', { status: 503 })
+      }
+
+      event.locals.adminUser = getAdminUser(event.cookies)
+      if (!event.locals.adminUser) {
+        const loginUrl = new URL('/admin/login', event.url.origin)
+        loginUrl.searchParams.set('returnTo', `${event.url.pathname}${event.url.search}`)
+        return Response.redirect(loginUrl, 302)
+      }
+    }
+
     const response = await resolve(event)
     const contentType = response.headers.get('content-type') ?? ''
     let finalResponse = response

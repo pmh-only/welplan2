@@ -149,6 +149,16 @@
       }
     }
 
+    if (pathname.startsWith('/admin')) {
+      return {
+        ...baseMeta,
+        title: 'Admin | Welplan',
+        ogTitle: 'Admin | Welplan',
+        description: 'Welplan 관리자 페이지',
+        robots: 'noindex, nofollow'
+      }
+    }
+
     if (pathname.startsWith('/restaurants')) {
       return {
         ...baseMeta,
@@ -339,6 +349,7 @@
   })
 
   const restaurantMeta = $derived(restaurantFromPageData(page.data))
+  const isAdminPage = $derived(page.url.pathname.startsWith('/admin'))
   const routeMeta = $derived.by(() => {
     const base = routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta)
     const pageDescription = (page.data as { pageDescription?: string }).pageDescription
@@ -348,8 +359,8 @@
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
-  const showFirstVisitGuide = $derived(showGlobalChrome && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
-  const showPageTip = $derived(showGlobalChrome && !pageTipDismissed)
+  const showFirstVisitGuide = $derived(showGlobalChrome && !isAdminPage && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
+  const showPageTip = $derived(showGlobalChrome && !isAdminPage && !pageTipDismissed)
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
