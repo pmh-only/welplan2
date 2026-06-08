@@ -7,13 +7,13 @@ import { createServerLogger } from './log.js'
 import {
   restaurants as restaurantsTable,
   mealTimesCache,
-    menusCache,
-    menuDetailCache,
-    menuNutrientDetailCache,
-    precomputedPageCache,
-    imageCache,
-    userSelectedRestaurants
-  } from './db/schema.js'
+  menusCache,
+  menuDetailCache,
+  menuNutrientDetailCache,
+  precomputedPageCache,
+  imageCache,
+  userSelectedRestaurants
+} from './db/schema.js'
 import { eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
@@ -339,8 +339,12 @@ export class CafeteriaService {
   }
 
   private async resolveRestaurant(id: string): Promise<Restaurant> {
-    await this.ensureCache()
-    const row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
+    await ensureDbInitialized()
+    let row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
+    if (!row) {
+      await this.ensureCache()
+      row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
+    }
     if (!row) {
       syncLog.warn('restaurant lookup failed', { restaurantId: id })
       throw new Error(`Restaurant '${id}' not found`)
@@ -454,6 +458,18 @@ export class CafeteriaService {
 
   async getAllMealTimes(): Promise<MealTime[]> {
     await this.ensureCache()
+    const cachedRows = await db.select().from(mealTimesCache).execute()
+    const cachedMealTimes = this.mergeMealTimes(
+      cachedRows.map((row): PromiseSettledResult<MealTime[]> => {
+        try {
+          return { status: 'fulfilled', value: JSON.parse(row.data) as MealTime[] }
+        } catch (error) {
+          return { status: 'rejected', reason: error }
+        }
+      })
+    )
+    if (cachedMealTimes.length > 0) return cachedMealTimes
+
     const byVendor = new Map<string, Restaurant>()
     for (const r of await this.readRestaurants()) {
       if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
@@ -956,25 +972,25 @@ export class CafeteriaService {
 
     const fromWelstory = this.allowRemoteFetch
       ? await Promise.resolve()
-          .then(() => this.getWelstoryClient().searchRestaurants(query))
-          .catch((error) => {
-            syncLog.warn('vendor restaurant search failed', {
-              vendor: 'welstory',
-              query,
-              error
-            })
-            return []
+        .then(() => this.getWelstoryClient().searchRestaurants(query))
+        .catch((error) => {
+          syncLog.warn('vendor restaurant search failed', {
+            vendor: 'welstory',
+            query,
+            error
           })
-          .then((restaurants) =>
-            restaurants.filter(
-              (r) =>
-                typeof r.id === 'string' &&
-                r.id.length > 0 &&
-                typeof r.name === 'string' &&
-                !this.isClosedRestaurant(r) &&
-                typeof r.vendor === 'string'
-            )
+          return []
+        })
+        .then((restaurants) =>
+          restaurants.filter(
+            (r) =>
+              typeof r.id === 'string' &&
+              r.id.length > 0 &&
+              typeof r.name === 'string' &&
+              !this.isClosedRestaurant(r) &&
+              typeof r.vendor === 'string'
           )
+        )
       : []
 
     const merged = this.mergeSearchResults(query, fromCache, fromWelstory)

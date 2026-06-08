@@ -33,6 +33,20 @@ function selectedMealTimes(mealTimes: MealTime[], time: string): MealTime[] {
   return mealTimes.filter((mealTime) => mealTime.id === time)
 }
 
+const WELSTORY_FALLBACK_MEAL_TIMES: MealTime[] = [
+  { id: '1', name: '아침', type: 'breakfast' },
+  { id: '2', name: '점심', type: 'lunch' },
+  { id: '3', name: '저녁', type: 'dinner' },
+  { id: '4', name: '야식', type: 'supper' },
+  { id: '5', name: '간식', type: 'snack' },
+  { id: '6', name: '새벽식', type: 'dawn' }
+]
+
+export function mealTimesForRestaurant(restaurant: Restaurant, mealTimes: MealTime[]): MealTime[] {
+  if (mealTimes.length > 0) return mealTimes
+  return restaurant.vendor === 'welstory' ? WELSTORY_FALLBACK_MEAL_TIMES : mealTimes
+}
+
 function restaurantIds(restaurants: Restaurant[]): string {
   return restaurants.map((restaurant) => restaurant.id).sort().join(',')
 }
@@ -59,7 +73,10 @@ async function selectedRestaurantMealTimes(
     return [{ id: '6', name: '전체' }]
   }
 
-  const mealTimes = await cafeteriaService.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
+  const mealTimes = mealTimesForRestaurant(
+    restaurant,
+    await cafeteriaService.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
+  )
   return selectedMealTimes(mealTimes, time)
 }
 
@@ -109,7 +126,7 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
   const cached = await service
     .getPrecomputedPage<GalleryRouteData>(galleryRouteCacheKey(restaurants, date, mealTimeId))
     .catch(() => null)
-  if (cached) return cached
+  if (cached && cached.menus.length > 0) return cached
 
   return computeGalleryMenusForRestaurants(restaurants, mealTimes, date, mealTimeId)
 }
@@ -167,17 +184,21 @@ export async function loadGalleryMenusForRestaurantDate(
   restaurant: Restaurant,
   mealTimes: MealTime[],
   date: string,
-  options: { enrichNutrientDetails?: boolean } = {}
+  options: { enrichNutrientDetails?: boolean; service?: CafeteriaService } = {}
 ) {
   const enrichNutrientDetails = options.enrichNutrientDetails !== false
+  const cafeteriaService = options.service ?? service
   const cached = await service
     .getPrecomputedPage<RestaurantGalleryDateData>(
       restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails)
     )
     .catch(() => null)
-  if (cached) return cached
+  if (cached && cached.menus.length > 0) return cached
 
-  return computeGalleryMenusForRestaurantDate(restaurant, mealTimes, date, { enrichNutrientDetails })
+  return computeGalleryMenusForRestaurantDate(restaurant, mealTimes, date, {
+    enrichNutrientDetails,
+    service: cafeteriaService
+  })
 }
 
 export async function computeGalleryMenusForRestaurantDate(
@@ -187,8 +208,9 @@ export async function computeGalleryMenusForRestaurantDate(
   options: { enrichNutrientDetails?: boolean; service?: CafeteriaService } = {}
 ): Promise<RestaurantGalleryDateData> {
   const cafeteriaService = options.service ?? service
+  const targetMealTimes = mealTimesForRestaurant(restaurant, mealTimes)
   const mealTimeResults = await Promise.all(
-    mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
+    targetMealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
       try {
         const rawMenus = await cafeteriaService.getMenus(restaurant.id, date, mealTime.id)
         const enrichedMenus = options.enrichNutrientDetails === false

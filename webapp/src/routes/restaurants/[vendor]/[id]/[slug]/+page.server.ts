@@ -1,8 +1,12 @@
 import { error, redirect } from '@sveltejs/kit'
 import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
-import { buildRestaurantPageDescription, loadGalleryMenusForRestaurantDate } from '$lib/server/menu-page'
+import {
+  buildRestaurantPageDescription,
+  loadGalleryMenusForRestaurantDate,
+  mealTimesForRestaurant
+} from '$lib/server/menu-page'
 import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
-import { service } from '$lib/server/service'
+import { createService } from '$lib/server/service'
 import { todayStr } from '$lib/utils'
 import type { PageServerLoad } from './$types'
 
@@ -30,9 +34,16 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
     redirect(308, `${detailPath}${search}`)
   }
 
-  const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+  const menuService = createService({ allowRemoteFetch: true })
+  await menuService.registerRestaurant(restaurant).catch(() => undefined)
+
+  const mealTimes = mealTimesForRestaurant(
+    restaurant,
+    await menuService.getMealTimes(restaurant.id).catch(() => [])
+  )
   const { menus, mealTimeMenus } = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, date, {
-    enrichNutrientDetails: restaurants.some((selected) => selected.id === restaurant.id)
+    enrichNutrientDetails: restaurants.some((selected) => selected.id === restaurant.id),
+    service: menuService
   })
   const vendorLabel = restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
 
