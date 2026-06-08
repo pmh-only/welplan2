@@ -82,8 +82,9 @@ export function groupDishesToMenus(dishes: WpDish[], restaurantId: string): Menu
 function isTakeOutName(name: string): boolean {
   return (
     /^\[\d+Coin\]/.test(name) ||
+    name.includes('코인') ||
+    /\(\d+\)/.test(name) ||
     /외\s*\d+종$/.test(name) ||
-    name.includes('도시락') ||
     name.includes('사이드')
   )
 }
