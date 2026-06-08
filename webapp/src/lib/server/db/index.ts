@@ -59,10 +59,7 @@ const createSchemaSql = `
     content_type TEXT NOT NULL,
     cached_at BIGINT NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS user_selected_restaurants (
-    restaurant_id TEXT PRIMARY KEY,
-    last_seen_at BIGINT NOT NULL
-  );
+  DROP TABLE IF EXISTS user_selected_restaurants;
   CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     data TEXT NOT NULL,

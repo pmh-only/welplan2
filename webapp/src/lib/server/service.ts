@@ -12,7 +12,6 @@ import {
   menuNutrientDetailCache,
   precomputedPageCache,
   imageCache,
-  userSelectedRestaurants,
   appSettings
 } from './db/schema.js'
 import { desc, eq, sql } from 'drizzle-orm'
@@ -494,14 +493,6 @@ export class CafeteriaService {
         path: knownRestaurant.path ?? restaurant.path
       }
     })
-  }
-
-  async getUserSelectedRestaurants(): Promise<Restaurant[]> {
-    await ensureDbInitialized()
-    const selected = await db.select().from(userSelectedRestaurants).execute()
-    const ids = new Set(selected.map((r) => r.restaurantId))
-    const restaurants = await this.readRestaurants()
-    return restaurants.filter((r) => ids.has(r.id))
   }
 
   private mergeMealTimes(results: PromiseSettledResult<MealTime[]>[]): MealTime[] {
@@ -1174,16 +1165,7 @@ export class CafeteriaService {
       })
       .execute()
 
-    await db
-      .insert(userSelectedRestaurants)
-      .values({ restaurantId: restaurant.id, lastSeenAt: this.now() })
-      .onConflictDoUpdate({
-        target: userSelectedRestaurants.restaurantId,
-        set: { lastSeenAt: this.now() }
-      })
-      .execute()
-
-    syncLog.info('registered restaurant selection', {
+    syncLog.info('registered restaurant', {
       restaurantId: mergedRestaurant.id,
       vendor: mergedRestaurant.vendor,
       restaurantName: mergedRestaurant.name

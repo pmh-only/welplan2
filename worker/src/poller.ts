@@ -80,9 +80,8 @@ async function prefetchActiveRestaurants(service: CafeteriaService, activePrefet
   const startedAt = Date.now()
 
   try {
-    await service.getRestaurants()
+    const restaurants = uniqueRestaurants(await service.getRestaurants())
     const defaultRestaurants = await service.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
-    const restaurants = uniqueRestaurants([...(await service.getUserSelectedRestaurants()), ...defaultRestaurants])
     const dates = menuScanDates(todayStr(), activePrefetchDays)
     let menuBatches = 0
     let details = 0
