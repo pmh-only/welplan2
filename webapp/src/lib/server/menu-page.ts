@@ -106,9 +106,9 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
   const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
   if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
 
-  const cached = await service.getPrecomputedPage<GalleryRouteData>(
-    galleryRouteCacheKey(restaurants, date, mealTimeId)
-  )
+  const cached = await service
+    .getPrecomputedPage<GalleryRouteData>(galleryRouteCacheKey(restaurants, date, mealTimeId))
+    .catch(() => null)
   if (cached) return cached
 
   return computeGalleryMenusForRestaurants(restaurants, mealTimes, date, mealTimeId)
@@ -170,9 +170,11 @@ export async function loadGalleryMenusForRestaurantDate(
   options: { enrichNutrientDetails?: boolean } = {}
 ) {
   const enrichNutrientDetails = options.enrichNutrientDetails !== false
-  const cached = await service.getPrecomputedPage<RestaurantGalleryDateData>(
-    restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails)
-  )
+  const cached = await service
+    .getPrecomputedPage<RestaurantGalleryDateData>(
+      restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails)
+    )
+    .catch(() => null)
   if (cached) return cached
 
   return computeGalleryMenusForRestaurantDate(restaurant, mealTimes, date, { enrichNutrientDetails })

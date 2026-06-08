@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit'
 import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
 import { buildRestaurantPageDescription, loadGalleryMenusForRestaurantDate } from '$lib/server/menu-page'
+import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
 import { service } from '$lib/server/service'
 import type { PageServerLoad } from './$types'
 
@@ -16,9 +17,9 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
     error(404, '날짜 형식이 올바르지 않습니다')
   }
 
-  const restaurant = await service.getRestaurant(params.id)
+  const restaurant = await resolveRestaurantForRoute(params, restaurants)
 
-  if (!restaurant || restaurant.vendor !== params.vendor) {
+  if (!restaurant) {
     error(404, '식당을 찾을 수 없습니다')
   }
 

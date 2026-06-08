@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit'
 import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
 import { buildRestaurantPageDescription, loadGalleryMenusForRestaurantDate } from '$lib/server/menu-page'
+import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
 import { service } from '$lib/server/service'
 import { todayStr } from '$lib/utils'
 import type { PageServerLoad } from './$types'
@@ -14,9 +15,9 @@ function dateFromSearch(url: URL): string {
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
   const { restaurants } = await parent()
-  const restaurant = await service.getRestaurant(params.id)
+  const restaurant = await resolveRestaurantForRoute(params, restaurants)
 
-  if (!restaurant || restaurant.vendor !== params.vendor) {
+  if (!restaurant) {
     error(404, '식당을 찾을 수 없습니다')
   }
 

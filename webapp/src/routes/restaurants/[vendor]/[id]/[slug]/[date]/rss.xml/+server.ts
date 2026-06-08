@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit'
 import { restaurantDatedRssPath } from '$lib/restaurant-routes'
+import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
 import { service } from '$lib/server/service'
 import { buildRestaurantDateFeedItems, isValidFeedDate, rssResponse } from '$lib/server/rss-feed'
 import { formatKoreanDate } from '$lib/utils'
@@ -12,8 +13,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
     error(404, '날짜 형식이 올바르지 않습니다')
   }
 
-  const restaurant = await service.getRestaurant(params.id)
-  if (!restaurant || restaurant.vendor !== params.vendor) {
+  const restaurant = await resolveRestaurantForRoute(params)
+  if (!restaurant) {
     error(404, '식당을 찾을 수 없습니다')
   }
 
