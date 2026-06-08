@@ -1,37 +1,50 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { bigint, pgTable, text } from 'drizzle-orm/pg-core'
 
-export const restaurants = sqliteTable('restaurants', {
+export const restaurants = pgTable('restaurants', {
   id: text('id').primaryKey(),
   data: text('data').notNull(), // JSON: Restaurant
-  cachedAt: integer('cached_at').notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
-export const mealTimesCache = sqliteTable('meal_times_cache', {
+export const mealTimesCache = pgTable('meal_times_cache', {
   restaurantId: text('restaurant_id').primaryKey(),
   data: text('data').notNull(), // JSON: MealTime[]
-  cachedAt: integer('cached_at').notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
-export const menusCache = sqliteTable('menus_cache', {
+export const menusCache = pgTable('menus_cache', {
   key: text('key').primaryKey(), // `${restaurantId}:${date}:${mealTimeId}`
   data: text('data').notNull(), // JSON: Menu[]
-  cachedAt: integer('cached_at').notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
-export const menuDetailCache = sqliteTable('menu_detail_cache', {
+export const menuDetailCache = pgTable('menu_detail_cache', {
   key: text('key').primaryKey(), // `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
   data: text('data').notNull(), // JSON: MenuComponent[]
-  cachedAt: integer('cached_at').notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
-export const menuNutrientDetailCache = sqliteTable('menu_nutrient_detail_cache', {
+export const menuNutrientDetailCache = pgTable('menu_nutrient_detail_cache', {
   key: text('key').primaryKey(), // `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
   data: text('data').notNull(), // JSON: MenuComponent[]
-  cachedAt: integer('cached_at').notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
+})
+
+export const precomputedPageCache = pgTable('precomputed_page_cache', {
+  key: text('key').primaryKey(),
+  data: text('data').notNull(), // JSON: route loader payload
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
+})
+
+export const imageCache = pgTable('image_cache', {
+  key: text('key').primaryKey(),
+  data: text('data').notNull(), // base64 image bytes
+  contentType: text('content_type').notNull(),
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
 // Tracks which restaurants have been selected by at least one user (anonymously)
-export const userSelectedRestaurants = sqliteTable('user_selected_restaurants', {
+export const userSelectedRestaurants = pgTable('user_selected_restaurants', {
   restaurantId: text('restaurant_id').primaryKey(),
-  lastSeenAt: integer('last_seen_at').notNull()
+  lastSeenAt: bigint('last_seen_at', { mode: 'number' }).notNull()
 })

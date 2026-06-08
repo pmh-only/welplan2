@@ -1,4 +1,3 @@
-import { startPoller } from '$lib/server/poller'
 import type { Handle } from '@sveltejs/kit'
 import { API_DOC_PATH } from '$lib/agent'
 import { createServerLogger } from '$lib/server/log'
@@ -10,8 +9,6 @@ import {
 import { renderMarkdownPage } from '$lib/server/markdown'
 
 const trafficLog = createServerLogger('traffic')
-
-startPoller()
 
 let requestSequence = 0
 

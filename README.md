@@ -9,8 +9,8 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 - Aggregates restaurant and meal-time data from Welstory Plus and PlanEAT Choice.
 - Supports gallery, take-in, and take-out menu views.
 - Displays calories and detailed nutrition in the web UI.
-- Caches restaurants, meal times, menus, and menu details in SQLite.
-- Periodically prefetches menus for cached restaurants with meal info over the next 7 days.
+- Caches restaurants, meal times, menus, and menu details in PostgreSQL.
+- Uses a dedicated worker for periodic cache prefetching. The web app reads from PostgreSQL cache only.
 - Builds and publishes a Docker image to GHCR.
 - Publishes client packages to the GitHub Packages npm registry.
 
@@ -22,6 +22,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 | `impl/welstory_plus`  | `@pmh-only/welplan2-welstory-plus`  | Welstory Plus API client used by the web app.             |
 | `impl/planeat_choice` | `@pmh-only/welplan2-planeat-choice` | PlanEAT Choice API client used by the web app.            |
 | `webapp`              | `@pmh-only/welplan2-webapp`         | SvelteKit application for browsing menus.                 |
+| `worker`              | `@pmh-only/welplan2-worker`         | Background poller that prefetches menus into PostgreSQL.   |
 
 ## Requirements
 
@@ -30,6 +31,11 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 - Welstory credentials if you want Welstory data.
 
 ## Environment Variables
+
+### Environment loading
+
+The app now loads variables from `.env` automatically (same directory as the running package).
+You can also set `DOTENV_PATH` to point at a custom env file.
 
 | Variable               | Required     | Default        | Description                                                            |
 | ---------------------- | ------------ | -------------- | ---------------------------------------------------------------------- |
@@ -40,9 +46,23 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 | `WELPLAN_SYNC_LOGS`    | No           | off            | Enables detailed cache warmup, cache hit/miss, and poller logs.        |
 | `WELPLAN_TRAFFIC_LOGS` | No           | off            | Enables inbound web request logs and outbound vendor API traffic logs. |
 | `WELPLAN_AUTH_LOGS`    | No           | off            | Enables detailed Welstory login and session refresh logs.              |
-| `DB_PATH`              | No           | `cache.db`     | SQLite database path used by the web app and Drizzle config.           |
+| `DOTENV_PATH`          | No           | auto           | Custom path to a dotenv file (for worker or custom layouts).             |
+| `DATABASE_URL`         | No           | generated      | PostgreSQL connection URL used by Drizzle.                           |
+| `PGHOST`               | No           | `localhost`    | PostgreSQL host (used when `DATABASE_URL` is not set).                |
+| `PGPORT`               | No           | `5432`         | PostgreSQL port (used when `DATABASE_URL` is not set).                |
+| `PGDATABASE`           | No           | `welplan2`     | PostgreSQL database name (used when `DATABASE_URL` is not set).       |
+| `PGUSER`               | No           | `welplan2`     | PostgreSQL user (used when `DATABASE_URL` is not set).                |
+| `PGPASSWORD`           | No           | none           | PostgreSQL password (used when `DATABASE_URL` is not set).            |
 | `HOST`                 | No           | `0.0.0.0`      | Host used by the production Node server.                               |
 | `PORT`                 | No           | `3000`         | Port used by the production Node server.                               |
+
+### Worker Environment Variables
+
+| Variable                        | Required | Default       | Description                                               |
+| ------------------------------- | -------- | ------------- | --------------------------------------------------------- |
+| `WORKER_ACTIVE_PREFETCH_INTERVAL_MS` | No   | `600000`      | Poll interval for active user-selected restaurants.         |
+| `WORKER_FULL_SCAN_INTERVAL_MS`   | No   | `21600000`    | Poll interval for full cache scan across all cached restaurants. |
+| `WORKER_ACTIVE_PREFETCH_DAYS`    | No   | `2`           | Days from today for active prefetch.                       |
 
 PlanEAT Choice requests do not currently require credentials.
 
@@ -67,6 +87,36 @@ Start the web app in development mode:
 
 ```bash
 pnpm --filter @pmh-only/welplan2-webapp dev
+```
+
+Start only the worker in development mode:
+
+```bash
+pnpm --filter @pmh-only/welplan2-worker dev
+```
+
+## Database bootstrap (PostgreSQL)
+
+Create user, database, and privileges:
+
+```bash
+sudo -u postgres psql -c "CREATE DATABASE welplan2;"
+sudo -u postgres psql -c "CREATE USER welplan2_user WITH PASSWORD 'replace-me';"
+sudo -u postgres psql -d welplan2 -c "GRANT ALL PRIVILEGES ON DATABASE welplan2 TO welplan2_user;"
+```
+
+Then run app services with matching credentials:
+
+```bash
+export DATABASE_URL="postgresql://welplan2_user:replace-me@localhost:5432/welplan2"
+```
+
+## Running background prefetch worker
+
+Run the worker process separately from web app:
+
+```bash
+pnpm --filter @pmh-only/welplan2-worker start
 ```
 
 Build the production web app bundle:
@@ -160,13 +210,15 @@ Run it:
 ```bash
 docker run --rm \
   -p 3000:3000 \
-  -e WELSTORY_USERNAME=your-id \
-  -e WELSTORY_PASSWORD=your-password \
-  -v welplan2-data:/data \
+ -e WELSTORY_USERNAME=your-id \
+ -e WELSTORY_PASSWORD=your-password \
+ -e DATABASE_URL=postgresql://user:password@postgres:5432/welplan2 \
   welplan2
 ```
 
-The container stores its SQLite database at `/data/cache.db` by default.
+Webapp is cache-only in normal operation, so web-only containers should be paired with the worker for cache warm-up.
+
+The container uses PostgreSQL for cache storage and does not create a local `/data` volume.
 
 ## CI/CD
 

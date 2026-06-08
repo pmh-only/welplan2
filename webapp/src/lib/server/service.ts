@@ -1,34 +1,38 @@
-import type {
-  CafeteriaClient,
-  MealTime,
-  Menu,
-  MenuComponent,
-  Restaurant,
-  Vendor
-} from '@pmh-only/welplan2-model'
-import { env } from '$env/dynamic/private'
+import type { Vendor, CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant } from '@pmh-only/welplan2-model'
 import { WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
 import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
-import { db } from './db/index.js'
+import './env.js'
+import { db, ensureDbInitialized } from './db/index.js'
 import { createServerLogger } from './log.js'
 import {
   restaurants as restaurantsTable,
   mealTimesCache,
-  menusCache,
-  menuDetailCache,
-  menuNutrientDetailCache,
-  userSelectedRestaurants
-} from './db/schema.js'
+    menusCache,
+    menuDetailCache,
+    menuNutrientDetailCache,
+    precomputedPageCache,
+    imageCache,
+    userSelectedRestaurants
+  } from './db/schema.js'
 import { eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
 
-class CafeteriaService {
+type CachedCountRow = { count: number | string | bigint }
+
+export type ServiceOptions = { allowRemoteFetch?: boolean }
+
+export class CafeteriaService {
   private welstory: WelstoryPlusClient | null = null
   private planeat: PlaneatChoiceClient | null = null
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
+  private readonly allowRemoteFetch: boolean
+
+  constructor(options: ServiceOptions = {}) {
+    this.allowRemoteFetch = options.allowRemoteFetch === true
+  }
 
   private normalizeSearchText(value: string): string {
     return value.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim()
@@ -137,28 +141,42 @@ class CafeteriaService {
       .map((entry) => entry.restaurant)
   }
 
-  private readRestaurants(): Restaurant[] {
-    return db
-      .select()
-      .from(restaurantsTable)
-      .all()
-      .map((row) => JSON.parse(row.data) as Restaurant)
+  private async readRestaurants(): Promise<Restaurant[]> {
+    await ensureDbInitialized()
+    const rows = await db.select().from(restaurantsTable).execute()
+    return rows
+      .map((row) => {
+        try {
+          return JSON.parse(row.data) as Restaurant
+        } catch {
+          return null
+        }
+      })
       .filter(
-        (r) =>
-          typeof r.id === 'string' &&
-          r.id.length > 0 &&
-          typeof r.name === 'string' &&
-          typeof r.vendor === 'string'
+        (restaurant): restaurant is Restaurant =>
+          Boolean(
+            restaurant &&
+              typeof restaurant.id === 'string' &&
+              restaurant.id.length > 0 &&
+              typeof restaurant.name === 'string' &&
+              typeof restaurant.vendor === 'string'
+          )
       )
+  }
+
+  private async readOne<T>(query: { execute: () => Promise<T[]> }): Promise<T | undefined> {
+    await ensureDbInitialized()
+    const rows = await query.execute()
+    return rows[0]
   }
 
   private getWelstoryClient(): WelstoryPlusClient {
     if (!this.welstory) {
       syncLog.info('initializing vendor client', { vendor: 'welstory' })
       this.welstory = new WelstoryPlusClient({
-        username: env.WELSTORY_USERNAME,
-        password: env.WELSTORY_PASSWORD,
-        deviceId: env.WELSTORY_DEVICE_ID
+        username: process.env.WELSTORY_USERNAME,
+        password: process.env.WELSTORY_PASSWORD,
+        deviceId: process.env.WELSTORY_DEVICE_ID
       })
     }
     return this.welstory
@@ -181,7 +199,7 @@ class CafeteriaService {
   }
 
   private menuCacheTtlMs(): number {
-    const ttl = Number(env.MENU_CACHE_TTL_MS)
+    const ttl = Number(process.env.MENU_CACHE_TTL_MS)
     return Number.isFinite(ttl) && ttl >= 0 ? ttl : DEFAULT_MENU_CACHE_TTL_MS
   }
 
@@ -193,7 +211,7 @@ class CafeteriaService {
     return `${restaurantId}:${date}:${mealTimeId}`
   }
 
-  private parseMenuCacheKey(key: string): { restaurantId: string, date: string, mealTimeId: string } | null {
+  private parseMenuCacheKey(key: string): { restaurantId: string; date: string; mealTimeId: string } | null {
     const parts = key.split(':')
     if (parts.length < 3) return null
     const mealTimeId = parts[parts.length - 1]
@@ -203,7 +221,7 @@ class CafeteriaService {
     return { restaurantId, date, mealTimeId }
   }
 
-  private normalizeMenus(menus: Menu[]): { menus: Menu[], takeOutAdjustments: number } {
+  private normalizeMenus(menus: Menu[]): { menus: Menu[]; takeOutAdjustments: number } {
     let takeOutAdjustments = 0
     for (const menu of menus) {
       if (!menu.isTakeOut && (menu.nutrition?.calories ?? 0) > 3000) {
@@ -215,6 +233,7 @@ class CafeteriaService {
   }
 
   private async populateCache(): Promise<void> {
+    await ensureDbInitialized()
     const startedAt = this.now()
     syncLog.info('restaurant sync started')
 
@@ -226,6 +245,7 @@ class CafeteriaService {
 
     const toInsert: (typeof restaurantsTable.$inferInsert)[] = []
     const welstoryRestaurants = new Map<string, Restaurant>()
+
     if (welstorySelectedResult.status === 'fulfilled') {
       syncLog.info('vendor restaurant sync completed', {
         vendor: 'welstory-selected',
@@ -272,15 +292,16 @@ class CafeteriaService {
     }
 
     if (toInsert.length > 0) {
-      db.transaction((tx) => {
+      await db.transaction(async (tx) => {
         for (const row of toInsert) {
-          tx.insert(restaurantsTable)
+          await tx
+            .insert(restaurantsTable)
             .values(row)
             .onConflictDoUpdate({
               target: restaurantsTable.id,
               set: { data: row.data, cachedAt: row.cachedAt }
             })
-            .run()
+            .execute()
         }
       })
     }
@@ -293,10 +314,18 @@ class CafeteriaService {
   }
 
   private async ensureCache(): Promise<void> {
+    await ensureDbInitialized()
     if (this.cacheLoaded) {
       syncLog.debug('restaurant cache already loaded')
       return
     }
+
+    if (!this.allowRemoteFetch) {
+      this.cacheLoaded = true
+      syncLog.debug('restaurant cache load skipped because remote fetch is disabled')
+      return
+    }
+
     if (this.cachePromise) {
       syncLog.debug('waiting for in-flight restaurant sync')
       return this.cachePromise
@@ -311,22 +340,30 @@ class CafeteriaService {
 
   private async resolveRestaurant(id: string): Promise<Restaurant> {
     await this.ensureCache()
-    const row = db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)).get()
+    const row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
       syncLog.warn('restaurant lookup failed', { restaurantId: id })
       throw new Error(`Restaurant '${id}' not found`)
     }
-    return JSON.parse(row.data) as Restaurant
+    try {
+      return JSON.parse(row.data) as Restaurant
+    } catch {
+      throw new Error(`Restaurant '${id}' cache data is invalid`)
+    }
   }
 
   async getRestaurant(id: string): Promise<Restaurant | null> {
     await this.ensureCache()
-    const row = db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)).get()
+    const row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
       syncLog.warn('restaurant lookup failed', { restaurantId: id })
       return null
     }
-    return JSON.parse(row.data) as Restaurant
+    try {
+      return JSON.parse(row.data) as Restaurant
+    } catch {
+      return null
+    }
   }
 
   async getRestaurants(): Promise<Restaurant[]> {
@@ -334,21 +371,29 @@ class CafeteriaService {
     return this.readRestaurants()
   }
 
-  getCachedMenus(restaurantId: string, date: string, mealTimeId: string): Menu[] | null {
-    const cached = db
-      .select()
-      .from(menusCache)
-      .where(eq(menusCache.key, this.menuCacheKey(restaurantId, date, mealTimeId)))
-      .get()
+  async getCachedMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[] | null> {
+    const cached = await this.readOne(
+      db
+        .select()
+        .from(menusCache)
+        .where(eq(menusCache.key, this.menuCacheKey(restaurantId, date, mealTimeId)))
+    )
+    if (!cached) return null
 
-    return cached ? JSON.parse(cached.data) as Menu[] : null
+    try {
+      return JSON.parse(cached.data) as Menu[]
+    } catch {
+      return null
+    }
   }
 
-  getCachedMenuDates(dates: string[]): Map<string, Set<string>> {
+  async getCachedMenuDates(dates: string[]): Promise<Map<string, Set<string>>> {
+    await ensureDbInitialized()
     const wantedDates = new Set(dates)
     const byRestaurant = new Map<string, Set<string>>()
+    const rows = await db.select().from(menusCache).execute()
 
-    for (const row of db.select().from(menusCache).all()) {
+    for (const row of rows) {
       const parsed = this.parseMenuCacheKey(row.key)
       if (!parsed || !wantedDates.has(parsed.date)) continue
 
@@ -365,9 +410,7 @@ class CafeteriaService {
 
   async hydrateRestaurants(restaurants: Restaurant[]): Promise<Restaurant[]> {
     await this.ensureCache()
-    const knownRestaurants = new Map(
-      this.readRestaurants().map((restaurant) => [restaurant.id, restaurant])
-    )
+    const knownRestaurants = new Map((await this.readRestaurants()).map((restaurant) => [restaurant.id, restaurant]))
     return restaurants.map((restaurant) => {
       const knownRestaurant = knownRestaurants.get(restaurant.id)
       if (!knownRestaurant) return restaurant
@@ -379,10 +422,12 @@ class CafeteriaService {
     })
   }
 
-  getUserSelectedRestaurants(): Restaurant[] {
-    const selected = db.select().from(userSelectedRestaurants).all()
+  async getUserSelectedRestaurants(): Promise<Restaurant[]> {
+    await ensureDbInitialized()
+    const selected = await db.select().from(userSelectedRestaurants).execute()
     const ids = new Set(selected.map((r) => r.restaurantId))
-    return this.readRestaurants().filter((r) => ids.has(r.id))
+    const restaurants = await this.readRestaurants()
+    return restaurants.filter((r) => ids.has(r.id))
   }
 
   private mergeMealTimes(results: PromiseSettledResult<MealTime[]>[]): MealTime[] {
@@ -410,22 +455,18 @@ class CafeteriaService {
   async getAllMealTimes(): Promise<MealTime[]> {
     await this.ensureCache()
     const byVendor = new Map<string, Restaurant>()
-    for (const r of this.readRestaurants()) {
+    for (const r of await this.readRestaurants()) {
       if (!byVendor.has(r.vendor)) byVendor.set(r.vendor, r)
     }
-    const results = await Promise.allSettled(
-      [...byVendor.values()].map((r) => this.getMealTimes(r.id))
-    )
+    const results = await Promise.allSettled([...byVendor.values()].map((r) => this.getMealTimes(r.id)))
     return this.mergeMealTimes(results)
   }
 
   async getMealTimes(restaurantId: string): Promise<MealTime[]> {
     const restaurant = await this.resolveRestaurant(restaurantId)
-    const cached = db
-      .select()
-      .from(mealTimesCache)
-      .where(eq(mealTimesCache.restaurantId, restaurantId))
-      .get()
+    const cached = await this.readOne(
+      db.select().from(mealTimesCache).where(eq(mealTimesCache.restaurantId, restaurantId))
+    )
 
     if (cached && restaurant.vendor !== 'shinsegae') {
       const mealTimes = JSON.parse(cached.data) as MealTime[]
@@ -436,17 +477,25 @@ class CafeteriaService {
       return mealTimes
     }
 
+    if (!this.allowRemoteFetch) {
+      if (cached) {
+        return JSON.parse(cached.data) as MealTime[]
+      }
+      throw new Error(`Meal time cache miss for restaurant '${restaurantId}' in read-only mode`)
+    }
+
     syncLog.info('meal-time cache miss', { restaurantId })
 
     try {
       const mealTimes = await this.getClient(restaurant.vendor).getMealTimes(restaurant)
-      db.insert(mealTimesCache)
+      await db
+        .insert(mealTimesCache)
         .values({ restaurantId, data: JSON.stringify(mealTimes), cachedAt: this.now() })
         .onConflictDoUpdate({
           target: mealTimesCache.restaurantId,
           set: { data: JSON.stringify(mealTimes), cachedAt: this.now() }
         })
-        .run()
+        .execute()
       syncLog.info('meal-times cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -466,12 +515,12 @@ class CafeteriaService {
   async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
     const restaurant = await this.resolveRestaurant(restaurantId)
     const key = this.menuCacheKey(restaurantId, date, mealTimeId)
-    const cached = db.select().from(menusCache).where(eq(menusCache.key, key)).get()
+    const cached = await this.readOne(db.select().from(menusCache).where(eq(menusCache.key, key)))
 
-    if (cached && !(restaurant.vendor === 'shinsegae' && mealTimeId === '6') && this.isFreshCache(cached.cachedAt)) {
+    if (cached && this.isFreshCache(cached.cachedAt)) {
       const menus = JSON.parse(cached.data) as Menu[]
       if (menus.length === 0) {
-        db.delete(menusCache).where(eq(menusCache.key, key)).run()
+        await db.delete(menusCache).where(eq(menusCache.key, key)).execute()
         syncLog.info('empty menu cache ignored', {
           restaurantId,
           date,
@@ -488,7 +537,21 @@ class CafeteriaService {
         })
         return normalized.menus
       }
-    } else if (cached) {
+    }
+
+    if (cached && !this.allowRemoteFetch) {
+      const menus = JSON.parse(cached.data) as Menu[]
+      const normalized = this.normalizeMenus(menus)
+      syncLog.info('menu cache returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        menuCount: normalized.menus.length
+      })
+      return normalized.menus
+    }
+
+    if (cached) {
       syncLog.info('menu cache stale', {
         restaurantId,
         date,
@@ -496,6 +559,10 @@ class CafeteriaService {
         cachedAgeMs: this.now() - cached.cachedAt,
         cacheTtlMs: this.menuCacheTtlMs()
       })
+    }
+
+    if (!this.allowRemoteFetch) {
+      return []
     }
 
     syncLog.info('menu cache miss', { restaurantId, date, mealTimeId })
@@ -506,13 +573,14 @@ class CafeteriaService {
       )
 
       if (menus.length > 0) {
-        db.insert(menusCache)
+        await db
+          .insert(menusCache)
           .values({ key, data: JSON.stringify(menus), cachedAt: this.now() })
           .onConflictDoUpdate({
             target: menusCache.key,
             set: { data: JSON.stringify(menus), cachedAt: this.now() }
           })
-          .run()
+          .execute()
       }
 
       syncLog.info(menus.length > 0 ? 'menus cached' : 'menus not cached because empty', {
@@ -544,7 +612,7 @@ class CafeteriaService {
     courseType: string
   ): Promise<MenuComponent[]> {
     const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
-    const cached = db.select().from(menuDetailCache).where(eq(menuDetailCache.key, key)).get()
+    const cached = await this.readOne(db.select().from(menuDetailCache).where(eq(menuDetailCache.key, key)))
 
     if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
@@ -557,7 +625,22 @@ class CafeteriaService {
         componentCount: detail.length
       })
       return detail
-    } else if (cached) {
+    }
+
+    if (cached && !this.allowRemoteFetch) {
+      const detail = JSON.parse(cached.data) as MenuComponent[]
+      syncLog.info('menu detail returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: detail.length
+      })
+      return detail
+    }
+
+    if (cached) {
       syncLog.info('menu detail cache stale', {
         restaurantId,
         date,
@@ -567,6 +650,10 @@ class CafeteriaService {
         cachedAgeMs: this.now() - cached.cachedAt,
         cacheTtlMs: this.menuCacheTtlMs()
       })
+    }
+
+    if (!this.allowRemoteFetch) {
+      throw new Error(`Menu detail cache miss for restaurant '${restaurantId}' in read-only mode`)
     }
 
     syncLog.info('menu detail cache miss', {
@@ -585,13 +672,14 @@ class CafeteriaService {
 
     try {
       const detail = await client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
-      db.insert(menuDetailCache)
+      await db
+        .insert(menuDetailCache)
         .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
         .onConflictDoUpdate({
           target: menuDetailCache.key,
           set: { data: JSON.stringify(detail), cachedAt: this.now() }
         })
-        .run()
+        .execute()
       syncLog.info('menu detail cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -624,11 +712,9 @@ class CafeteriaService {
     courseType: string
   ): Promise<MenuComponent[]> {
     const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
-    const cached = db
-      .select()
-      .from(menuNutrientDetailCache)
-      .where(eq(menuNutrientDetailCache.key, key))
-      .get()
+    const cached = await this.readOne(
+      db.select().from(menuNutrientDetailCache).where(eq(menuNutrientDetailCache.key, key))
+    )
 
     if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
@@ -641,7 +727,22 @@ class CafeteriaService {
         componentCount: detail.length
       })
       return detail
-    } else if (cached) {
+    }
+
+    if (cached && !this.allowRemoteFetch) {
+      const detail = JSON.parse(cached.data) as MenuComponent[]
+      syncLog.info('menu nutrient detail returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: detail.length
+      })
+      return detail
+    }
+
+    if (cached) {
       syncLog.info('menu nutrient detail cache stale', {
         restaurantId,
         date,
@@ -651,6 +752,10 @@ class CafeteriaService {
         cachedAgeMs: this.now() - cached.cachedAt,
         cacheTtlMs: this.menuCacheTtlMs()
       })
+    }
+
+    if (!this.allowRemoteFetch) {
+      throw new Error(`Menu nutrient detail cache miss for restaurant '${restaurantId}' in read-only mode`)
     }
 
     syncLog.info('menu nutrient detail cache miss', {
@@ -675,13 +780,14 @@ class CafeteriaService {
         hallNo,
         courseType
       )
-      db.insert(menuNutrientDetailCache)
+      await db
+        .insert(menuNutrientDetailCache)
         .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
         .onConflictDoUpdate({
           target: menuNutrientDetailCache.key,
           set: { data: JSON.stringify(detail), cachedAt: this.now() }
         })
-        .run()
+        .execute()
       syncLog.info('menu nutrient detail cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -706,41 +812,90 @@ class CafeteriaService {
     }
   }
 
-  private count(query: { get: () => { count: number } | undefined }): number {
-    return query.get()?.count ?? 0
+  async getPrecomputedPage<T>(key: string): Promise<T | null> {
+    await ensureDbInitialized()
+    const cached = await this.readOne(
+      db.select().from(precomputedPageCache).where(eq(precomputedPageCache.key, key))
+    )
+    if (!cached) return null
+
+    try {
+      syncLog.info('precomputed page cache hit', { key })
+      return JSON.parse(cached.data) as T
+    } catch {
+      syncLog.warn('precomputed page cache invalid', { key })
+      return null
+    }
   }
 
-  getCacheStatus(): Record<string, number | boolean> {
+  async setPrecomputedPage(key: string, data: unknown): Promise<void> {
+    await ensureDbInitialized()
+    const now = this.now()
+    await db
+      .insert(precomputedPageCache)
+      .values({ key, data: JSON.stringify(data), cachedAt: now })
+      .onConflictDoUpdate({
+        target: precomputedPageCache.key,
+        set: { data: JSON.stringify(data), cachedAt: now }
+      })
+      .execute()
+    syncLog.info('precomputed page cached', { key })
+  }
+
+  private async count(query: { execute: () => Promise<CachedCountRow[]> }): Promise<number> {
+    await ensureDbInitialized()
+    const result = await query.execute()
+    const value = result?.[0]?.count
+    const count = Number(value ?? 0)
+    return Number.isFinite(count) ? count : 0
+  }
+
+  async getCacheStatus(): Promise<Record<string, number | boolean>> {
     return {
       restaurantsLoaded: this.cacheLoaded,
-      restaurants: this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
-      mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
-      menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
-      menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
-      menuNutrientDetails: this.count(
+      restaurants: await this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
+      mealTimes: await this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
+      menus: await this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
+      menuDetails: await this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
+      menuNutrientDetails: await this.count(
         db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache)
+      ),
+      precomputedPages: await this.count(
+        db.select({ count: sql<number>`count(*)` }).from(precomputedPageCache)
+      ),
+      images: await this.count(
+        db.select({ count: sql<number>`count(*)` }).from(imageCache)
       )
     }
   }
 
-  clearCaches(): Record<string, number> {
+  async clearCaches(): Promise<Record<string, number>> {
+    await ensureDbInitialized()
     const cleared = {
-      restaurants: this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
-      mealTimes: this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
-      menus: this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
-      menuDetails: this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
-      menuNutrientDetails: this.count(
+      restaurants: await this.count(db.select({ count: sql<number>`count(*)` }).from(restaurantsTable)),
+      mealTimes: await this.count(db.select({ count: sql<number>`count(*)` }).from(mealTimesCache)),
+      menus: await this.count(db.select({ count: sql<number>`count(*)` }).from(menusCache)),
+      menuDetails: await this.count(db.select({ count: sql<number>`count(*)` }).from(menuDetailCache)),
+      menuNutrientDetails: await this.count(
         db.select({ count: sql<number>`count(*)` }).from(menuNutrientDetailCache)
+      ),
+      precomputedPages: await this.count(
+        db.select({ count: sql<number>`count(*)` }).from(precomputedPageCache)
+      ),
+      images: await this.count(
+        db.select({ count: sql<number>`count(*)` }).from(imageCache)
       )
     }
 
     syncLog.info('clearing caches', cleared)
 
-    db.delete(restaurantsTable).run()
-    db.delete(mealTimesCache).run()
-    db.delete(menusCache).run()
-    db.delete(menuDetailCache).run()
-    db.delete(menuNutrientDetailCache).run()
+    await db.delete(restaurantsTable).execute()
+    await db.delete(mealTimesCache).execute()
+    await db.delete(menusCache).execute()
+    await db.delete(menuDetailCache).execute()
+    await db.delete(menuNutrientDetailCache).execute()
+    await db.delete(precomputedPageCache).execute()
+    await db.delete(imageCache).execute()
 
     this.cacheLoaded = false
     this.cachePromise = null
@@ -750,12 +905,11 @@ class CafeteriaService {
     return cleared
   }
 
-  registerRestaurant(restaurant: Restaurant): void {
-    const existing = db
-      .select()
-      .from(restaurantsTable)
-      .where(eq(restaurantsTable.id, restaurant.id))
-      .get()
+  async registerRestaurant(restaurant: Restaurant): Promise<void> {
+    await ensureDbInitialized()
+    const existing = await this.readOne(
+      db.select().from(restaurantsTable).where(eq(restaurantsTable.id, restaurant.id))
+    )
     const mergedRestaurant = existing
       ? {
           ...(JSON.parse(existing.data) as Restaurant),
@@ -764,7 +918,8 @@ class CafeteriaService {
         }
       : restaurant
 
-    db.insert(restaurantsTable)
+    await db
+      .insert(restaurantsTable)
       .values({
         id: mergedRestaurant.id,
         data: JSON.stringify(mergedRestaurant),
@@ -774,15 +929,16 @@ class CafeteriaService {
         target: restaurantsTable.id,
         set: { data: JSON.stringify(mergedRestaurant), cachedAt: this.now() }
       })
-      .run()
-    // Record anonymous user selection
-    db.insert(userSelectedRestaurants)
+      .execute()
+
+    await db
+      .insert(userSelectedRestaurants)
       .values({ restaurantId: restaurant.id, lastSeenAt: this.now() })
       .onConflictDoUpdate({
         target: userSelectedRestaurants.restaurantId,
         set: { lastSeenAt: this.now() }
       })
-      .run()
+      .execute()
 
     syncLog.info('registered restaurant selection', {
       restaurantId: mergedRestaurant.id,
@@ -793,29 +949,33 @@ class CafeteriaService {
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
-    const fromCache = this.readRestaurants().filter((restaurant) => !this.isClosedRestaurant(restaurant))
+    const fromCache = (await this.readRestaurants()).filter(
+      (restaurant) => !this.isClosedRestaurant(restaurant)
+    )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
-    const fromWelstory = await Promise.resolve()
-      .then(() => this.getWelstoryClient().searchRestaurants(query))
-      .catch((error) => {
-        syncLog.warn('vendor restaurant search failed', {
-          vendor: 'welstory',
-          query,
-          error
-        })
-        return []
-      })
-      .then((restaurants) =>
-        restaurants.filter(
-          (r) =>
-            typeof r.id === 'string' &&
-            r.id.length > 0 &&
-            typeof r.name === 'string' &&
-            !this.isClosedRestaurant(r) &&
-            typeof r.vendor === 'string'
-        )
-      )
+    const fromWelstory = this.allowRemoteFetch
+      ? await Promise.resolve()
+          .then(() => this.getWelstoryClient().searchRestaurants(query))
+          .catch((error) => {
+            syncLog.warn('vendor restaurant search failed', {
+              vendor: 'welstory',
+              query,
+              error
+            })
+            return []
+          })
+          .then((restaurants) =>
+            restaurants.filter(
+              (r) =>
+                typeof r.id === 'string' &&
+                r.id.length > 0 &&
+                typeof r.name === 'string' &&
+                !this.isClosedRestaurant(r) &&
+                typeof r.vendor === 'string'
+            )
+          )
+      : []
 
     const merged = this.mergeSearchResults(query, fromCache, fromWelstory)
     syncLog.info('restaurant search completed', {
@@ -828,4 +988,8 @@ class CafeteriaService {
   }
 }
 
-export const service = new CafeteriaService()
+export function createService(options: ServiceOptions = {}): CafeteriaService {
+  return new CafeteriaService(options)
+}
+
+export const service = new CafeteriaService({ allowRemoteFetch: false })

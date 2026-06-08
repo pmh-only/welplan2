@@ -16,14 +16,15 @@
     "@pmh-only/welplan2-welstory-plus": "workspace:*",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
-    "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
+    "dotenv": "^16.4.7",
+    "pg": "^8.16.0",
     "sharp": "^0.34.5",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/pg": "^8.16.0",
     "@types/node": "^25.0.0",
     "@vite-pwa/sveltekit": "^1.1.0",
     "drizzle-kit": "^0.31.10",

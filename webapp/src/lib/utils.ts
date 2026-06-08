@@ -1,4 +1,4 @@
-import type { MealTime } from './types'
+import type { MealTime } from './types.js'
 
 export const ALL_MEAL_TIME_ID = 'all'
 

@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.6.1",
   "scripts": {
     "build": "tsc -b",
+    "worker": "pnpm --filter @pmh-only/welplan2-worker dev",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

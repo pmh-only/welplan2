@@ -29,7 +29,7 @@ export async function loadLayoutData(cookies: Cookies) {
 
   restaurants = await service.hydrateRestaurants(restaurants).catch(() => restaurants)
 
-  for (const restaurant of restaurants) service.registerRestaurant(restaurant)
+  await Promise.all(restaurants.map((restaurant) => service.registerRestaurant(restaurant)))
 
   const mealTimes = await service.getMealTimesForRestaurants(restaurants).catch(() => [])
 

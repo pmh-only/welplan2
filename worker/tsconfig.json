@@ -1,0 +1,32 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "..",
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"],
+    "moduleResolution": "NodeNext"
+  },
+  "files": [
+    "src/index.ts",
+    "src/poller.ts",
+    "src/menu-availability.ts",
+    "src/defaults.ts",
+    "src/utils.ts",
+    "../webapp/src/lib/server/service.ts",
+    "../webapp/src/lib/server/env.ts",
+    "../webapp/src/lib/server/log.ts",
+    "../webapp/src/lib/server/menu-page.ts",
+    "../webapp/src/lib/server/image-cache.ts",
+    "../webapp/src/lib/server/db/index.ts",
+    "../webapp/src/lib/server/db/schema.ts",
+    "../webapp/src/lib/types.ts",
+    "../webapp/src/lib/utils.ts"
+  ],
+  "references": [
+    { "path": "../model" },
+    { "path": "../impl/welstory_plus" },
+    { "path": "../impl/planeat_choice" }
+  ]
+}

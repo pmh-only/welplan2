@@ -1,3 +1,5 @@
+import './env.js'
+
 type LogFields = Record<string, unknown>
 
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on', 'debug', 'verbose'])

@@ -1,0 +1,25 @@
+{
+  "name": "@pmh-only/welplan2-worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@pmh-only/welplan2-model": "workspace:*",
+    "@pmh-only/welplan2-planeat-choice": "workspace:*",
+    "@pmh-only/welplan2-welstory-plus": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "dotenv": "^16.4.7",
+    "pg": "^8.16.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.0.0",
+    "@types/node": "^25.3.0"
+  }
+}

@@ -3,3 +3,4 @@ packages:
   - 'impl/welstory_plus'
   - 'impl/planeat_choice'
   - 'webapp'
+  - 'worker'

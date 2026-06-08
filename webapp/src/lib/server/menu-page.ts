@@ -1,7 +1,7 @@
-import { redirect } from '@sveltejs/kit'
-import { service } from '$lib/server/service'
-import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '$lib/utils'
+import { service } from './service.js'
+import type { CafeteriaService } from './service.js'
+import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '../utils.js'
 
 type ParentData = {
   restaurants: Restaurant[]
@@ -9,6 +9,18 @@ type ParentData = {
 }
 
 type ParentLoad = () => Promise<ParentData>
+
+export type GalleryRouteData = {
+  menus: Menu[]
+  date: string
+  time: string
+}
+
+export type RestaurantGalleryDateData = {
+  menus: Menu[]
+  date: string
+  mealTimeMenus: GalleryMealTimeResult[]
+}
 
 export type GalleryMealTimeResult = MealTime & {
   menuCount: number
@@ -21,16 +33,33 @@ function selectedMealTimes(mealTimes: MealTime[], time: string): MealTime[] {
   return mealTimes.filter((mealTime) => mealTime.id === time)
 }
 
+function restaurantIds(restaurants: Restaurant[]): string {
+  return restaurants.map((restaurant) => restaurant.id).sort().join(',')
+}
+
+export function galleryRouteCacheKey(restaurants: Restaurant[], date: string, time: string): string {
+  return `gallery:${date}:${time}:${restaurantIds(restaurants)}`
+}
+
+export function restaurantGalleryDateCacheKey(
+  restaurant: Restaurant,
+  date: string,
+  enrichNutrientDetails: boolean
+): string {
+  return `restaurant-gallery:${restaurant.id}:${date}:${enrichNutrientDetails ? 'enriched' : 'basic'}`
+}
+
 async function selectedRestaurantMealTimes(
   restaurant: Restaurant,
   fallbackMealTimes: MealTime[],
-  time: string
+  time: string,
+  cafeteriaService: CafeteriaService = service
 ): Promise<MealTime[]> {
   if (restaurant.vendor === 'shinsegae' && time === ALL_MEAL_TIME_ID) {
     return [{ id: '6', name: '전체' }]
   }
 
-  const mealTimes = await service.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
+  const mealTimes = await cafeteriaService.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
   return selectedMealTimes(mealTimes, time)
 }
 
@@ -77,12 +106,29 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
   const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
   if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
 
+  const cached = await service.getPrecomputedPage<GalleryRouteData>(
+    galleryRouteCacheKey(restaurants, date, mealTimeId)
+  )
+  if (cached) return cached
+
+  return computeGalleryMenusForRestaurants(restaurants, mealTimes, date, mealTimeId)
+}
+
+export async function computeGalleryMenusForRestaurants(
+  restaurants: Restaurant[],
+  mealTimes: MealTime[],
+  date: string,
+  mealTimeId: string,
+  cafeteriaService: CafeteriaService = service
+): Promise<GalleryRouteData> {
+  if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId }
+
   const rawMenus = await Promise.all(
     restaurants.map(async (restaurant) => {
-      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, mealTimeId)
+      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, mealTimeId, cafeteriaService)
       return Promise.all(
         targetMealTimes.map((mealTime) =>
-          service
+          cafeteriaService
             .getMenus(restaurant.id, date, mealTime.id)
             .then((menus) => tagMenusWithDisplayMealTime(menus, mealTimes, restaurant, mealTime))
             .catch(() => [])
@@ -91,7 +137,7 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
     })
   ).then((results) => results.flat())
 
-  const menus = await enrichGalleryMenus(rawMenus, date)
+  const menus = await enrichGalleryMenus(rawMenus, date, cafeteriaService)
 
   return { menus, date, time: mealTimeId }
 }
@@ -123,14 +169,30 @@ export async function loadGalleryMenusForRestaurantDate(
   date: string,
   options: { enrichNutrientDetails?: boolean } = {}
 ) {
+  const enrichNutrientDetails = options.enrichNutrientDetails !== false
+  const cached = await service.getPrecomputedPage<RestaurantGalleryDateData>(
+    restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails)
+  )
+  if (cached) return cached
+
+  return computeGalleryMenusForRestaurantDate(restaurant, mealTimes, date, { enrichNutrientDetails })
+}
+
+export async function computeGalleryMenusForRestaurantDate(
+  restaurant: Restaurant,
+  mealTimes: MealTime[],
+  date: string,
+  options: { enrichNutrientDetails?: boolean; service?: CafeteriaService } = {}
+): Promise<RestaurantGalleryDateData> {
+  const cafeteriaService = options.service ?? service
   const mealTimeResults = await Promise.all(
     mealTimes.map(async (mealTime): Promise<{ menus: Menu[], mealTime: GalleryMealTimeResult }> => {
       try {
-        const rawMenus = await service.getMenus(restaurant.id, date, mealTime.id)
+        const rawMenus = await cafeteriaService.getMenus(restaurant.id, date, mealTime.id)
         const enrichedMenus = options.enrichNutrientDetails === false
           ? rawMenus
-          : await enrichGalleryMenus(rawMenus, date)
-        const menus = await flattenTakeOutMenus(enrichedMenus.map(normalizeHighCalorieTakeOut), date)
+          : await enrichGalleryMenus(rawMenus, date, cafeteriaService)
+        const menus = await flattenTakeOutMenus(enrichedMenus.map(normalizeHighCalorieTakeOut), date, cafeteriaService)
 
         return {
           menus,
@@ -161,7 +223,11 @@ export async function loadGalleryMenusForRestaurantDate(
   }
 }
 
-async function enrichGalleryMenus(menus: Menu[], date: string): Promise<Menu[]> {
+async function enrichGalleryMenus(
+  menus: Menu[],
+  date: string,
+  cafeteriaService: CafeteriaService = service
+): Promise<Menu[]> {
   return Promise.all(
     menus.map(async (menu) => {
       if (
@@ -176,7 +242,7 @@ async function enrichGalleryMenus(menus: Menu[], date: string): Promise<Menu[]> 
         return menu
       }
       try {
-        const detail = await service.getMenuNutrientDetail(
+        const detail = await cafeteriaService.getMenuNutrientDetail(
           menu.restaurantId,
           date,
           menu.mealTimeId,
@@ -268,7 +334,11 @@ export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string,
   return { ...data, menus }
 }
 
-async function flattenTakeOutMenus(menus: Menu[], date: string): Promise<Menu[]> {
+async function flattenTakeOutMenus(
+  menus: Menu[],
+  date: string,
+  cafeteriaService: CafeteriaService = service
+): Promise<Menu[]> {
   return Promise.all(
     menus.map(async (menu) => {
       if (!(menu.vendor === 'welstory' && menu.isTakeOut && menu.hallNo && menu.courseType)) {
@@ -276,7 +346,7 @@ async function flattenTakeOutMenus(menus: Menu[], date: string): Promise<Menu[]>
       }
 
       try {
-        const detail = await service.getMenuNutrientDetail(
+        const detail = await cafeteriaService.getMenuNutrientDetail(
           menu.restaurantId,
           date,
           menu.mealTimeId,
@@ -326,6 +396,7 @@ export async function redirectToCurrentMenuRoute(
   parent: ParentLoad,
   basePath: '/takein' | '/takeout'
 ) {
+  const { redirect } = await import('@sveltejs/kit')
   const { mealTimes } = await parent()
   const date = todayStr()
   const mealTimeId =

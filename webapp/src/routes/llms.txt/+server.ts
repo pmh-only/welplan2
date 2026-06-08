@@ -49,7 +49,7 @@ Returns RSS 2.0. Each item covers one meal time and lists dishes as an HTML \`<u
 ## Notes
 
 - ${restaurantCount} restaurants are indexed covering both Samsung Welstory and Shinsegae Food vendors.
-- Menus are prefetched and cached every 30 minutes. Most requests are served from cache.
+- Menu cache prefetching is handled by the separate worker process (\`WORKER_*\` interval settings), so web requests are mostly cache-first.
 - Any HTML page can be fetched as Markdown by sending \`Accept: text/markdown\`.
 `
 
