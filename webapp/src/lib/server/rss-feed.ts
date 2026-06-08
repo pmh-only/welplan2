@@ -90,16 +90,26 @@ export async function buildCachedDateRangeFeedItems(
   linkMode: 'dated' | 'restaurant' = 'dated'
 ): Promise<RssFeedItem[]> {
   const items: RssFeedItem[] = []
+  const restaurantsById = new Map(restaurants.map((restaurant) => [restaurant.id, restaurant]))
+  const wantedDates = new Set(dates)
+  const mealTimesById = new Map(mealTimes.map((mealTime, index) => [mealTime.id, { mealTime, index }]))
 
-  for (const restaurant of restaurants) {
-    for (const date of dates) {
-      for (const [index, mealTime] of mealTimes.entries()) {
-        const menus = await service.getCachedMenus(restaurant.id, date, mealTime.id)
-        if (menus && menus.length > 0) {
-          items.push(buildRestaurantMealTimeItemFromMenus(origin, restaurant, date, mealTime, index, menus, linkMode))
-        }
-      }
-    }
+  for (const cached of await service.getCachedMenusForDates(dates)) {
+    const restaurant = restaurantsById.get(cached.restaurantId)
+    const mealTimeEntry = mealTimesById.get(cached.mealTimeId)
+    if (!restaurant || !wantedDates.has(cached.date) || !mealTimeEntry) continue
+
+    items.push(
+      buildRestaurantMealTimeItemFromMenus(
+        origin,
+        restaurant,
+        cached.date,
+        mealTimeEntry.mealTime,
+        mealTimeEntry.index,
+        cached.menus,
+        linkMode
+      )
+    )
   }
 
   return sortFeedItems(items)

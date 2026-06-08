@@ -47,6 +47,13 @@ export type CachePage = {
   rows: CachePageRow[]
 }
 
+export type CachedMenus = {
+  restaurantId: string
+  date: string
+  mealTimeId: string
+  menus: Menu[]
+}
+
 export type ServiceOptions = { allowRemoteFetch?: boolean }
 
 export class CafeteriaService {
@@ -415,6 +422,27 @@ export class CafeteriaService {
     } catch {
       return null
     }
+  }
+
+  async getCachedMenusForDates(dates: string[]): Promise<CachedMenus[]> {
+    await ensureDbInitialized()
+    const wantedDates = new Set(dates)
+    const rows = await db.select({ key: menusCache.key, data: menusCache.data }).from(menusCache).execute()
+    const cachedMenus: CachedMenus[] = []
+
+    for (const row of rows) {
+      const parsed = this.parseMenuCacheKey(row.key)
+      if (!parsed || !wantedDates.has(parsed.date)) continue
+
+      try {
+        const menus = JSON.parse(row.data) as Menu[]
+        if (menus.length > 0) cachedMenus.push({ ...parsed, menus })
+      } catch {
+        continue
+      }
+    }
+
+    return cachedMenus
   }
 
   async getCachedMenuDates(dates: string[]): Promise<Map<string, Set<string>>> {
