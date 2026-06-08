@@ -15,7 +15,12 @@ function isValidDateParam(date: string): boolean {
   return /^\d{8}$/.test(date)
 }
 
-export const load: PageServerLoad = async ({ params, parent, url }) => {
+function isBrowserHtmlRequest(request: Request): boolean {
+  const accept = request.headers.get('accept') ?? ''
+  return accept.includes('text/html') && !accept.includes('application/json')
+}
+
+export const load: PageServerLoad = async ({ params, parent, request, url }) => {
   const { restaurants } = await parent()
   if (!isValidDateParam(params.date)) {
     error(404, '날짜 형식이 올바르지 않습니다')
@@ -25,6 +30,10 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 
   if (!restaurant) {
     error(404, '식당을 찾을 수 없습니다')
+  }
+
+  if (isBrowserHtmlRequest(request)) {
+    redirect(302, restaurantDetailPath(restaurant))
   }
 
   const canonicalPath = restaurantDatedPath(restaurant, params.date)
