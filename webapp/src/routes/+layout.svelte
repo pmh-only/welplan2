@@ -441,6 +441,15 @@
     if (!firstVisitDialogOpen) dialogRestaurants = data.restaurants ?? []
   })
 
+  $effect(() => {
+    if (!browser) return
+    document.body.classList.toggle('first-visit-modal-open', showFirstVisitDialog)
+
+    return () => {
+      document.body.classList.remove('first-visit-modal-open')
+    }
+  })
+
   function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
     document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
@@ -910,7 +919,6 @@
         </div>
 
         <div class="first-visit-actions">
-          <a href="/restaurants" onclick={closeFirstVisitDialog}>식당 선택 페이지로 이동</a>
           <button type="button" onclick={closeFirstVisitDialog}>이대로 시작하기</button>
         </div>
       </div>
@@ -981,6 +989,11 @@
 
 <style>
   .app { min-height: 100vh; }
+
+  :global(html:has(body.first-visit-modal-open)),
+  :global(body.first-visit-modal-open) {
+    overflow: hidden;
+  }
 
   .legal-notice {
     margin-top: 28px;
@@ -1447,7 +1460,6 @@
     background: #fff;
   }
 
-  .first-visit-actions a,
   .first-visit-actions button {
     display: inline-flex;
     align-items: center;
@@ -1458,17 +1470,6 @@
     font-size: 12px;
     font-weight: 800;
     text-decoration: none;
-  }
-
-  .first-visit-actions a {
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    background: #fff;
-  }
-
-  .first-visit-actions a:hover {
-    color: var(--text);
-    border-color: #cbd5e1;
   }
 
   .first-visit-actions button {
@@ -1764,27 +1765,51 @@
 
   @media (max-width: 640px) {
     .first-visit-backdrop {
-      align-items: stretch;
-      padding: 10px;
+      place-items: stretch;
+      overflow: hidden;
+      padding: 0;
     }
 
     .first-visit-dialog {
-      max-height: calc(100vh - 20px);
-      border-radius: 18px;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      border: 0;
+      border-radius: 0;
     }
 
     .first-visit-head {
       padding: 18px 16px 16px;
     }
 
+    .first-visit-head p:last-child {
+      display: none;
+    }
+
     .first-visit-grid {
+      flex: 1;
+      min-height: 0;
       grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 12px;
       padding: 12px;
+      overflow: hidden;
+    }
+
+    .first-visit-panel[aria-labelledby="first-visit-search-title"] {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .first-visit-panel[aria-labelledby="first-visit-search-title"] .first-visit-list {
+      flex: 1;
+      max-height: none;
     }
 
     .first-visit-list {
-      max-height: 230px;
+      max-height: 150px;
       padding: 8px 10px 10px;
     }
 
@@ -1796,12 +1821,8 @@
       display: none;
     }
 
-    .first-visit-actions {
-      flex-direction: column-reverse;
-      padding: 12px;
-    }
+    .first-visit-actions { padding: 12px; }
 
-    .first-visit-actions a,
     .first-visit-actions button {
       width: 100%;
     }
