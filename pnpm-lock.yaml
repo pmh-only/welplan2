@@ -55,9 +55,6 @@ importers:
 
   webapp:
     dependencies:
-      '@lucide/svelte':
-        specifier: ^1.17.0
-        version: 1.17.0(svelte@5.53.7)
       '@pmh-only/welplan2-model':
         specifier: workspace:*
         version: link:../model
@@ -67,12 +64,6 @@ importers:
       '@pmh-only/welplan2-welstory-plus':
         specifier: workspace:*
         version: link:../impl/welstory_plus
-      '@sveltejs/adapter-node':
-        specifier: ^5.0.0
-        version: 5.5.4(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))
-      '@sveltejs/kit':
-        specifier: ^2.0.0
-        version: 2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0))
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -88,10 +79,16 @@ importers:
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
-      svelte:
-        specifier: ^5.0.0
-        version: 5.53.7
     devDependencies:
+      '@lucide/svelte':
+        specifier: ^1.17.0
+        version: 1.17.0(svelte@5.53.7)
+      '@sveltejs/adapter-node':
+        specifier: ^5.0.0
+        version: 5.5.4(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))
+      '@sveltejs/kit':
+        specifier: ^2.0.0
+        version: 2.53.4(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0)))(svelte@5.53.7)(typescript@5.9.3)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0))
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.0.0
         version: 5.1.1(svelte@5.53.7)(vite@6.4.1(@types/node@25.3.5)(terser@5.48.0)(tsx@4.21.0))
@@ -107,6 +104,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+      svelte:
+        specifier: ^5.0.0
+        version: 5.53.7
       typescript:
         specifier: ^5.0.0
         version: 5.9.3

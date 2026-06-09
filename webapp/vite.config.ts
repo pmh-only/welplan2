@@ -137,6 +137,7 @@ export default defineConfig({
         globPatterns: [
           'client/**/*.{js,css,html,svg,png,webp,webmanifest,json,txt}'
         ],
+        modifyURLPrefix: {},
         globIgnores: ['**/node_modules/**', '**/workbox-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

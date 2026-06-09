@@ -4,3 +4,6 @@ packages:
   - 'impl/planeat_choice'
   - 'webapp'
   - 'worker'
+
+onlyBuiltDependencies:
+  - better-sqlite3

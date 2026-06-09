@@ -689,12 +689,6 @@
   }
   .meal-time-title { font-weight: 700; }
   .meal-time-count { color: var(--text-dim); font-weight: 600; }
-  .selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
-  .selection-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .selection-count { font-size: 12px; font-weight: 700; color: var(--text); }
-  .selection-actions { display: flex; gap: 6px; }
-  .selection-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--bg); color: var(--text-muted); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s; }
-  .selection-btn:hover { border-color: #94a3b8; color: var(--text); }
   .mobile-nutrition-toolbar { display: none; }
   .aggregated-nutrition-float {
     position: fixed;
@@ -913,8 +907,6 @@
 
   .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; display: block; }
   .thumb-btn { display: block; padding: 0; border: 0; background: transparent; border-radius: 6px; }
-  .thumb-placeholder { width: 52px; height: 52px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
-
   .rest-tag { font-size: 11px; color: var(--text-dim); }
   .rest-tag-mobile { display: none; margin-bottom: 4px; }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
@@ -1087,9 +1079,6 @@
       text-align: right;
     }
 
-    .selection-bar { padding-top: 0; }
-    .selection-actions { width: 100%; }
-    .selection-btn { flex: 1; }
     .aggregated-nutrition-float { display: none; }
     .mobile-nutrition-toolbar {
       display: block;

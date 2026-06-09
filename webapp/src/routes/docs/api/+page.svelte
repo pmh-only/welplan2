@@ -312,11 +312,6 @@
     color: #166534;
   }
 
-  .method.post {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-
   .prose-block p {
     color: var(--text-muted);
     font-size: 13px;

@@ -841,11 +841,6 @@
     font-weight: 700;
   }
 
-  .setup-banner-text {
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
   .setup-banner-link {
     display: inline-flex;
     align-items: center;

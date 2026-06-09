@@ -463,14 +463,6 @@
     padding: 18px;
   }
 
-  .eyebrow,
-  .meal-eyebrow {
-    margin-bottom: 4px;
-    color: var(--green);
-    font-size: 12px;
-    font-weight: 700;
-  }
-
   h1 {
     color: var(--text);
     font-size: 1.6rem;
@@ -552,7 +544,6 @@
     font-size: 11px;
   }
 
-  .all-day-pill,
   .meal-count,
   .meal-time-badge {
     display: inline-flex;
@@ -564,11 +555,6 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
-  }
-
-  .all-day-pill {
-    min-height: 36px;
-    padding: 0 12px;
   }
 
   .meal-count,
@@ -1099,11 +1085,6 @@
     .control-field,
     .date-input {
       width: 100%;
-    }
-
-    .all-day-pill {
-      width: 100%;
-      justify-content: center;
     }
 
     .meal-section-head {
