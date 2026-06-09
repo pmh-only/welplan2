@@ -644,6 +644,9 @@
       }
     }}
   >
+    <button type="button" class="lightbox-close" aria-label="이미지 닫기" onclick={(e) => { e.stopPropagation(); closeLightbox() }}>
+      <X class="lightbox-close-icon" aria-hidden="true" />
+    </button>
     <button type="button" class="lightbox-frame" aria-label="확대 이미지" onclick={(e) => e.stopPropagation()}>
       <img class="lightbox-img" src={lightboxSrc} alt={lightboxAlt} />
     </button>
@@ -1189,4 +1192,22 @@
     cursor: default;
   }
   .lightbox-frame { padding: 0; border: 0; background: transparent; cursor: default; }
+  .lightbox-close {
+    position: fixed;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+  .lightbox-close:hover { background: rgba(15, 23, 42, 0.9); }
+  :global(.lightbox-close-icon) { width: 20px; height: 20px; }
 </style>
