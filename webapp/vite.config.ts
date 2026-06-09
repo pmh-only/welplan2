@@ -90,6 +90,48 @@ export default defineConfig({
             type: 'image/png',
             form_factor: 'narrow',
             label: 'Welplan take-in mobile'
+          },
+          {
+            src: '/pwa-screenshot-takeout-desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Welplan take-out desktop'
+          },
+          {
+            src: '/pwa-screenshot-takeout-mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Welplan take-out mobile'
+          },
+          {
+            src: '/pwa-screenshot-restaurants-desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Welplan restaurant search desktop'
+          },
+          {
+            src: '/pwa-screenshot-restaurants-mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Welplan restaurant search mobile'
+          },
+          {
+            src: '/pwa-screenshot-api-desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Welplan API docs desktop'
+          },
+          {
+            src: '/pwa-screenshot-api-mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Welplan API docs mobile'
           }
         ],
         shortcuts: [
