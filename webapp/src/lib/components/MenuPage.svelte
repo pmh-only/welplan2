@@ -149,99 +149,96 @@
     <p class="empty-sub"><a href="/restaurants">식당 선택</a>에서 식당을 추가하면 메뉴가 표시됩니다</p>
   </div>
 {:else}
-  <div class="section">
-    <div class="controls-row">
-      <div class="form-group">
-        <div class="date-row">
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">
-            <ChevronLeft class="date-nav-icon" aria-hidden="true" />
-          </button>
-          <input
-            id="date-input"
-            class="date-input"
-            type="date"
-            value={toInputDate(data.date)}
-            oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time)}
-          />
-          <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">
-            <ChevronRight class="date-nav-icon" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      <div class="form-group">
-        <select
-          id="meal-time-select"
-          class="select-input"
-          value={data.time}
-          onchange={(e) => navigate(data.date, e.currentTarget.value)}
-        >
-          {#if kind === 'takein'}
-            <option value={ALL_MEAL_TIME_ID}>전체</option>
-          {/if}
-          {#each data.mealTimes as mealTime (mealTime.id)}
-            <option value={mealTime.id}>{mealTime.name}</option>
-          {/each}
-        </select>
-      </div>
-      {#if kind === 'takein'}
-        <div class="chip-group">
-          <button
-            type="button"
-            class="chip"
-            class:chip-active={takeInFilterMainOnly}
-            aria-pressed={takeInFilterMainOnly}
-            onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
-          >
-            <span class="chip-checkbox" aria-hidden="true">
-              {#if takeInFilterMainOnly}<Check class="chip-check-icon" />{/if}
-            </span>
-            메인 메뉴만
-          </button>
-          <button
-            type="button"
-            class="chip"
-            class:chip-active={takeInFilterExcludeOptional}
-            aria-pressed={takeInFilterExcludeOptional}
-            onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
-          >
-            <span class="chip-checkbox" aria-hidden="true">
-              {#if takeInFilterExcludeOptional}<Check class="chip-check-icon" />{/if}
-            </span>
-            추가찬 제외
-          </button>
-        </div>
-      {:else if kind === 'takeout'}
-        <div class="form-group takeout-restaurant-group">
-          <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
-            {#each takeOutRestaurants as restaurant (restaurant.id)}
-              <option value={restaurant.id}>{restaurant.name}</option>
-            {/each}
-          </select>
-        </div>
-        <div class="chip-group">
-          <button
-            type="button"
-            class="chip"
-            class:chip-active={takeOutFilterDrinks}
-            aria-pressed={takeOutFilterDrinks}
-            onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
-          >
-            <span class="chip-checkbox" aria-hidden="true">
-              {#if takeOutFilterDrinks}<Check class="chip-check-icon" />{/if}
-            </span>
-            음료수 제외
-          </button>
-        </div>
-      {/if}
-    </div>
-  </div>
-
   <div class="section no-padding">
     <div class="section-head">
       <div class="section-head-left">
         <h2>{pageLabel}</h2>
         {#if visibleMenus.length > 0}
           <span class="menu-count">{visibleMenus.length}개 · {data.restaurants.length}개 식당</span>
+        {/if}
+      </div>
+      <div class="controls-row">
+        <div class="form-group">
+          <div class="date-row">
+            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">
+              <ChevronLeft class="date-nav-icon" aria-hidden="true" />
+            </button>
+            <input
+              id="date-input"
+              class="date-input"
+              type="date"
+              value={toInputDate(data.date)}
+              oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time)}
+            />
+            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">
+              <ChevronRight class="date-nav-icon" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <select
+            id="meal-time-select"
+            class="select-input"
+            value={data.time}
+            onchange={(e) => navigate(data.date, e.currentTarget.value)}
+          >
+            {#if kind === 'takein'}
+              <option value={ALL_MEAL_TIME_ID}>전체</option>
+            {/if}
+            {#each data.mealTimes as mealTime (mealTime.id)}
+              <option value={mealTime.id}>{mealTime.name}</option>
+            {/each}
+          </select>
+        </div>
+        {#if kind === 'takein'}
+          <div class="chip-group">
+            <button
+              type="button"
+              class="chip"
+              class:chip-active={takeInFilterMainOnly}
+              aria-pressed={takeInFilterMainOnly}
+              onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
+            >
+              <span class="chip-checkbox" aria-hidden="true">
+                {#if takeInFilterMainOnly}<Check class="chip-check-icon" />{/if}
+              </span>
+              메인 메뉴만
+            </button>
+            <button
+              type="button"
+              class="chip"
+              class:chip-active={takeInFilterExcludeOptional}
+              aria-pressed={takeInFilterExcludeOptional}
+              onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
+            >
+              <span class="chip-checkbox" aria-hidden="true">
+                {#if takeInFilterExcludeOptional}<Check class="chip-check-icon" />{/if}
+              </span>
+              추가찬 제외
+            </button>
+          </div>
+        {:else if kind === 'takeout'}
+          <div class="form-group takeout-restaurant-group">
+            <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
+              {#each takeOutRestaurants as restaurant (restaurant.id)}
+                <option value={restaurant.id}>{restaurant.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="chip-group">
+            <button
+              type="button"
+              class="chip"
+              class:chip-active={takeOutFilterDrinks}
+              aria-pressed={takeOutFilterDrinks}
+              onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
+            >
+              <span class="chip-checkbox" aria-hidden="true">
+                {#if takeOutFilterDrinks}<Check class="chip-check-icon" />{/if}
+              </span>
+              음료수 제외
+            </button>
+          </div>
         {/if}
       </div>
     </div>
@@ -288,10 +285,12 @@
 
   .section-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 14px 16px 12px;
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
   }
   .section-head-left { display: flex; align-items: center; gap: 10px; }
   .section-head h2 {
@@ -303,17 +302,7 @@
   }
   .menu-count { font-size: 12px; color: var(--text-dim); background: var(--surface); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); }
 
-  .controls-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-
-  .filter-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
+  .controls-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; width: 100%; }
 
   .chip-group { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
   .chip {
@@ -355,7 +344,6 @@
   .takeout-restaurant-group { min-width: min(100%, 260px); }
 
   .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-group label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
   .date-row { display: flex; align-items: center; gap: 4px; }
 
   .date-nav-btn {
@@ -396,9 +384,7 @@
   }
   .select-input:focus { border-color: var(--border-focus); }
 
-  .date-label { font-size: 12px; color: var(--text-dim); align-self: flex-end; padding-bottom: 1px; }
-
   @media (max-width: 640px) {
-    .filter-row { gap: 8px; }
+    .controls-row { width: 100%; }
   }
 </style>

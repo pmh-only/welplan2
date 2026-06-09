@@ -4,7 +4,7 @@
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
-  import { Check, ChevronDown, ChevronRight, Utensils, X } from '@lucide/svelte'
+  import { ChevronDown, ChevronRight, Utensils, X } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -41,7 +41,6 @@
 
   let { data }: { data: PageData } = $props()
 
-  let showLabels = $state(true)
   let sortBy = $state<'calories-asc' | 'calories-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('calories-asc')
   let zoomedMenu = $state<GalleryMenu | null>(null)
   let detail = $state<MenuComponent[]>([])
@@ -223,6 +222,21 @@
       <span class="count-badge">{galleryMenus.length}개</span>
     </div>
     <div class="controls">
+      {#if data.restaurants.length > 0}
+        <input
+          class="date-input"
+          type="date"
+          aria-label="날짜 선택"
+          value={toInputDate(selectedDate)}
+          oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime)}
+        />
+        <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
+          <option value={ALL_MEAL_TIME_ID}>전체</option>
+          {#each data.mealTimes as mealTime (mealTime.id)}
+            <option value={mealTime.id}>{mealTime.name}</option>
+          {/each}
+        </select>
+      {/if}
       <select class="sort-select" bind:value={sortBy} aria-label="정렬 기준">
         <option value="calories-asc">칼로리 낮은순</option>
         <option value="calories-desc">칼로리 높은순</option>
@@ -230,18 +244,6 @@
         <option value="name-desc">메뉴명 Z-A</option>
         <option value="restaurant-asc">식당명 A-Z</option>
       </select>
-      <button
-        type="button"
-        class="chip"
-        class:chip-active={showLabels}
-        aria-pressed={showLabels}
-        onclick={() => { showLabels = !showLabels }}
-      >
-        <span class="chip-checkbox" aria-hidden="true">
-          {#if showLabels}<Check class="chip-check-icon" />{/if}
-        </span>
-        메뉴명 표시
-      </button>
     </div>
   </div>
 
@@ -250,22 +252,6 @@
       <p class="hint"><a href="/restaurants">식당 선택</a>에서 식당을 추가하면 갤러리가 표시됩니다</p>
     </div>
   {:else}
-    <div class="gallery-filters">
-      <input
-        class="date-input"
-        type="date"
-        aria-label="날짜 선택"
-        value={toInputDate(selectedDate)}
-        oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime)}
-      />
-      <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
-        <option value={ALL_MEAL_TIME_ID}>전체</option>
-        {#each data.mealTimes as mealTime (mealTime.id)}
-          <option value={mealTime.id}>{mealTime.name}</option>
-        {/each}
-      </select>
-    </div>
-
     {#if galleryMenus.length === 0}
       <div class="hint-block">
         <p class="hint">표시할 메뉴가 없습니다.</p>
@@ -306,22 +292,20 @@
                         </div>
                       {/if}
                     </div>
-                    {#if showLabels}
-                      <div class="gallery-info">
-                        <span class="gallery-name">{menu.name}</span>
-                        {#if menu.components.length > 0}
-                          <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
-                        {:else if menu.vendor === 'shinsegae'}
-                          <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
+                    <div class="gallery-info">
+                      <span class="gallery-name">{menu.name}</span>
+                      {#if menu.components.length > 0}
+                        <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
+                      {:else if menu.vendor === 'shinsegae'}
+                        <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
+                      {/if}
+                      <div class="gallery-meta">
+                        {#if menu.nutrition?.calories != null}
+                          <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
                         {/if}
-                        <div class="gallery-meta">
-                          {#if menu.nutrition?.calories != null}
-                            <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
-                          {/if}
-                          <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
-                        </div>
+                        <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
                       </div>
-                    {/if}
+                    </div>
                   </div>
                 {/each}
               </div>
@@ -345,22 +329,20 @@
                 </div>
               {/if}
             </div>
-            {#if showLabels}
-              <div class="gallery-info">
-                <span class="gallery-name">{menu.name}</span>
-                {#if menu.components.length > 0}
-                  <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
-                {:else if menu.vendor === 'shinsegae'}
-                  <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
+            <div class="gallery-info">
+              <span class="gallery-name">{menu.name}</span>
+              {#if menu.components.length > 0}
+                <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
+              {:else if menu.vendor === 'shinsegae'}
+                <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
+              {/if}
+              <div class="gallery-meta">
+                {#if menu.nutrition?.calories != null}
+                  <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
                 {/if}
-                <div class="gallery-meta">
-                  {#if menu.nutrition?.calories != null}
-                    <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
-                  {/if}
-                  <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
-                </div>
+                <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
               </div>
-            {/if}
+            </div>
           </div>
         {/each}
       </div>
@@ -504,42 +486,6 @@
 
   .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.12s;
-    white-space: nowrap;
-  }
-  .chip-checkbox {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 13px;
-    height: 13px;
-    border: 1px solid #cbd5e1;
-    border-radius: 3px;
-    background: #fff;
-    color: #047857;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  :global(.chip-check-icon) { width: 11px; height: 11px; }
-  .chip-active .chip-checkbox {
-    border-color: var(--green);
-    background: #dcfce7;
-  }
-  .chip:hover { border-color: var(--green); color: #047857; background: #f0fdf4; }
-  .chip-active { border-color: var(--green); color: #047857; background: #f0fdf4; font-weight: 600; }
-
   .sort-select,
   .select-input,
   .date-input {
@@ -554,8 +500,6 @@
   }
   .sort-select:focus, .select-input:focus, .date-input:focus { border-color: var(--border-focus); }
 
-  .gallery-filters { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
-
   .hint-block { padding: 32px 16px; text-align: center; }
   .hint { font-size: 13px; color: var(--text-dim); font-style: italic; }
   .hint a { color: var(--accent); text-decoration: none; }
@@ -569,16 +513,16 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 8px 16px;
     border: 0;
     background: #f8fafc;
     cursor: pointer;
     text-align: left;
   }
   .meal-section-head:hover { background: var(--surface-hover); }
-  :global(.meal-section-caret) { width: 14px; height: 14px; color: var(--text-dim); flex-shrink: 0; }
-  .meal-section-head span { font-size: 12px; color: var(--text-dim); font-weight: 600; }
-  .meal-section-head .meal-section-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  :global(.meal-section-caret) { width: 12px; height: 12px; color: var(--text-dim); flex-shrink: 0; }
+  .meal-section-head span { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+  .meal-section-head .meal-section-title { font-size: 13px; font-weight: 700; color: var(--text); }
 
   .gallery-card {
     position: relative;
