@@ -9,6 +9,7 @@ export default defineConfig({
       injectRegister: 'auto',
       registerType: 'autoUpdate',
       includeAssets: [
+        'apple-touch-icon.png',
         'favicon.svg',
         'offline.html',
         'og-image.webp'
@@ -99,6 +100,12 @@ export default defineConfig({
             purpose: 'any'
           },
           {
+            src: '/manifest-icon-1024.webp',
+            sizes: '1024x1024',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
             src: '/manifest-icon-maskable-192.webp',
             sizes: '192x192',
             type: 'image/webp',
@@ -113,6 +120,12 @@ export default defineConfig({
           {
             src: '/manifest-icon-maskable-512.webp',
             sizes: '512x512',
+            type: 'image/webp',
+            purpose: 'maskable'
+          },
+          {
+            src: '/manifest-icon-maskable-1024.webp',
+            sizes: '1024x1024',
             type: 'image/webp',
             purpose: 'maskable'
           },
