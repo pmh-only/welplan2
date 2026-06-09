@@ -1,6 +1,7 @@
 import type { Cookies } from '@sveltejs/kit'
 import { service } from '$lib/server/service'
 import type { Restaurant } from '$lib/types'
+import { todayStr } from '$lib/utils'
 
 const COOKIE = 'welplan_restaurants'
 
@@ -22,6 +23,21 @@ function dedupeRestaurants(restaurants: Restaurant[]): Restaurant[] {
   })
 }
 
+async function hasTakeOutMenus(restaurants: Restaurant[]): Promise<boolean> {
+  if (restaurants.length === 0) return false
+
+  const date = todayStr()
+  for (const restaurant of restaurants) {
+    const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+    for (const mealTime of mealTimes) {
+      const menus = await service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+      if (menus.some((menu) => menu.isTakeOut)) return true
+    }
+  }
+
+  return false
+}
+
 export async function loadLayoutData(cookies: Cookies) {
   const raw = cookies.get(COOKIE)
   const isFirstVisit = raw == null
@@ -36,10 +52,11 @@ export async function loadLayoutData(cookies: Cookies) {
 
   await Promise.all(restaurants.map((restaurant) => service.registerRestaurant(restaurant).catch(() => undefined)))
 
-  const [mealTimes, notice] = await Promise.all([
+  const [mealTimes, notice, hasTakeOutMenu] = await Promise.all([
     service.getMealTimesForRestaurants(restaurants).catch(() => []),
-    service.getNoticeSettings().catch(() => undefined)
+    service.getNoticeSettings().catch(() => undefined),
+    hasTakeOutMenus(restaurants).catch(() => false)
   ])
 
-  return { restaurants, mealTimes, isFirstVisit, notice }
+  return { restaurants, mealTimes, isFirstVisit, notice, hasTakeOutMenu }
 }

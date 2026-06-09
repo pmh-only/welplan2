@@ -12,6 +12,15 @@
   type GalleryMenu = Menu & { restaurantIds: string[] }
   type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
 
+  const fallbackMealTimeNames: Record<string, string> = {
+    '1': '아침',
+    '2': '점심',
+    '3': '저녁',
+    '4': '야식',
+    '5': '간식',
+    '6': '전체'
+  }
+
   const nutrientDefs: NutrientDef[] = [
     { key: 'calories', label: '칼로리', unit: ' kcal' },
     { key: 'carbohydrates', label: '탄수화물', unit: 'g' },
@@ -133,9 +142,16 @@
     return data.restaurants.find((r: { id: string }) => r.id === id)?.name ?? id
   }
 
+  function galleryMealTime(mealTimeId: string): MealTime {
+    return data.mealTimes.find((mealTime: MealTime) => mealTime.id === mealTimeId) ?? {
+      id: mealTimeId,
+      name: fallbackMealTimeNames[mealTimeId] ?? mealTimeId
+    }
+  }
+
   function defaultExpandedMealTimeIds (): string[] {
     const currentMealTimeId = autoSelectMealTime(data.mealTimes)
-    return currentMealTimeId ? [currentMealTimeId] : []
+    return currentMealTimeId ? [currentMealTimeId] : galleryMenus[0]?.mealTimeId ? [galleryMenus[0].mealTimeId] : []
   }
 
   function isMealTimeExpanded (mealTimeId: string): boolean {
@@ -196,7 +212,13 @@
   const gallerySections = $derived.by<GallerySection[]>(() => {
     if (!isAllMealTime) return []
 
-    return data.mealTimes.flatMap((mealTime: MealTime) => {
+    const mealTimeIds = [
+      ...data.mealTimes.map((mealTime: MealTime) => mealTime.id),
+      ...galleryMenus.map((menu) => menu.mealTimeId)
+    ]
+
+    return [...new Set(mealTimeIds)].flatMap((mealTimeId) => {
+      const mealTime = galleryMealTime(mealTimeId)
       const menus = galleryMenus.filter((menu) => menu.mealTimeId === mealTime.id)
       if (menus.length === 0) return []
       return [{ mealTime, menus }]

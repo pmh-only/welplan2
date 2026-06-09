@@ -42,6 +42,7 @@
     mealTimes?: MealTime[]
     isFirstVisit: boolean
     notice?: NoticeSettings
+    hasTakeOutMenu?: boolean
   }
 
   type NoticeSettings = {
@@ -417,6 +418,7 @@
     { href: '/takeout', label: '테이크 아웃', icon: Package },
     { href: '/restaurants', label: '식당 선택', icon: Store }
   ]
+  const visibleNavLinks = $derived(navLinks.filter((link) => link.href !== '/takeout' || data.hasTakeOutMenu === true))
 
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
@@ -968,7 +970,7 @@
           </div>
         </a>
         <nav class="header-nav">
-          {#each navLinks as link}
+          {#each visibleNavLinks as link}
             {@const Icon = link.icon}
             <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
               <Icon class="tab-icon" aria-hidden="true" />
