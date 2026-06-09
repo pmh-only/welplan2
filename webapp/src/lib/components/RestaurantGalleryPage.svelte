@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
   import { page } from '$app/state'
+  import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -72,6 +73,7 @@
 
   function registerRestaurant () {
     if (registered) return
+    trackEvent('Restaurant Added', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id, source: 'detail_page' })
     const next = [...savedRestaurants(), data.restaurant]
     document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
     registered = true
@@ -148,6 +150,7 @@
   const galleryMenus = $derived(gallerySections.flatMap((section) => section.menus))
 
   function navigate (date: string) {
+    trackEvent('Restaurant Gallery Date Changed', { date, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id })
     if (data.routeMode === 'dated') {
       goto(restaurantDatedPath(data.restaurant, date))
       return
@@ -158,6 +161,7 @@
   }
 
   async function openZoom (menu: Menu) {
+    trackEvent('Restaurant Gallery Menu Opened', { vendor: menu.vendor, restaurantId: menu.restaurantId, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
     detail = []
     loadingDetail = false
@@ -236,7 +240,7 @@
           type="button"
           class:active={menuKind === 'takein'}
           aria-pressed={menuKind === 'takein'}
-          onclick={() => { menuKind = 'takein' }}
+          onclick={() => { menuKind = 'takein'; trackEvent('Restaurant Gallery Kind Changed', { kind: menuKind, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id }) }}
         >
           테이크 인 <span>{takeInMenus.length}</span>
         </button>
@@ -244,7 +248,7 @@
           type="button"
           class:active={menuKind === 'takeout'}
           aria-pressed={menuKind === 'takeout'}
-          onclick={() => { menuKind = 'takeout' }}
+          onclick={() => { menuKind = 'takeout'; trackEvent('Restaurant Gallery Kind Changed', { kind: menuKind, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id }) }}
         >
           테이크 아웃 <span>{takeOutMenus.length}</span>
         </button>

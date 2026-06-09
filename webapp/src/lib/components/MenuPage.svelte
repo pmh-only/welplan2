@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
+  import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
@@ -153,8 +154,24 @@
     return `/${kind}/${date}/${time}`
   }
 
-  function navigate (date: string, time: string) {
+  function navigate (date: string, time: string, source: string) {
+    trackEvent('Menu Navigation Changed', { kind, date, mealTimeId: time, source })
     goto(routeFor(date, time))
+  }
+
+  function toggleTakeInMainOnly () {
+    takeInFilterMainOnly = !takeInFilterMainOnly
+    trackEvent('Menu Filter Changed', { kind, filter: 'main_only', enabled: takeInFilterMainOnly ? 1 : 0 })
+  }
+
+  function toggleTakeInExcludeOptional () {
+    takeInFilterExcludeOptional = !takeInFilterExcludeOptional
+    trackEvent('Menu Filter Changed', { kind, filter: 'exclude_optional', enabled: takeInFilterExcludeOptional ? 1 : 0 })
+  }
+
+  function toggleTakeOutDrinks () {
+    takeOutFilterDrinks = !takeOutFilterDrinks
+    trackEvent('Menu Filter Changed', { kind, filter: 'exclude_drinks', enabled: takeOutFilterDrinks ? 1 : 0 })
   }
 </script>
 
@@ -178,7 +195,7 @@
       <div class="controls-row">
         <div class="form-group">
           <div class="date-row">
-            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time)} aria-label="이전 날">
+            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, -1), data.time, 'previous_day')} aria-label="이전 날">
               <ChevronLeft class="date-nav-icon" aria-hidden="true" />
             </button>
             <input
@@ -186,9 +203,9 @@
               class="date-input"
               type="date"
               value={toInputDate(data.date)}
-              oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time)}
+              oninput={(e) => navigate(fromInputDate(e.currentTarget.value), data.time, 'date_input')}
             />
-            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time)} aria-label="다음 날">
+            <button class="date-nav-btn" onclick={() => navigate(shiftDate(data.date, 1), data.time, 'next_day')} aria-label="다음 날">
               <ChevronRight class="date-nav-icon" aria-hidden="true" />
             </button>
           </div>
@@ -198,7 +215,7 @@
             id="meal-time-select"
             class="select-input"
             value={data.time}
-            onchange={(e) => navigate(data.date, e.currentTarget.value)}
+            onchange={(e) => navigate(data.date, e.currentTarget.value, 'meal_time_select')}
           >
             {#if kind === 'takein'}
               <option value={ALL_MEAL_TIME_ID}>전체</option>
@@ -215,7 +232,7 @@
               class="chip"
               class:chip-active={takeInFilterMainOnly}
               aria-pressed={takeInFilterMainOnly}
-              onclick={() => { takeInFilterMainOnly = !takeInFilterMainOnly }}
+              onclick={toggleTakeInMainOnly}
             >
               <span class="chip-checkbox" aria-hidden="true">
                 {#if takeInFilterMainOnly}<Check class="chip-check-icon" />{/if}
@@ -227,7 +244,7 @@
               class="chip"
               class:chip-active={takeInFilterExcludeOptional}
               aria-pressed={takeInFilterExcludeOptional}
-              onclick={() => { takeInFilterExcludeOptional = !takeInFilterExcludeOptional }}
+              onclick={toggleTakeInExcludeOptional}
             >
               <span class="chip-checkbox" aria-hidden="true">
                 {#if takeInFilterExcludeOptional}<Check class="chip-check-icon" />{/if}
@@ -259,7 +276,7 @@
               class="chip"
               class:chip-active={takeOutFilterDrinks}
               aria-pressed={takeOutFilterDrinks}
-              onclick={() => { takeOutFilterDrinks = !takeOutFilterDrinks }}
+              onclick={toggleTakeOutDrinks}
             >
               <span class="chip-checkbox" aria-hidden="true">
                 {#if takeOutFilterDrinks}<Check class="chip-check-icon" />{/if}
@@ -268,7 +285,7 @@
             </button>
           </div>
         {/if}
-        <select class="sort-select" bind:value={menuSort} aria-label="정렬 기준">
+        <select class="sort-select" bind:value={menuSort} aria-label="정렬 기준" onchange={() => trackEvent('Menu Sort Changed', { kind, sort: menuSort })}>
           <option value="calories-asc">칼로리 낮은순</option>
           <option value="calories-desc">칼로리 높은순</option>
           <option value="name-asc">메뉴명 A-Z</option>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { trackEvent } from '$lib/analytics'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
   import { todayStr } from '$lib/utils'
@@ -38,10 +39,14 @@
   }
 
   function addRestaurant (r: Restaurant) {
-    if (!myIds.has(r.id)) saveRestaurants([...restaurants, r])
+    if (!myIds.has(r.id)) {
+      trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id })
+      saveRestaurants([...restaurants, r])
+    }
   }
 
   function removeRestaurant (r: Restaurant) {
+    trackEvent('Restaurant Removed', { vendor: r.vendor, restaurantId: r.id })
     saveRestaurants(restaurants.filter((x: Restaurant) => x.id !== r.id))
   }
 
@@ -54,6 +59,7 @@
       const res = await fetch(`/proxy/search?q=${encodeURIComponent(q)}`)
       if (!res.ok) throw new Error('검색 실패')
       searchResults = await res.json()
+      trackEvent('Restaurant Search', { queryLength: q.length, resultCount: searchResults.length })
     } catch (e) {
       searchError = `검색 중 오류가 발생했습니다: ${e instanceof Error ? e.message : e}`
       searchResults = []

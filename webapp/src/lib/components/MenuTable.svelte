@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { trackEvent } from '$lib/analytics'
   import { autoSelectMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { BarChart3, ChevronDown, ChevronRight, Coins, TriangleAlert, X } from '@lucide/svelte'
@@ -82,6 +83,7 @@
 
   function openLightbox (src: string, alt: string, e: MouseEvent) {
     e.stopPropagation()
+    trackEvent('Menu Image Opened', { source: enableSelection ? 'takeout' : 'menu_table' })
     lightboxSrc = src
     lightboxAlt = alt
   }
@@ -121,6 +123,7 @@
   }
 
   function toggleMealTime (mealTimeId: string) {
+    trackEvent('Menu Meal Time Toggled', { mealTimeId, expanded: isMealTimeExpanded(mealTimeId) ? 0 : 1 })
     if (isMealTimeExpanded(mealTimeId)) {
       expandedMealTimeIds = expandedMealTimeIds.filter((id) => id !== mealTimeId)
     } else {
@@ -130,6 +133,10 @@
 
   function toggleSelection (menuId: string) {
     selectionFloatDismissed = false
+    trackEvent('Takeout Menu Selection Changed', {
+      selected: isSelected(menuId) ? 0 : 1,
+      selectedCount: isSelected(menuId) ? selectedMenuIds.length - 1 : selectedMenuIds.length + 1
+    })
     if (isSelected(menuId)) {
       selectedMenuIds = selectedMenuIds.filter((id) => id !== menuId)
     } else {
@@ -139,10 +146,12 @@
 
   function selectAllVisible () {
     selectionFloatDismissed = false
+    trackEvent('Takeout Menu Select All', { visibleCount: visibleMenus.length })
     selectedMenuIds = visibleMenus.map(menuKey)
   }
 
   function clearSelection () {
+    trackEvent('Takeout Menu Selection Cleared', { selectedCount: selectedMenuIds.length })
     showSelectionDetail = false
     selectionFloatDismissed = false
     selectedMenuIds = []
@@ -266,10 +275,12 @@
   async function toggleMenu (menu: Menu) {
     const key = menuKey(menu)
     if (expandedMenuId === key) {
+      trackEvent('Menu Detail Toggled', { vendor: menu.vendor, mealTimeId: menu.mealTimeId, expanded: 0 })
       expandedMenuId = null
       return
     }
 
+    trackEvent('Menu Detail Toggled', { vendor: menu.vendor, mealTimeId: menu.mealTimeId, expanded: 1 })
     expandedMenuId = key
     detail = []
 
@@ -470,7 +481,7 @@
         </div>
         <div class="selected-items-mobile">{selectedItemsText}</div>
       </div>
-      <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true }}>영양성분 보기</button>
+      <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedMenus.length, source: 'mobile_toolbar' }) }}>영양성분 보기</button>
     </div>
   </div>
 {/if}
@@ -527,7 +538,7 @@
 
       <div class="float-actions">
         <button type="button" class="btn-float" onclick={clearSelection}>선택 해제</button>
-        <button type="button" class="btn-float btn-primary" onclick={() => { showSelectionDetail = true }}>상세보기</button>
+        <button type="button" class="btn-float btn-primary" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedMenus.length, source: 'floating_summary' }) }}>상세보기</button>
       </div>
     </div>
   </aside>

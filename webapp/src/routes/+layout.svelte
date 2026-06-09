@@ -5,6 +5,7 @@
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
+  import { trackEvent } from '$lib/analytics'
   import { Camera, Lightbulb, Megaphone, Package, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
@@ -424,15 +425,18 @@
   let waitingServiceWorker: ServiceWorker | undefined
 
   function dismissPageTip () {
+    trackEvent('Page Tip Dismissed', { path: page.url.pathname })
     pageTipDismissed = true
     localStorage.setItem(PAGE_TIP_DISMISSED_STORAGE_KEY, '1')
   }
 
   function applyAppUpdate () {
+    trackEvent('PWA Update Applied')
     waitingServiceWorker?.postMessage({ type: 'SKIP_WAITING' })
   }
 
-  function clearInstallPrompt () {
+  function clearInstallPrompt (trackDismissal = true) {
+    if (trackDismissal) trackEvent('PWA Install Dismissed')
     installPromptEvent = undefined
     installAvailable = false
   }
@@ -440,7 +444,8 @@
   async function installApp () {
     if (!installPromptEvent) return
     const promptEvent = installPromptEvent
-    clearInstallPrompt()
+    clearInstallPrompt(false)
+    trackEvent('PWA Install Prompted')
     await promptEvent.prompt().catch(() => undefined)
   }
 
@@ -525,8 +530,13 @@
       installAvailable = true
     }
 
+    function handleAppInstalled () {
+      clearInstallPrompt(false)
+      trackEvent('PWA Installed')
+    }
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    window.addEventListener('appinstalled', clearInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
 
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
@@ -548,7 +558,7 @@
     if (!modelContext?.registerTool) {
       return () => {
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-        window.removeEventListener('appinstalled', clearInstallPrompt)
+        window.removeEventListener('appinstalled', handleAppInstalled)
       }
     }
 
@@ -622,7 +632,7 @@
     return () => {
       controller.abort()
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-      window.removeEventListener('appinstalled', clearInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   })
 
@@ -708,7 +718,7 @@
 
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
-      <button type="button" class="notice-bar" aria-expanded={noticeOpen} onclick={() => { noticeOpen = !noticeOpen }}>
+      <button type="button" class="notice-bar" aria-expanded={noticeOpen} onclick={() => { noticeOpen = !noticeOpen; trackEvent('Notice Toggled', { expanded: noticeOpen ? 1 : 0 }) }}>
         <span class="notice-bar-badge">
           <Megaphone class="notice-icon" aria-hidden="true" />
           공지
@@ -743,9 +753,9 @@
           <button type="button" onclick={applyAppUpdate}>업데이트</button>
         {:else if installAvailable}
           <button type="button" onclick={installApp}>설치</button>
-          <button type="button" class="pwa-status-secondary" onclick={clearInstallPrompt}>나중에</button>
+          <button type="button" class="pwa-status-secondary" onclick={() => clearInstallPrompt()}>나중에</button>
         {:else}
-          <button type="button" onclick={() => { offlineReady = false }}>확인</button>
+          <button type="button" onclick={() => { offlineReady = false; trackEvent('PWA Offline Ready Confirmed') }}>확인</button>
         {/if}
       </div>
     </section>
@@ -764,7 +774,7 @@
         <nav class="header-nav">
           {#each navLinks as link}
             {@const Icon = link.icon}
-            <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')}>
+            <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
               <Icon class="tab-icon" aria-hidden="true" />
               <span class="tab-label">{link.label}</span>
             </a>

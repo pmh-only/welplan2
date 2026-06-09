@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
+  import { trackEvent } from '$lib/analytics'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
@@ -84,6 +85,7 @@
   }
 
   async function openZoom (menu: GalleryMenu) {
+    trackEvent('Gallery Menu Opened', { vendor: menu.vendor, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
     detail = []
     loadingDetail = false
@@ -121,7 +123,8 @@
     expandedMealTimeIds = isAllMealTime ? defaultExpandedMealTimeIds() : []
   })
 
-  function navigate (date: string, time: string) {
+  function navigate (date: string, time: string, source: string) {
+    trackEvent('Gallery Navigation Changed', { date, mealTimeId: time, source })
     const params = new URLSearchParams({ date, time })
     goto(`/gallery?${params}`)
   }
@@ -140,6 +143,7 @@
   }
 
   function toggleMealTime (mealTimeId: string) {
+    trackEvent('Gallery Meal Time Toggled', { mealTimeId, expanded: isMealTimeExpanded(mealTimeId) ? 0 : 1 })
     if (isMealTimeExpanded(mealTimeId)) {
       expandedMealTimeIds = expandedMealTimeIds.filter((id) => id !== mealTimeId)
     } else {
@@ -228,16 +232,16 @@
           type="date"
           aria-label="날짜 선택"
           value={toInputDate(selectedDate)}
-          oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime)}
+          oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime, 'date_input')}
         />
-        <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value)}>
+        <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value, 'meal_time_select')}>
           <option value={ALL_MEAL_TIME_ID}>전체</option>
           {#each data.mealTimes as mealTime (mealTime.id)}
             <option value={mealTime.id}>{mealTime.name}</option>
           {/each}
         </select>
       {/if}
-      <select class="sort-select" bind:value={sortBy} aria-label="정렬 기준">
+      <select class="sort-select" bind:value={sortBy} aria-label="정렬 기준" onchange={() => trackEvent('Gallery Sort Changed', { sort: sortBy })}>
         <option value="calories-asc">칼로리 낮은순</option>
         <option value="calories-desc">칼로리 높은순</option>
         <option value="name-asc">메뉴명 A-Z</option>
