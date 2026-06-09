@@ -55,6 +55,10 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `PGPASSWORD`           | No           | none           | PostgreSQL password (used when `DATABASE_URL` is not set).            |
 | `HOST`                 | No           | `0.0.0.0`      | Host used by the production Node server.                               |
 | `PORT`                 | No           | `3000`         | Port used by the production Node server.                               |
+| `ORIGIN`               | Recommended behind proxy | request origin | Public origin, e.g. `https://welplan.pmh.codes`, used by SvelteKit CSRF checks and absolute URLs. |
+| `HOST_HEADER`          | No           | none           | Header adapter-node should trust for host, e.g. `x-forwarded-host`, when using a reverse proxy. |
+| `PROTOCOL_HEADER`      | No           | none           | Header adapter-node should trust for protocol, e.g. `x-forwarded-proto`, when using a reverse proxy. |
+| `ADMIN_OIDC_RESPONSE_MODE` | No       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks. |
 
 ### Worker Environment Variables
 

@@ -5,6 +5,7 @@ import './env.js'
 const SESSION_COOKIE = 'welplan_admin_session'
 const STATE_COOKIE = 'welplan_admin_oidc_state'
 const DEFAULT_SCOPES = 'openid profile email'
+const DEFAULT_RESPONSE_MODE = 'query'
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000
 const STATE_TTL_MS = 10 * 60 * 1000
 
@@ -145,6 +146,7 @@ export async function createAdminLoginRedirect(cookies: Cookies, url: URL): Prom
   authorizeUrl.searchParams.set('client_id', clientId)
   authorizeUrl.searchParams.set('redirect_uri', adminRedirectUri(url.origin))
   authorizeUrl.searchParams.set('scope', process.env.ADMIN_OIDC_SCOPES?.trim() || DEFAULT_SCOPES)
+  authorizeUrl.searchParams.set('response_mode', process.env.ADMIN_OIDC_RESPONSE_MODE?.trim() || DEFAULT_RESPONSE_MODE)
   authorizeUrl.searchParams.set('state', state.state)
   authorizeUrl.searchParams.set('nonce', state.nonce)
 
