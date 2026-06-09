@@ -4,6 +4,7 @@ import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
 import './env.js'
 import { db, ensureDbInitialized } from './db/index.js'
 import { createServerLogger } from './log.js'
+import { deleteRedisPrefix, getRedisJson, setRedisJson } from './redis-cache.js'
 import {
   restaurants as restaurantsTable,
   mealTimesCache,
@@ -19,6 +20,15 @@ import { desc, eq, sql } from 'drizzle-orm'
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
+const redisKeys = {
+  restaurants: 'restaurants:all',
+  restaurant: (id: string) => `restaurant:${id}`,
+  mealTimes: (restaurantId: string) => `meal-times:${restaurantId}`,
+  menus: (key: string) => `menus:${key}`,
+  menuDetail: (key: string) => `menu-detail:${key}`,
+  menuNutrientDetail: (key: string) => `menu-nutrient-detail:${key}`,
+  precomputedPage: (key: string) => `precomputed-page:${key}`
+}
 const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
   enabled: false,
   title: '',
@@ -27,6 +37,7 @@ const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
 }
 
 type CachedCountRow = { count: number | string | bigint }
+type RedisCacheEntry<T> = { data: T; cachedAt: number }
 
 export type CacheTableName =
   | 'restaurants'
@@ -191,8 +202,11 @@ export class CafeteriaService {
 
   private async readRestaurants(): Promise<Restaurant[]> {
     await ensureDbInitialized()
+    const redisCached = await getRedisJson<Restaurant[]>(redisKeys.restaurants)
+    if (redisCached) return redisCached
+
     const rows = await db.select().from(restaurantsTable).execute()
-    return rows
+    const restaurants = rows
       .map((row) => {
         try {
           return JSON.parse(row.data) as Restaurant
@@ -210,6 +224,11 @@ export class CafeteriaService {
               typeof restaurant.vendor === 'string'
           )
       )
+    await Promise.all([
+      setRedisJson(redisKeys.restaurants, restaurants),
+      ...restaurants.map((restaurant) => setRedisJson(redisKeys.restaurant(restaurant.id), restaurant))
+    ])
+    return restaurants
   }
 
   private async readOne<T>(query: { execute: () => Promise<T[]> }): Promise<T | undefined> {
@@ -352,6 +371,11 @@ export class CafeteriaService {
             .execute()
         }
       })
+      const restaurants = toInsert.map((row) => JSON.parse(row.data) as Restaurant)
+      await Promise.all([
+        setRedisJson(redisKeys.restaurants, restaurants),
+        ...restaurants.map((restaurant) => setRedisJson(redisKeys.restaurant(restaurant.id), restaurant))
+      ])
     }
 
     this.cacheLoaded = true
@@ -388,6 +412,9 @@ export class CafeteriaService {
 
   private async resolveRestaurant(id: string): Promise<Restaurant> {
     await ensureDbInitialized()
+    const redisCached = await getRedisJson<Restaurant>(redisKeys.restaurant(id))
+    if (redisCached) return redisCached
+
     let row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
       await this.ensureCache()
@@ -398,7 +425,9 @@ export class CafeteriaService {
       throw new Error(`Restaurant '${id}' not found`)
     }
     try {
-      return JSON.parse(row.data) as Restaurant
+      const restaurant = JSON.parse(row.data) as Restaurant
+      await setRedisJson(redisKeys.restaurant(id), restaurant)
+      return restaurant
     } catch {
       throw new Error(`Restaurant '${id}' cache data is invalid`)
     }
@@ -406,13 +435,18 @@ export class CafeteriaService {
 
   async getRestaurant(id: string): Promise<Restaurant | null> {
     await this.ensureCache()
+    const redisCached = await getRedisJson<Restaurant>(redisKeys.restaurant(id))
+    if (redisCached) return redisCached
+
     const row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
       syncLog.warn('restaurant lookup failed', { restaurantId: id })
       return null
     }
     try {
-      return JSON.parse(row.data) as Restaurant
+      const restaurant = JSON.parse(row.data) as Restaurant
+      await setRedisJson(redisKeys.restaurant(id), restaurant)
+      return restaurant
     } catch {
       return null
     }
@@ -424,16 +458,22 @@ export class CafeteriaService {
   }
 
   async getCachedMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[] | null> {
+    const key = this.menuCacheKey(restaurantId, date, mealTimeId)
+    const redisCached = await getRedisJson<RedisCacheEntry<Menu[]>>(redisKeys.menus(key))
+    if (redisCached) return redisCached.data
+
     const cached = await this.readOne(
       db
         .select()
         .from(menusCache)
-        .where(eq(menusCache.key, this.menuCacheKey(restaurantId, date, mealTimeId)))
+        .where(eq(menusCache.key, key))
     )
     if (!cached) return null
 
     try {
-      return JSON.parse(cached.data) as Menu[]
+      const menus = JSON.parse(cached.data) as Menu[]
+      await setRedisJson(redisKeys.menus(key), { data: menus, cachedAt: cached.cachedAt })
+      return menus
     } catch {
       return null
     }
@@ -541,12 +581,22 @@ export class CafeteriaService {
 
   async getMealTimes(restaurantId: string): Promise<MealTime[]> {
     const restaurant = await this.resolveRestaurant(restaurantId)
+    const redisCached = await getRedisJson<RedisCacheEntry<MealTime[]>>(redisKeys.mealTimes(restaurantId))
+    if (redisCached && restaurant.vendor !== 'shinsegae') {
+      syncLog.info('meal-time redis cache hit', {
+        restaurantId,
+        mealTimeCount: redisCached.data.length
+      })
+      return redisCached.data
+    }
+
     const cached = await this.readOne(
       db.select().from(mealTimesCache).where(eq(mealTimesCache.restaurantId, restaurantId))
     )
 
     if (cached && restaurant.vendor !== 'shinsegae') {
       const mealTimes = JSON.parse(cached.data) as MealTime[]
+      await setRedisJson(redisKeys.mealTimes(restaurantId), { data: mealTimes, cachedAt: cached.cachedAt })
       syncLog.info('meal-time cache hit', {
         restaurantId,
         mealTimeCount: mealTimes.length
@@ -556,7 +606,9 @@ export class CafeteriaService {
 
     if (!this.allowRemoteFetch) {
       if (cached) {
-        return JSON.parse(cached.data) as MealTime[]
+        const mealTimes = JSON.parse(cached.data) as MealTime[]
+        await setRedisJson(redisKeys.mealTimes(restaurantId), { data: mealTimes, cachedAt: cached.cachedAt })
+        return mealTimes
       }
       throw new Error(`Meal time cache miss for restaurant '${restaurantId}' in read-only mode`)
     }
@@ -573,6 +625,7 @@ export class CafeteriaService {
           set: { data: JSON.stringify(mealTimes), cachedAt: this.now() }
         })
         .execute()
+      await setRedisJson(redisKeys.mealTimes(restaurantId), { data: mealTimes, cachedAt: this.now() })
       syncLog.info('meal-times cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -592,6 +645,30 @@ export class CafeteriaService {
   async getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]> {
     const restaurant = await this.resolveRestaurant(restaurantId)
     const key = this.menuCacheKey(restaurantId, date, mealTimeId)
+    const redisCached = await getRedisJson<RedisCacheEntry<Menu[]>>(redisKeys.menus(key))
+    if (redisCached && this.isFreshCache(redisCached.cachedAt)) {
+      const normalized = this.normalizeMenus(redisCached.data)
+      syncLog.info('menu redis cache hit', {
+        restaurantId,
+        date,
+        mealTimeId,
+        menuCount: normalized.menus.length,
+        takeOutAdjustments: normalized.takeOutAdjustments
+      })
+      return normalized.menus
+    }
+
+    if (redisCached && !this.allowRemoteFetch) {
+      const normalized = this.normalizeMenus(redisCached.data)
+      syncLog.info('menu redis cache returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        menuCount: normalized.menus.length
+      })
+      return normalized.menus
+    }
+
     const cached = await this.readOne(db.select().from(menusCache).where(eq(menusCache.key, key)))
 
     if (cached && this.isFreshCache(cached.cachedAt)) {
@@ -605,6 +682,7 @@ export class CafeteriaService {
         })
       } else {
         const normalized = this.normalizeMenus(menus)
+        await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt }, this.menuCacheTtlMs() - (this.now() - cached.cachedAt))
         syncLog.info('menu cache hit', {
           restaurantId,
           date,
@@ -619,6 +697,7 @@ export class CafeteriaService {
     if (cached && !this.allowRemoteFetch) {
       const menus = JSON.parse(cached.data) as Menu[]
       const normalized = this.normalizeMenus(menus)
+      await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt })
       syncLog.info('menu cache returned in read-only mode', {
         restaurantId,
         date,
@@ -650,14 +729,16 @@ export class CafeteriaService {
       )
 
       if (menus.length > 0) {
+        const now = this.now()
         await db
           .insert(menusCache)
-          .values({ key, data: JSON.stringify(menus), cachedAt: this.now() })
+          .values({ key, data: JSON.stringify(menus), cachedAt: now })
           .onConflictDoUpdate({
             target: menusCache.key,
-            set: { data: JSON.stringify(menus), cachedAt: this.now() }
+            set: { data: JSON.stringify(menus), cachedAt: now }
           })
           .execute()
+        await setRedisJson(redisKeys.menus(key), { data: menus, cachedAt: now }, this.menuCacheTtlMs())
       }
 
       syncLog.info(menus.length > 0 ? 'menus cached' : 'menus not cached because empty', {
@@ -689,10 +770,36 @@ export class CafeteriaService {
     courseType: string
   ): Promise<MenuComponent[]> {
     const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const redisCached = await getRedisJson<RedisCacheEntry<MenuComponent[]>>(redisKeys.menuDetail(key))
+    if (redisCached && this.isFreshCache(redisCached.cachedAt)) {
+      syncLog.info('menu detail redis cache hit', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: redisCached.data.length
+      })
+      return redisCached.data
+    }
+
+    if (redisCached && !this.allowRemoteFetch) {
+      syncLog.info('menu detail redis returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: redisCached.data.length
+      })
+      return redisCached.data
+    }
+
     const cached = await this.readOne(db.select().from(menuDetailCache).where(eq(menuDetailCache.key, key)))
 
     if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
+      await setRedisJson(redisKeys.menuDetail(key), { data: detail, cachedAt: cached.cachedAt }, this.menuCacheTtlMs() - (this.now() - cached.cachedAt))
       syncLog.info('menu detail cache hit', {
         restaurantId,
         date,
@@ -706,6 +813,7 @@ export class CafeteriaService {
 
     if (cached && !this.allowRemoteFetch) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
+      await setRedisJson(redisKeys.menuDetail(key), { data: detail, cachedAt: cached.cachedAt })
       syncLog.info('menu detail returned in read-only mode', {
         restaurantId,
         date,
@@ -749,14 +857,16 @@ export class CafeteriaService {
 
     try {
       const detail = await client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
+      const now = this.now()
       await db
         .insert(menuDetailCache)
-        .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
+        .values({ key, data: JSON.stringify(detail), cachedAt: now })
         .onConflictDoUpdate({
           target: menuDetailCache.key,
-          set: { data: JSON.stringify(detail), cachedAt: this.now() }
+          set: { data: JSON.stringify(detail), cachedAt: now }
         })
         .execute()
+      await setRedisJson(redisKeys.menuDetail(key), { data: detail, cachedAt: now }, this.menuCacheTtlMs())
       syncLog.info('menu detail cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -789,12 +899,38 @@ export class CafeteriaService {
     courseType: string
   ): Promise<MenuComponent[]> {
     const key = `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`
+    const redisCached = await getRedisJson<RedisCacheEntry<MenuComponent[]>>(redisKeys.menuNutrientDetail(key))
+    if (redisCached && this.isFreshCache(redisCached.cachedAt)) {
+      syncLog.info('menu nutrient detail redis cache hit', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: redisCached.data.length
+      })
+      return redisCached.data
+    }
+
+    if (redisCached && !this.allowRemoteFetch) {
+      syncLog.info('menu nutrient detail redis returned in read-only mode', {
+        restaurantId,
+        date,
+        mealTimeId,
+        hallNo,
+        courseType,
+        componentCount: redisCached.data.length
+      })
+      return redisCached.data
+    }
+
     const cached = await this.readOne(
       db.select().from(menuNutrientDetailCache).where(eq(menuNutrientDetailCache.key, key))
     )
 
     if (cached && this.isFreshCache(cached.cachedAt)) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
+      await setRedisJson(redisKeys.menuNutrientDetail(key), { data: detail, cachedAt: cached.cachedAt }, this.menuCacheTtlMs() - (this.now() - cached.cachedAt))
       syncLog.info('menu nutrient detail cache hit', {
         restaurantId,
         date,
@@ -808,6 +944,7 @@ export class CafeteriaService {
 
     if (cached && !this.allowRemoteFetch) {
       const detail = JSON.parse(cached.data) as MenuComponent[]
+      await setRedisJson(redisKeys.menuNutrientDetail(key), { data: detail, cachedAt: cached.cachedAt })
       syncLog.info('menu nutrient detail returned in read-only mode', {
         restaurantId,
         date,
@@ -857,14 +994,16 @@ export class CafeteriaService {
         hallNo,
         courseType
       )
+      const now = this.now()
       await db
         .insert(menuNutrientDetailCache)
-        .values({ key, data: JSON.stringify(detail), cachedAt: this.now() })
+        .values({ key, data: JSON.stringify(detail), cachedAt: now })
         .onConflictDoUpdate({
           target: menuNutrientDetailCache.key,
-          set: { data: JSON.stringify(detail), cachedAt: this.now() }
+          set: { data: JSON.stringify(detail), cachedAt: now }
         })
         .execute()
+      await setRedisJson(redisKeys.menuNutrientDetail(key), { data: detail, cachedAt: now }, this.menuCacheTtlMs())
       syncLog.info('menu nutrient detail cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -891,14 +1030,22 @@ export class CafeteriaService {
 
   async getPrecomputedPage<T>(key: string): Promise<T | null> {
     await ensureDbInitialized()
+    const redisCached = await getRedisJson<RedisCacheEntry<T>>(redisKeys.precomputedPage(key))
+    if (redisCached) {
+      syncLog.info('precomputed page redis cache hit', { key })
+      return redisCached.data
+    }
+
     const cached = await this.readOne(
       db.select().from(precomputedPageCache).where(eq(precomputedPageCache.key, key))
     )
     if (!cached) return null
 
     try {
+      const data = JSON.parse(cached.data) as T
+      await setRedisJson(redisKeys.precomputedPage(key), { data, cachedAt: cached.cachedAt })
       syncLog.info('precomputed page cache hit', { key })
-      return JSON.parse(cached.data) as T
+      return data
     } catch {
       syncLog.warn('precomputed page cache invalid', { key })
       return null
@@ -916,6 +1063,7 @@ export class CafeteriaService {
         set: { data: JSON.stringify(data), cachedAt: now }
       })
       .execute()
+    await setRedisJson(redisKeys.precomputedPage(key), { data, cachedAt: now })
     syncLog.info('precomputed page cached', { key })
   }
 
@@ -1130,6 +1278,16 @@ export class CafeteriaService {
     await db.delete(menuNutrientDetailCache).execute()
     await db.delete(precomputedPageCache).execute()
     await db.delete(imageCache).execute()
+    await Promise.all([
+      deleteRedisPrefix('restaurants:'),
+      deleteRedisPrefix('restaurant:'),
+      deleteRedisPrefix('meal-times:'),
+      deleteRedisPrefix('menus:'),
+      deleteRedisPrefix('menu-detail:'),
+      deleteRedisPrefix('menu-nutrient-detail:'),
+      deleteRedisPrefix('precomputed-page:'),
+      deleteRedisPrefix('image:')
+    ])
 
     this.cacheLoaded = false
     this.cachePromise = null
@@ -1164,6 +1322,11 @@ export class CafeteriaService {
         set: { data: JSON.stringify(mergedRestaurant), cachedAt: this.now() }
       })
       .execute()
+
+    await Promise.all([
+      setRedisJson(redisKeys.restaurant(mergedRestaurant.id), mergedRestaurant),
+      setRedisJson(redisKeys.restaurants, [...(await this.readRestaurants()).filter((r) => r.id !== mergedRestaurant.id), mergedRestaurant])
+    ])
 
     syncLog.info('registered restaurant', {
       restaurantId: mergedRestaurant.id,

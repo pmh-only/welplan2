@@ -260,17 +260,17 @@ export function startPoller(
 
   const timers: ReturnType<typeof setInterval>[] = []
 
-  void prefetchActiveRestaurants(service, activePrefetchDays).catch((error) => {
+  prefetchActiveRestaurants(service, activePrefetchDays).catch((error) => {
     syncLog.error('active prefetch failed', { error })
   })
   timers.push(setInterval(() => {
-    void prefetchActiveRestaurants(service, activePrefetchDays).catch((error) => {
+    prefetchActiveRestaurants(service, activePrefetchDays).catch((error) => {
       syncLog.error('active prefetch failed', { error })
     })
   }, activeIntervalMs))
 
   timers.push(setInterval(() => {
-    void prefetchAllAvailability(service).catch((error) => {
+    prefetchAllAvailability(service).catch((error) => {
       syncLog.error('full prefetch failed', { error })
     })
   }, fullIntervalMs))

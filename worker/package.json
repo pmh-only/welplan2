@@ -12,14 +12,15 @@
     "@pmh-only/welplan2-model": "workspace:*",
     "@pmh-only/welplan2-planeat-choice": "workspace:*",
     "@pmh-only/welplan2-welstory-plus": "workspace:*",
-    "drizzle-orm": "^0.45.2",
     "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.2",
     "pg": "^8.16.0",
+    "redis": "^6.0.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@types/node": "^25.3.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.0.0",
-    "@types/node": "^25.3.0"
+    "typescript": "^5.0.0"
   }
 }

@@ -2,10 +2,12 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { db, ensureDbInitialized } from './db/index.js'
 import { imageCache } from './db/schema.js'
+import { getRedisJson, setRedisJson } from './redis-cache.js'
 
 const MAX_ENTRIES = 300
 
 type CachedImage = { data: ArrayBuffer; contentType: string }
+type PersistedCachedImage = { data: string; contentType: string }
 
 const cache = new Map<string, CachedImage>()
 
@@ -22,12 +24,21 @@ export function setCachedImage(url: string, data: ArrayBuffer, contentType: stri
 
 export async function getPersistedCachedImage(key: string): Promise<CachedImage | undefined> {
   await ensureDbInitialized()
+  const redisCached = await getRedisJson<PersistedCachedImage>(`image:${key}`)
+  if (redisCached) {
+    const buffer = Buffer.from(redisCached.data, 'base64')
+    const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+    setCachedImage(key, data, redisCached.contentType)
+    return { data, contentType: redisCached.contentType }
+  }
+
   const rows = await db.select().from(imageCache).where(eq(imageCache.key, key)).execute()
   const row = rows[0]
   if (!row) return undefined
 
   const buffer = Buffer.from(row.data, 'base64')
   const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+  await setRedisJson(`image:${key}`, { data: row.data, contentType: row.contentType })
   setCachedImage(key, data, row.contentType)
   return { data, contentType: row.contentType }
 }
@@ -38,23 +49,25 @@ export async function setPersistedCachedImage(
   contentType: string
 ): Promise<void> {
   await ensureDbInitialized()
+  const serialized = Buffer.from(data).toString('base64')
   await db
     .insert(imageCache)
     .values({
       key,
-      data: Buffer.from(data).toString('base64'),
+      data: serialized,
       contentType,
       cachedAt: Date.now()
     })
     .onConflictDoUpdate({
       target: imageCache.key,
       set: {
-        data: Buffer.from(data).toString('base64'),
+        data: serialized,
         contentType,
         cachedAt: Date.now()
       }
     })
     .execute()
+  await setRedisJson(`image:${key}`, { data: serialized, contentType })
   setCachedImage(key, data, contentType)
 }
 
@@ -72,7 +85,6 @@ export async function cacheRemoteImage(
 
   const res = await fetch(upstreamUrl, { headers })
   if (!res.ok) return undefined
-
 
   const body = await res.arrayBuffer()
   const contentType = res.headers.get('Content-Type') ?? 'image/jpeg'
