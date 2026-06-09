@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
+  import { browser } from '$app/environment'
   import '../app.css'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
@@ -238,10 +239,57 @@
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let pageTipDismissed = $state(false)
   let noticeOpen = $state(false)
+  let updateAvailable = $state(false)
+  let offlineReady = $state(false)
+  let waitingServiceWorker: ServiceWorker | undefined
 
   function dismissPageTip () {
     pageTipDismissed = true
     localStorage.setItem(PAGE_TIP_DISMISSED_STORAGE_KEY, '1')
+  }
+
+  function applyAppUpdate () {
+    waitingServiceWorker?.postMessage({ type: 'SKIP_WAITING' })
+  }
+
+  async function requestPersistentStorage () {
+    if (!navigator.storage?.persisted || !navigator.storage.persist) return
+    if (await navigator.storage.persisted()) return
+    await navigator.storage.persist().catch(() => false)
+  }
+
+  async function registerServiceWorker () {
+    if (!browser || !('serviceWorker' in navigator)) return
+
+    const registration = await navigator.serviceWorker.register('/sw.js')
+
+    if (registration.waiting && navigator.serviceWorker.controller) {
+      waitingServiceWorker = registration.waiting
+      updateAvailable = true
+    }
+
+    registration.addEventListener('updatefound', () => {
+      const installingWorker = registration.installing
+      if (!installingWorker) return
+
+      installingWorker.addEventListener('statechange', () => {
+        if (installingWorker.state !== 'installed') return
+
+        if (navigator.serviceWorker.controller) {
+          waitingServiceWorker = installingWorker
+          updateAvailable = true
+        } else {
+          offlineReady = true
+        }
+      })
+    })
+
+    let refreshing = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return
+      refreshing = true
+      window.location.reload()
+    })
   }
 
   $effect(() => {
@@ -266,6 +314,10 @@
 
   onMount(() => {
     pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
+
+    requestPersistentStorage()
+
+    registerServiceWorker().catch(() => {})
 
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
@@ -469,6 +521,20 @@
     </section>
   {/if}
 
+  {#if updateAvailable || offlineReady}
+    <section class="pwa-status" aria-live="polite" aria-label="앱 상태">
+      <div>
+        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
+        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
+      </div>
+      {#if updateAvailable}
+        <button type="button" onclick={applyAppUpdate}>업데이트</button>
+      {:else}
+        <button type="button" onclick={() => { offlineReady = false }}>확인</button>
+      {/if}
+    </section>
+  {/if}
+
   {#if showGlobalChrome}
     <header>
       <div class="header-inner">
@@ -650,6 +716,53 @@
     margin: 0;
     color: #dbeafe;
     line-height: 1.65;
+  }
+
+  .pwa-status {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 170;
+    width: min(360px, calc(100vw - 32px));
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid rgba(125, 211, 252, 0.34);
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.94);
+    color: #f8fafc;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+    backdrop-filter: blur(16px);
+  }
+
+  .pwa-status strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  .pwa-status p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .pwa-status button {
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 12px;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .pwa-status button:hover {
+    background: #e0f2fe;
   }
 
   .github-ribbon {
@@ -1005,6 +1118,11 @@
     .tab-btn.active::after { top: 3px; bottom: auto; width: 18px; }
     .brand-sub { display: none; }
     .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }
+    .pwa-status {
+      right: 10px;
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      width: calc(100vw - 20px);
+    }
     .page-tip { grid-template-columns: auto 1fr auto; gap: 10px; }
     .page-tip-icon { width: 30px; height: 30px; }
   }

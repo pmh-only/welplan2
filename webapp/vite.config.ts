@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [
     sveltekit(),
     SvelteKitPWA({
-      injectRegister: 'auto',
-      registerType: 'autoUpdate',
+      injectRegister: null,
+      registerType: 'prompt',
       includeAssets: [
         'apple-touch-icon.png',
         'favicon.svg',
@@ -39,6 +39,24 @@ export default defineConfig({
           preferred_width: 420
         },
         icons: [
+          {
+            src: '/manifest-icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
           {
             src: '/manifest-icon-48.webp',
             sizes: '48x48',
@@ -214,7 +232,7 @@ export default defineConfig({
             description: '오늘의 메뉴 사진과 영양정보를 확인합니다.',
             url: '/',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
             ]
           },
           {
@@ -223,7 +241,7 @@ export default defineConfig({
             description: '매장 식사 메뉴와 영양정보를 엽니다.',
             url: '/takein',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
             ]
           },
           {
@@ -232,7 +250,7 @@ export default defineConfig({
             description: '포장 메뉴와 코인 계산 화면을 엽니다.',
             url: '/takeout',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
             ]
           },
           {
@@ -241,7 +259,7 @@ export default defineConfig({
             description: '조회할 식당을 검색하고 저장합니다.',
             url: '/restaurants',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
+              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
             ]
           }
         ]
@@ -254,8 +272,8 @@ export default defineConfig({
         globIgnores: ['**/node_modules/**', '**/workbox-*.js'],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^gclid$/],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
+        clientsClaim: false,
+        skipWaiting: false,
         navigateFallback: '/offline.html',
         navigateFallbackDenylist: [
           /^\/api\//,
@@ -335,7 +353,7 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^\/img\//,
+            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/img/'),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'welplan-images',
@@ -349,7 +367,22 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^\/api\//,
+            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname === '/api/version',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'welplan-version',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 4,
+                maxAgeSeconds: 60 * 60
+              }
+            }
+          },
+          {
+            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',
             options: {
               cacheName: 'welplan-api'
