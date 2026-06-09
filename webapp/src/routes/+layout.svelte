@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
   import { browser } from '$app/environment'
   import '../app.css'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
-  import { Camera, Lightbulb, Megaphone, Package, Store, Utensils, X } from '@lucide/svelte'
+  import { Camera, Check, Lightbulb, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -38,6 +38,7 @@
   }
 
   type LayoutData = {
+    restaurants?: Restaurant[]
     mealTimes?: MealTime[]
     isFirstVisit: boolean
     notice?: NoticeSettings
@@ -110,6 +111,10 @@
 
   function vendorName (vendor: string): string {
     return vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
+  }
+
+  function restaurantPathText (restaurant: Restaurant): string {
+    return restaurant.path?.filter(Boolean).join(' / ') ?? ''
   }
 
   function jsonLdScript (value: JsonLdValue): string {
@@ -418,11 +423,64 @@
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let pageTipDismissed = $state(false)
   let noticeOpen = $state(false)
+  let firstVisitDialogOpen = $state(false)
+  let dialogRestaurants = $state<Restaurant[]>([])
+  let restaurantQuery = $state('')
+  let restaurantSearchResults = $state<Restaurant[]>([])
+  let restaurantSearching = $state(false)
+  let restaurantSearchError = $state('')
   let updateAvailable = $state(false)
   let offlineReady = $state(false)
   let installAvailable = $state(false)
   let installPromptEvent = $state<BeforeInstallPromptEvent | undefined>()
   let waitingServiceWorker: ServiceWorker | undefined
+
+  const dialogRestaurantIds = $derived(new Set(dialogRestaurants.map((restaurant) => restaurant.id)))
+
+  $effect(() => {
+    if (!firstVisitDialogOpen) dialogRestaurants = data.restaurants ?? []
+  })
+
+  function persistDialogRestaurants (next: Restaurant[]) {
+    dialogRestaurants = next
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
+    invalidateAll()
+  }
+
+  function addDialogRestaurant (restaurant: Restaurant) {
+    if (dialogRestaurantIds.has(restaurant.id)) return
+    trackEvent('Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
+    persistDialogRestaurants([...dialogRestaurants, restaurant])
+  }
+
+  function removeDialogRestaurant (restaurant: Restaurant) {
+    trackEvent('Restaurant Removed', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
+    persistDialogRestaurants(dialogRestaurants.filter((item) => item.id !== restaurant.id))
+  }
+
+  async function searchDialogRestaurants () {
+    const query = restaurantQuery.trim()
+    if (!query) { restaurantSearchResults = []; return }
+    restaurantSearching = true
+    restaurantSearchError = ''
+    try {
+      const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
+      if (!response.ok) throw new Error('검색 실패')
+      restaurantSearchResults = await response.json()
+      trackEvent('Restaurant Search', { queryLength: query.length, resultCount: restaurantSearchResults.length, source: 'first_visit_dialog' })
+    } catch (error) {
+      restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
+      restaurantSearchResults = []
+    } finally {
+      restaurantSearching = false
+    }
+  }
+
+  function closeFirstVisitDialog () {
+    trackEvent('First Visit Dialog Closed', { restaurantCount: dialogRestaurants.length })
+    persistDialogRestaurants(dialogRestaurants)
+    firstVisitDialogOpen = false
+  }
 
   function dismissPageTip () {
     trackEvent('Page Tip Dismissed', { path: page.url.pathname })
@@ -518,6 +576,8 @@
 
   onMount(() => {
     pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
+    firstVisitDialogOpen = data.isFirstVisit
+    dialogRestaurants = data.restaurants ?? []
 
     requestPersistentStorage()
 
@@ -647,7 +707,7 @@
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
-  const showFirstVisitGuide = $derived(showGlobalChrome && !isAdminPage && data.isFirstVisit && !page.url.pathname.startsWith('/restaurants'))
+  const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage)
   const showPageTip = $derived(showGlobalChrome && !isAdminPage && !pageTipDismissed)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
@@ -761,6 +821,102 @@
     </section>
   {/if}
 
+  {#if showFirstVisitDialog}
+    <div class="first-visit-backdrop" role="presentation">
+      <div class="first-visit-dialog" role="dialog" aria-modal="true" aria-labelledby="first-visit-title">
+        <div class="first-visit-head">
+          <div>
+            <p class="first-visit-eyebrow">첫 방문 설정</p>
+            <h2 id="first-visit-title">자주 이용하는 식당을 선택해 주세요</h2>
+            <p>선택한 식당 기준으로 갤러리, 테이크인, 테이크아웃 메뉴가 표시됩니다.</p>
+          </div>
+          <button type="button" class="first-visit-close" aria-label="첫 방문 설정 닫기" onclick={closeFirstVisitDialog}>
+            <X class="first-visit-close-icon" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div class="first-visit-grid">
+          <section class="first-visit-panel" aria-labelledby="first-visit-selected-title">
+            <div class="first-visit-panel-head">
+              <h3 id="first-visit-selected-title">선택된 식당</h3>
+              <span>{dialogRestaurants.length}개</span>
+            </div>
+
+            {#if dialogRestaurants.length === 0}
+              <div class="first-visit-empty">추가된 식당이 없습니다. 오른쪽 검색에서 식당을 추가하세요.</div>
+            {:else}
+              <ul class="first-visit-list">
+                {#each dialogRestaurants as restaurant (restaurant.id)}
+                  <li class="first-visit-item">
+                    <div class="first-visit-restaurant">
+                      <p>{restaurant.name}</p>
+                      {#if restaurantPathText(restaurant)}
+                        <span>{restaurantPathText(restaurant)}</span>
+                      {/if}
+                    </div>
+                    <span class="first-visit-vendor vendor-{restaurant.vendor}">{vendorName(restaurant.vendor)}</span>
+                    <button type="button" class="first-visit-remove" onclick={() => removeDialogRestaurant(restaurant)}>삭제</button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </section>
+
+          <section class="first-visit-panel" aria-labelledby="first-visit-search-title">
+            <div class="first-visit-panel-head">
+              <h3 id="first-visit-search-title">식당 검색</h3>
+            </div>
+
+            <div class="first-visit-search-row">
+              <Search class="first-visit-search-icon" aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="식당 이름을 입력하세요..."
+                bind:value={restaurantQuery}
+                oninput={searchDialogRestaurants}
+              />
+              {#if restaurantSearching}<span>검색 중...</span>{/if}
+            </div>
+
+            {#if restaurantSearchError}
+              <p class="first-visit-error">{restaurantSearchError}</p>
+            {:else if restaurantSearchResults.length === 0 && restaurantQuery.trim() && !restaurantSearching}
+              <div class="first-visit-empty">검색 결과가 없습니다.</div>
+            {:else if restaurantSearchResults.length > 0}
+              <ul class="first-visit-list">
+                {#each restaurantSearchResults as restaurant (restaurant.id)}
+                  {@const added = dialogRestaurantIds.has(restaurant.id)}
+                  <li class="first-visit-item" class:first-visit-item-added={added}>
+                    <div class="first-visit-restaurant">
+                      <p>{restaurant.name}</p>
+                      {#if restaurantPathText(restaurant)}
+                        <span>{restaurantPathText(restaurant)}</span>
+                      {/if}
+                    </div>
+                    <span class="first-visit-vendor vendor-{restaurant.vendor}">{vendorName(restaurant.vendor)}</span>
+                    {#if added}
+                      <span class="first-visit-added">
+                        <Check class="first-visit-added-icon" aria-hidden="true" />
+                        추가됨
+                      </span>
+                    {:else}
+                      <button type="button" class="first-visit-add" onclick={() => addDialogRestaurant(restaurant)}>+ 추가</button>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </section>
+        </div>
+
+        <div class="first-visit-actions">
+          <a href="/restaurants" onclick={closeFirstVisitDialog}>식당 선택 페이지로 이동</a>
+          <button type="button" onclick={closeFirstVisitDialog}>이대로 시작하기</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   {#if showGlobalChrome}
     <header>
       <div class="header-inner">
@@ -792,18 +948,6 @@
   {/if}
 
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
-    {#if showFirstVisitGuide}
-      <section class="setup-banner" aria-label="첫 방문 안내">
-        <div class="setup-banner-icon" aria-hidden="true">
-          <Store />
-        </div>
-        <div class="setup-banner-body">
-          <p class="setup-banner-title">처음 방문하셨다면 먼저 식당 선택을 해주세요</p>
-        </div>
-        <a class="setup-banner-link" href="/restaurants">식당 선택으로 이동</a>
-      </section>
-    {/if}
-
     {#if showPageTip}
       <aside class="page-tip" aria-label={pageTip.title}>
         <div class="page-tip-icon" aria-hidden="true">
@@ -1006,6 +1150,337 @@
     background: rgba(255, 255, 255, 0.18);
   }
 
+  .first-visit-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(8px);
+  }
+
+  .first-visit-dialog {
+    width: min(980px, 100%);
+    max-height: min(760px, calc(100vh - 40px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 24px;
+    background: #f8fafc;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.34);
+  }
+
+  .first-visit-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px 24px 18px;
+    background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+    color: #f8fafc;
+  }
+
+  .first-visit-eyebrow {
+    margin-bottom: 6px;
+    color: #86efac;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+
+  .first-visit-head h2 {
+    margin: 0 0 7px;
+    font-size: clamp(1.2rem, 2.4vw, 1.7rem);
+    letter-spacing: -0.03em;
+  }
+
+  .first-visit-head p:last-child {
+    margin: 0;
+    color: #d1fae5;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .first-visit-close {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .first-visit-close:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  :global(.first-visit-close-icon) {
+    width: 17px;
+    height: 17px;
+  }
+
+  .first-visit-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+    overflow: auto;
+  }
+
+  .first-visit-panel {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .first-visit-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 13px 15px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .first-visit-panel-head h3 {
+    margin: 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--green);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .first-visit-panel-head span {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .first-visit-list {
+    max-height: 314px;
+    overflow: auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 10px 14px 14px;
+  }
+
+  .first-visit-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .first-visit-item-added {
+    opacity: 0.68;
+  }
+
+  .first-visit-restaurant {
+    min-width: 0;
+  }
+
+  .first-visit-restaurant p {
+    margin: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .first-visit-restaurant span {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .first-visit-vendor {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .vendor-welstory {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .vendor-shinsegae {
+    background: #fce7f3;
+    color: #be185d;
+  }
+
+  .first-visit-remove,
+  .first-visit-add {
+    flex-shrink: 0;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .first-visit-remove {
+    border: 1px solid #fca5a5;
+    background: #fff1f2;
+    color: #dc2626;
+  }
+
+  .first-visit-remove:hover {
+    background: #fee2e2;
+  }
+
+  .first-visit-add {
+    border: 1px solid #6ee7b7;
+    background: #ecfdf5;
+    color: #059669;
+  }
+
+  .first-visit-add:hover {
+    background: #d1fae5;
+  }
+
+  .first-visit-added {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #059669;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  :global(.first-visit-added-icon) {
+    width: 13px;
+    height: 13px;
+  }
+
+  .first-visit-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 14px 4px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .first-visit-search-row:focus-within {
+    border-color: var(--border-focus);
+    background: #fff;
+  }
+
+  .first-visit-search-row input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    padding: 10px 4px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .first-visit-search-row span {
+    color: var(--text-dim);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  :global(.first-visit-search-icon) {
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .first-visit-empty,
+  .first-visit-error {
+    margin: 0;
+    padding: 18px 15px;
+    font-size: 13px;
+  }
+
+  .first-visit-empty {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .first-visit-error {
+    color: #dc2626;
+  }
+
+  .first-visit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--border);
+    background: #fff;
+  }
+
+  .first-visit-actions a,
+  .first-visit-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .first-visit-actions a {
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: #fff;
+  }
+
+  .first-visit-actions a:hover {
+    color: var(--text);
+    border-color: #cbd5e1;
+  }
+
+  .first-visit-actions button {
+    border: 0;
+    background: #10b981;
+    color: #fff;
+  }
+
+  .first-visit-actions button:hover {
+    background: #059669;
+  }
+
   .github-ribbon {
     position: fixed;
     top: 18px;
@@ -1179,65 +1654,6 @@
     max-width: 1040px;
   }
 
-  .setup-banner {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 14px;
-    align-items: center;
-    margin-bottom: 14px;
-    padding: 16px 18px;
-    border: 1px solid #86efac;
-    border-radius: var(--radius);
-    background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .setup-banner-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 999px;
-    background: rgba(16, 185, 129, 0.12);
-    color: #059669;
-  }
-
-  .setup-banner-icon :global(svg) {
-    width: 19px;
-    height: 19px;
-  }
-
-  .setup-banner-body {
-    min-width: 0;
-  }
-
-  .setup-banner-title {
-    margin-bottom: 4px;
-    color: #166534;
-    font-size: 14px;
-    font-weight: 700;
-  }
-
-  .setup-banner-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 38px;
-    padding: 0 14px;
-    border-radius: 999px;
-    background: #10b981;
-    color: #fff;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .setup-banner-link:hover {
-    background: #059669;
-  }
-
   .page-tip {
     position: relative;
     display: grid;
@@ -1347,13 +1763,46 @@
   }
 
   @media (max-width: 640px) {
-    .setup-banner {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      padding: 14px;
+    .first-visit-backdrop {
+      align-items: stretch;
+      padding: 10px;
     }
 
-    .setup-banner-link {
+    .first-visit-dialog {
+      max-height: calc(100vh - 20px);
+      border-radius: 18px;
+    }
+
+    .first-visit-head {
+      padding: 18px 16px 16px;
+    }
+
+    .first-visit-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .first-visit-list {
+      max-height: 230px;
+      padding: 8px 10px 10px;
+    }
+
+    .first-visit-item {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .first-visit-vendor {
+      display: none;
+    }
+
+    .first-visit-actions {
+      flex-direction: column-reverse;
+      padding: 12px;
+    }
+
+    .first-visit-actions a,
+    .first-visit-actions button {
       width: 100%;
     }
 
