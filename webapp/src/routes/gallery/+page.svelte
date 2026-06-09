@@ -701,8 +701,26 @@
   @media (max-width: 640px) {
     .controls { width: 100%; }
     .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 12px; }
-    .lightbox-inner { flex-direction: column; width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; }
+    .lightbox { padding: 0; align-items: stretch; justify-content: stretch; }
+    .lightbox-inner {
+      flex-direction: column;
+      width: 100vw;
+      max-width: none;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      overflow-y: auto;
+    }
     .lightbox-left { width: 100%; border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
     .lightbox-right { overflow-y: visible; }
+    .lightbox-img { max-height: 62dvh; }
+    .lightbox-close {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      right: max(12px, env(safe-area-inset-right));
+      width: 40px;
+      height: 40px;
+      z-index: 2;
+    }
   }
 </style>

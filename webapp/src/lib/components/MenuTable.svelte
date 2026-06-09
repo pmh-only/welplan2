@@ -1210,4 +1210,28 @@
   }
   .lightbox-close:hover { background: rgba(15, 23, 42, 0.9); }
   :global(.lightbox-close-icon) { width: 20px; height: 20px; }
+
+  @media (max-width: 640px) {
+    .lightbox-overlay {
+      align-items: stretch;
+      justify-content: stretch;
+      background: #000;
+    }
+    .lightbox-frame {
+      width: 100vw;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(56px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+    }
+    .lightbox-img {
+      width: 100vw;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
+  }
 </style>
