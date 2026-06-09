@@ -189,7 +189,7 @@
       <div class="section-head-left">
         <h2>{pageLabel}</h2>
         {#if visibleMenus.length > 0}
-          <span class="menu-count">{visibleMenus.length}개 · {data.restaurants.length}개 식당</span>
+          <span class="menu-count">{visibleMenus.length}개</span>
         {/if}
       </div>
       <div class="controls-row">
