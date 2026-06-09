@@ -194,7 +194,7 @@
       return {
         title: '테이크인 팁',
         items: [
-          '테이블 헤더를 클릭하여 영양소 별로 정렬할 수 있습니다'
+          '상단 정렬 기준에서 메뉴를 원하는 순서로 정렬할 수 있습니다.'
         ]
       }
     }
@@ -537,11 +537,41 @@
     {/if}
 
     {@render children()}
+
+    <footer class="legal-notice" aria-label="상표 및 문의 안내">
+      <p>
+        삼성웰스토리, 신세계푸드 및 각 사의 브랜드명, 식당명에 포함된 회사명·브랜드명 등 모든 상표는 해당 권리자에게 귀속됩니다.
+        Welplan은 해당 상표권자 및 관련 회사와 제휴, 후원, 승인 또는 공식 관계가 없는 독립적인 사이트 및 애플리케이션입니다.
+        문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
+      </p>
+    </footer>
   </main>
 </div>
 
 <style>
   .app { min-height: 100vh; }
+
+  .legal-notice {
+    margin-top: 28px;
+    padding: 18px 4px 4px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .legal-notice p {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  .legal-notice a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .legal-notice a:hover { color: var(--text); }
 
   .notice-shell {
     position: relative;
