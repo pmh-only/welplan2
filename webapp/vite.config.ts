@@ -27,7 +27,7 @@ export default defineConfig({
         dir: 'ltr',
         start_url: '/',
         scope: '/',
-        orientation: 'any',
+        orientation: 'portrait',
         categories: ['food', 'productivity', 'utilities'],
         prefer_related_applications: false,
         launch_handler: {
