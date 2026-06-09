@@ -119,6 +119,10 @@
     brokenImageSrcs = [...brokenImageSrcs, src]
   }
 
+  function markMenuImageBroken (menu: Menu) {
+    markImageBroken(proxyImg(menu.imageUrl))
+  }
+
   function formatMetric (value: number | undefined, unit = ''): string {
     if (value == null) return '—'
     const rounded = Math.round(value * 10) / 10
@@ -316,8 +320,8 @@
               {#each section.menus as menu, index (`${section.mealTime.id}:${menu.id}`)}
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
-                    {#if availableImageSrc(menu) as imgSrc}
-                      <img src={imgSrc} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
+                    {#if isImageAvailable(proxyImg(menu.imageUrl))}
+                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                     {:else}
                       <span class="no-image-placeholder" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
@@ -392,8 +396,8 @@
       onkeydown={(event) => event.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if availableImageSrc(zoomedMenu) as zoomedImgSrc}
-          <img class="lightbox-img" src={zoomedImgSrc} alt={zoomedMenu.name} onerror={() => markImageBroken(zoomedImgSrc)} />
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
+          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
         {:else}
           <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
             <span>이미지 준비중</span>

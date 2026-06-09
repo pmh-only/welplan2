@@ -99,6 +99,10 @@
     brokenImageSrcs = [...brokenImageSrcs, src]
   }
 
+  function markMenuImageBroken (menu: Menu) {
+    markImageBroken(proxyImg(menu.imageUrl))
+  }
+
   async function openZoom (menu: GalleryMenu) {
     trackEvent('Gallery Menu Opened', { vendor: menu.vendor, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
@@ -310,8 +314,8 @@
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
-                      {#if availableImageSrc(menu) as imgSrc}
-                        <img class="gallery-img" src={imgSrc} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
+                      {#if isImageAvailable(proxyImg(menu.imageUrl))}
+                        <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                       {:else}
                         <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
                           <span class="placeholder-icon" aria-hidden="true">
@@ -347,8 +351,8 @@
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
-                {#if availableImageSrc(menu) as imgSrc}
-                  <img class="gallery-img" src={imgSrc} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
+                {#if isImageAvailable(proxyImg(menu.imageUrl))}
+                  <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
               {:else}
                 <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
                   <span class="placeholder-icon" aria-hidden="true">
@@ -395,8 +399,8 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if availableImageSrc(zoomedMenu) as zoomedImgSrc}
-          <img class="lightbox-img" src={zoomedImgSrc} alt={zoomedMenu.name} onerror={() => markImageBroken(zoomedImgSrc)} />
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
+          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
         {:else}
           <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
             <span class="placeholder-icon" aria-hidden="true">

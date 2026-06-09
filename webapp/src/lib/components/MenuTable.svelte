@@ -105,6 +105,16 @@
     brokenImageSrcs = [...brokenImageSrcs, src]
   }
 
+  function markMenuImageBroken (menu: Menu) {
+    markImageBroken(proxyImg(menu.imageUrl))
+  }
+
+  function openMenuLightbox (menu: Menu, e: MouseEvent) {
+    const src = availableImageSrc(menu)
+    if (!src) return
+    openLightbox(src, menu.name, e)
+  }
+
   $effect(() => {
     const _menus = menus
     expandedMenuId = null
@@ -391,9 +401,9 @@
             {/if}
             {#if hasAnyImage}
               <td class="col-img" data-label="이미지">
-                {#if availableImageSrc(menu) as imgSrc}
-                  <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" onerror={() => markImageBroken(imgSrc)} />
+                {#if isImageAvailable(proxyImg(menu.imageUrl))}
+                  <button type="button" class="thumb-btn" onclick={(e) => openMenuLightbox(menu, e)} aria-label={`${menu.name} 이미지 확대`}>
+                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl)} alt={menu.name} loading="lazy" onerror={() => markMenuImageBroken(menu)} />
                   </button>
                 {:else if proxyImg(menu.imageUrl)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
