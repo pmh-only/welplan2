@@ -4,7 +4,7 @@
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
-  import { Check, ChevronLeft, ChevronRight, Store } from '@lucide/svelte'
+  import { Check, ChevronLeft, ChevronRight, Search, Store } from '@lucide/svelte'
 
   const LS_TAKEOUT_RESTAURANT = 'welplan_takeout_restaurant'
 
@@ -28,6 +28,8 @@
   let takeInFilterExcludeOptional = $state(true)
   let selectedTakeoutRestaurantId = $state('')
   let takeOutFilterDrinks = $state(true)
+  let takeOutSearch = $state('')
+  let menuSort = $state('calories-asc')
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
   const isAllMealTime = $derived(kind === 'takein' && data.time === ALL_MEAL_TIME_ID)
@@ -67,6 +69,21 @@
     const parentName = (menu as Menu & { parentName?: string }).parentName
     const text = `${parentName ?? ''} ${menu.name}`
     return text.includes('음료') || text.includes('드링킹') || text.includes('음료 Zone')
+  }
+
+  function matchesTakeOutSearch(menu: Menu): boolean {
+    const query = takeOutSearch.trim().toLocaleLowerCase()
+    if (!query) return true
+    return menu.name.toLocaleLowerCase().includes(query)
+  }
+
+  function menuSortKey (): 'restaurant' | 'name' | 'calories' {
+    if (menuSort.startsWith('restaurant')) return 'restaurant'
+    return menuSort.startsWith('name') ? 'name' : 'calories'
+  }
+
+  function menuSortDirection (): 'asc' | 'desc' {
+    return menuSort.endsWith('desc') ? 'desc' : 'asc'
   }
 
   function filterTakeInComponents(menu: Menu): MenuComponent[] {
@@ -118,6 +135,7 @@
       .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
+      .filter((menu: Menu) => kind !== 'takeout' || matchesTakeOutSearch(menu))
       .filter((menu: Menu) => (menu.nutrition?.calories ?? 1) !== 0)
       .map((menu: Menu) => {
         if (kind !== 'takein') return menu
@@ -225,6 +243,16 @@
               {/each}
             </select>
           </div>
+          <div class="search-field">
+            <Search class="search-icon" aria-hidden="true" />
+            <input
+              class="search-input"
+              type="search"
+              placeholder="메뉴 검색"
+              aria-label="테이크아웃 메뉴 검색"
+              bind:value={takeOutSearch}
+            />
+          </div>
           <div class="chip-group">
             <button
               type="button"
@@ -240,6 +268,15 @@
             </button>
           </div>
         {/if}
+        <select class="sort-select" bind:value={menuSort} aria-label="정렬 기준">
+          <option value="calories-asc">칼로리 낮은순</option>
+          <option value="calories-desc">칼로리 높은순</option>
+          <option value="name-asc">메뉴명 A-Z</option>
+          <option value="name-desc">메뉴명 Z-A</option>
+          {#if kind === 'takein'}
+            <option value="restaurant-asc">식당명 A-Z</option>
+          {/if}
+        </select>
       </div>
     </div>
 
@@ -254,6 +291,8 @@
       enableSelection={kind === 'takeout'}
       groupByMealTime={isAllMealTime}
       hideRestaurantLabels={kind === 'takeout'}
+      sortKey={menuSortKey()}
+      sortDirection={menuSortDirection()}
     />
   </div>
 {/if}
@@ -344,6 +383,31 @@
 
   .takeout-restaurant-group { min-width: min(100%, 260px); }
 
+  .search-field {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: min(100%, 220px);
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    transition: border-color 0.12s;
+  }
+  .search-field:focus-within { border-color: var(--border-focus); }
+  :global(.search-icon) { width: 14px; height: 14px; color: var(--text-dim); flex-shrink: 0; }
+  .search-input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+  .search-input::placeholder { color: var(--text-dim); }
+
   .form-group { display: flex; flex-direction: column; gap: 5px; }
   .date-row { display: flex; align-items: center; gap: 4px; }
 
@@ -372,7 +436,8 @@
   }
   .date-input:focus { border-color: var(--border-focus); }
 
-  .select-input {
+  .select-input,
+  .sort-select {
     padding: 7px 10px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -383,7 +448,7 @@
     min-width: 140px;
     transition: border-color 0.12s;
   }
-  .select-input:focus { border-color: var(--border-focus); }
+  .select-input:focus, .sort-select:focus { border-color: var(--border-focus); }
 
   @media (max-width: 640px) {
     .section-head { padding: 12px; }
@@ -393,9 +458,11 @@
     .date-row { width: 100%; }
     .date-input { flex: 1; min-width: 0; }
     .select-input { min-width: 0; }
+    .sort-select { min-width: 0; }
     #meal-time-select { width: 96px; }
     .takeout-restaurant-group { flex: 1 1 160px; min-width: 0; }
     #takeout-restaurant-select { width: 100%; }
+    .search-field { order: 10; flex: 1 0 100%; min-width: 0; }
     .chip-group { flex: 0 0 auto; }
   }
 </style>

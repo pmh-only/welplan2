@@ -14,7 +14,9 @@
     preferInlineComponents = false,
     enableSelection = false,
     groupByMealTime = false,
-    hideRestaurantLabels = false
+    hideRestaurantLabels = false,
+    sortKey = null,
+    sortDirection = 'asc'
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -26,6 +28,8 @@
     enableSelection?: boolean
     groupByMealTime?: boolean
     hideRestaurantLabels?: boolean
+    sortKey?: SortKey | null
+    sortDirection?: 'asc' | 'desc'
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -41,9 +45,6 @@
       groupByMealTime ? [autoSelectMealTime(mealTimes)].filter((id): id is string => id != null) : []
     )
   )
-  let sortKey = $state<SortKey | null>(null)
-  let sortDirection = $state<'asc' | 'desc'>('asc')
-
   type SortKey =
     | 'restaurant'
     | 'name'
@@ -100,21 +101,6 @@
 
   function restaurantName (id: string): string {
     return restaurants.find((restaurant) => restaurant.id === id)?.name ?? id
-  }
-
-  function sortArrow (key: SortKey): string {
-    if (sortKey !== key) return ''
-    return sortDirection === 'asc' ? '↑' : '↓'
-  }
-
-  function toggleSort (key: SortKey) {
-    if (sortKey === key) {
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-      return
-    }
-
-    sortKey = key
-    sortDirection = 'asc'
   }
 
   function isSelected (menuId: string): boolean {
@@ -322,14 +308,14 @@
         <tr>
           {#if enableSelection}<th class="col-check"></th>{/if}
           {#if hasAnyImage}<th class="col-img"></th>{/if}
-          {#if !hideRestaurantLabels}<th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>{/if}
-          <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
-          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('calories')}>칼로리 {sortArrow('calories')}</button></th>
-          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('carbohydrates')}>탄수화물 {sortArrow('carbohydrates')}</button></th>
-          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('sugar')}>당 {sortArrow('sugar')}</button></th>
-          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('fat')}>지방 {sortArrow('fat')}</button></th>
-          <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('protein')}>단백질 {sortArrow('protein')}</button></th>
-          <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('sodium')}>나트륨 {sortArrow('sodium')}</button></th>
+          {#if !hideRestaurantLabels}<th class="col-rest hide-sm">식당</th>{/if}
+          <th class="col-name">메뉴</th>
+          <th class="col-num">칼로리</th>
+          <th class="col-num hide-sm">탄수화물</th>
+          <th class="col-num hide-sm">당</th>
+          <th class="col-num">지방</th>
+          <th class="col-num">단백질</th>
+          <th class="col-num hide-sm">나트륨</th>
         </tr>
       </thead>
       <tbody>
@@ -908,10 +894,6 @@
   }
   .selection-detail-table th { background: var(--surface); text-align: left; color: var(--text-muted); }
   .selection-item-context { margin-top: 4px; font-size: 11px; color: var(--text-dim); }
-  .sort-btn { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: color 0.1s; }
-  .sort-btn:hover { color: var(--text); }
-  .sort-btn-right { text-align: right; }
-
   .col-check { width: 40px; text-align: center; }
   .col-img { width: 60px; padding: 0 8px; }
   .col-rest { width: 90px; }
@@ -984,32 +966,7 @@
     .menu-table.selection-mode,
     .menu-table.selection-mode thead,
     .menu-table.selection-mode tbody { display: block; }
-    .menu-table.selection-mode thead tr {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 0 0 10px;
-      background: transparent;
-      border-bottom: 0;
-    }
-    .menu-table.selection-mode th {
-      display: block;
-      width: auto;
-      padding: 0;
-    }
-    .menu-table.selection-mode th.col-check,
-    .menu-table.selection-mode th.col-img,
-    .menu-table.selection-mode th.hide-sm { display: none; }
-    .menu-table.selection-mode th .sort-btn {
-      width: auto;
-      padding: 5px 10px;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      background: var(--surface);
-      color: var(--text-muted);
-      font-size: 10px;
-      text-align: left;
-    }
+    .menu-table.selection-mode thead { display: none; }
     .menu-table.selection-mode .menu-row {
       display: grid;
       grid-template-columns: auto repeat(3, minmax(0, 1fr));
