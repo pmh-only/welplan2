@@ -54,6 +54,7 @@
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
   let menuKind = $state<'takein' | 'takeout'>('takein')
+  let brokenImageSrcs = $state<string[]>([])
 
   const COOKIE = 'welplan_restaurants'
 
@@ -102,6 +103,15 @@
       if (bCalories === null) return -1
       return bCalories - aCalories
     })
+  }
+
+  function isImageAvailable (src: string | undefined): src is string {
+    return Boolean(src && !brokenImageSrcs.includes(src))
+  }
+
+  function markImageBroken (src: string | undefined) {
+    if (!src || brokenImageSrcs.includes(src)) return
+    brokenImageSrcs = [...brokenImageSrcs, src]
   }
 
   function formatMetric (value: number | undefined, unit = ''): string {
@@ -301,8 +311,9 @@
               {#each section.menus as menu, index (`${section.mealTime.id}:${menu.id}`)}
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
-                    {#if menu.imageUrl}
-                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} />
+                    {@const imgSrc = proxyImg(menu.imageUrl)}
+                    {#if isImageAvailable(imgSrc)}
+                      <img src={imgSrc} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
                     {:else}
                       <span class="no-image-placeholder" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
@@ -377,8 +388,13 @@
       onkeydown={(event) => event.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if zoomedMenu.imageUrl}
-          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} />
+        {@const zoomedImgSrc = proxyImg(zoomedMenu.imageUrl)}
+        {#if isImageAvailable(zoomedImgSrc)}
+          <img class="lightbox-img" src={zoomedImgSrc} alt={zoomedMenu.name} onerror={() => markImageBroken(zoomedImgSrc)} />
+        {:else}
+          <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
+            <span>이미지 준비중</span>
+          </div>
         {/if}
         <div class="lightbox-info">
           <div class="lightbox-text">
@@ -905,6 +921,14 @@
     aspect-ratio: 1;
     object-fit: contain;
     background: var(--surface);
+  }
+
+  .lightbox-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 13px;
   }
 
   .lightbox-info {

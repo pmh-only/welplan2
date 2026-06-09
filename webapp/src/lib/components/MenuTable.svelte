@@ -38,6 +38,7 @@
   let loadingDetail = $state(false)
   let lightboxSrc = $state<string | null>(null)
   let lightboxAlt = $state('')
+  let brokenImageSrcs = $state<string[]>([])
   let showSelectionDetail = $state(false)
   let selectionFloatDismissed = $state(false)
   let selectedMenuIds = $state<string[]>([])
@@ -89,6 +90,15 @@
   }
 
   function closeLightbox () { lightboxSrc = null }
+
+  function isImageAvailable (src: string | undefined | null): src is string {
+    return Boolean(src && !brokenImageSrcs.includes(src))
+  }
+
+  function markImageBroken (src: string | undefined | null) {
+    if (!src || brokenImageSrcs.includes(src)) return
+    brokenImageSrcs = [...brokenImageSrcs, src]
+  }
 
   $effect(() => {
     const _menus = menus
@@ -377,10 +387,12 @@
             {/if}
             {#if hasAnyImage}
               <td class="col-img" data-label="이미지">
-                {#if imgSrc}
+                {#if isImageAvailable(imgSrc)}
                   <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" />
+                    <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" onerror={() => markImageBroken(imgSrc)} />
                   </button>
+                {:else if imgSrc}
+                  <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
                 {/if}
               </td>
             {/if}
@@ -667,7 +679,11 @@
       <X class="lightbox-close-icon" aria-hidden="true" />
     </button>
     <button type="button" class="lightbox-frame" aria-label="확대 이미지" onclick={(e) => e.stopPropagation()}>
-      <img class="lightbox-img" src={lightboxSrc} alt={lightboxAlt} />
+      {#if isImageAvailable(lightboxSrc)}
+        <img class="lightbox-img" src={lightboxSrc} alt={lightboxAlt} onerror={() => markImageBroken(lightboxSrc)} />
+      {:else}
+        <span class="lightbox-img lightbox-placeholder" aria-label="이미지 준비중">이미지 준비중</span>
+      {/if}
     </button>
   </div>
 {/if}
@@ -926,6 +942,7 @@
   .menu-row .col-img { padding: 6px 8px; }
 
   .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; display: block; }
+  .thumb-placeholder { border: 1px solid var(--border); background: var(--surface); }
   .thumb-btn { display: block; padding: 0; border: 0; background: transparent; border-radius: 6px; }
   .rest-tag { font-size: 11px; color: var(--text-dim); }
   .rest-tag-mobile { display: none; margin-bottom: 4px; }
@@ -1201,6 +1218,17 @@
     object-fit: contain; border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     cursor: default;
+  }
+  .lightbox-placeholder {
+    min-width: min(90vw, 360px);
+    min-height: min(60vh, 360px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 13px;
+    box-shadow: none;
   }
   .lightbox-frame { padding: 0; border: 0; background: transparent; cursor: default; }
   .lightbox-close {
