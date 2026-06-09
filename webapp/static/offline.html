@@ -75,6 +75,12 @@
       button:hover {
         filter: brightness(1.05);
       }
+
+      .status {
+        margin-top: 10px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
     </style>
   </head>
   <body>
@@ -82,7 +88,32 @@
       <span class="pill">오프라인</span>
       <h1>인터넷 연결이 없어 최근 캐시만 표시됩니다.</h1>
       <p>네트워크가 다시 연결되면 최신 메뉴 정보를 다시 불러올 수 있습니다. 잠시 후 네트워크 상태를 확인해 주세요.</p>
-      <button type="button" onclick="window.location.reload()">다시 연결 시도</button>
+      <button type="button" id="retry">다시 연결 시도</button>
+      <p class="status" id="status" aria-live="polite"></p>
     </main>
+    <script>
+      const status = document.getElementById('status')
+      const retryButton = document.getElementById('retry')
+
+      async function reloadWhenOnline () {
+        status.textContent = '연결 상태를 확인하는 중입니다.'
+
+        try {
+          await fetch('/api/health', { cache: 'no-store' })
+          const target = new URL(window.location.pathname === '/offline.html' ? '/' : window.location.href, window.location.origin)
+          target.searchParams.set('__welplan_retry', Date.now().toString())
+          window.location.replace(target)
+        } catch {
+          status.textContent = '아직 서버에 연결할 수 없습니다. 연결되면 자동으로 다시 시도합니다.'
+        }
+      }
+
+      retryButton.addEventListener('click', reloadWhenOnline)
+      window.addEventListener('online', reloadWhenOnline)
+
+      if (navigator.onLine) {
+        reloadWhenOnline()
+      }
+    </script>
   </body>
 </html>

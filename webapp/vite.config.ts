@@ -319,8 +319,7 @@ export default defineConfig({
             urlPattern: ({ request }) => request.mode === 'navigate',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'welplan-pages',
-              networkTimeoutSeconds: 3,
+              cacheName: 'welplan-pages-v2',
               expiration: {
                 maxEntries: 32,
                 maxAgeSeconds: 14 * 24 * 60 * 60
