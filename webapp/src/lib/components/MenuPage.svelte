@@ -78,6 +78,34 @@
     return menu.name.toLocaleLowerCase().includes(query)
   }
 
+  function menuDedupeKey(menu: Menu): string {
+    const parentName = (menu as Menu & { parentName?: string }).parentName ?? ''
+    const componentNames = menu.components.map((component) => component.name).join('|')
+    return [
+      menu.restaurantId,
+      menu.mealTimeId,
+      menu.name,
+      parentName,
+      componentNames,
+      menu.nutrition?.calories ?? '',
+      menu.nutrition?.carbohydrates ?? '',
+      menu.nutrition?.sugar ?? '',
+      menu.nutrition?.fat ?? '',
+      menu.nutrition?.protein ?? '',
+      menu.nutrition?.sodium ?? ''
+    ].join('\u001f')
+  }
+
+  function dedupeMenus(menus: Menu[]): Menu[] {
+    const seen = new Set<string>()
+    return menus.filter((menu) => {
+      const key = menuDedupeKey(menu)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+
   function menuSortKey (): 'restaurant' | 'name' | 'calories' {
     if (menuSort.startsWith('restaurant')) return 'restaurant'
     return menuSort.startsWith('name') ? 'name' : 'calories'
@@ -132,7 +160,7 @@
   })
 
   const visibleMenus = $derived(
-    data.menus
+    dedupeMenus(data.menus
       .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
@@ -148,6 +176,7 @@
           nutrition: sumNutrition(components) ?? menu.nutrition
         }
       })
+    )
   )
 
   function routeFor (date: string, time: string): string {
