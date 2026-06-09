@@ -95,6 +95,11 @@
     return Boolean(src && !brokenImageSrcs.includes(src))
   }
 
+  function availableImageSrc (menu: Menu): string | undefined {
+    const src = proxyImg(menu.imageUrl)
+    return isImageAvailable(src) ? src : undefined
+  }
+
   function markImageBroken (src: string | undefined | null) {
     if (!src || brokenImageSrcs.includes(src)) return
     brokenImageSrcs = [...brokenImageSrcs, src]
@@ -378,7 +383,6 @@
           {@const restaurant = restaurantName(menu.restaurantId)}
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
-          {@const imgSrc = proxyImg(menu.imageUrl)}
           <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
@@ -387,11 +391,11 @@
             {/if}
             {#if hasAnyImage}
               <td class="col-img" data-label="이미지">
-                {#if isImageAvailable(imgSrc)}
+                {#if availableImageSrc(menu) as imgSrc}
                   <button type="button" class="thumb-btn" onclick={(e) => openLightbox(imgSrc, menu.name, e)} aria-label={`${menu.name} 이미지 확대`}>
                     <img class="thumb thumb-clickable" src={imgSrc} alt={menu.name} loading="lazy" onerror={() => markImageBroken(imgSrc)} />
                   </button>
-                {:else if imgSrc}
+                {:else if proxyImg(menu.imageUrl)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
                 {/if}
               </td>

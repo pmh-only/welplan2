@@ -89,6 +89,11 @@
     return Boolean(src && !brokenImageSrcs.includes(src))
   }
 
+  function availableImageSrc (menu: Menu): string | undefined {
+    const src = proxyImg(menu.imageUrl)
+    return isImageAvailable(src) ? src : undefined
+  }
+
   function markImageBroken (src: string | undefined) {
     if (!src || brokenImageSrcs.includes(src)) return
     brokenImageSrcs = [...brokenImageSrcs, src]
@@ -305,8 +310,7 @@
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
-                      {@const imgSrc = proxyImg(menu.imageUrl)}
-                      {#if isImageAvailable(imgSrc)}
+                      {#if availableImageSrc(menu) as imgSrc}
                         <img class="gallery-img" src={imgSrc} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
                       {:else}
                         <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
@@ -343,8 +347,7 @@
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
-                {@const imgSrc = proxyImg(menu.imageUrl)}
-                {#if isImageAvailable(imgSrc)}
+                {#if availableImageSrc(menu) as imgSrc}
                   <img class="gallery-img" src={imgSrc} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markImageBroken(imgSrc)} />
               {:else}
                 <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
@@ -392,8 +395,7 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="lightbox-left">
-        {@const zoomedImgSrc = proxyImg(zoomedMenu.imageUrl)}
-        {#if isImageAvailable(zoomedImgSrc)}
+        {#if availableImageSrc(zoomedMenu) as zoomedImgSrc}
           <img class="lightbox-img" src={zoomedImgSrc} alt={zoomedMenu.name} onerror={() => markImageBroken(zoomedImgSrc)} />
         {:else}
           <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
