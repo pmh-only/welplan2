@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { trackEvent } from '$lib/analytics'
-  import { autoSelectMealTime, proxyImg } from '$lib/utils'
+  import { autoSelectMealTime, fallbackMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { BarChart3, ChevronDown, ChevronRight, Coins, TriangleAlert, X } from '@lucide/svelte'
 
@@ -114,8 +114,8 @@
   }
 
   function defaultExpandedMealTimeIds (): string[] {
-    const currentMealTimeId = autoSelectMealTime(mealTimes)
-    return currentMealTimeId ? [currentMealTimeId] : []
+    const currentMealTimeId = autoSelectMealTime(visibleMealTimes)
+    return currentMealTimeId ? [currentMealTimeId] : visibleMealTimes[0]?.id ? [visibleMealTimes[0].id] : []
   }
 
   function isMealTimeExpanded (mealTimeId: string): boolean {
@@ -202,10 +202,18 @@
   }
 
   const visibleMenus = $derived([...menus].sort(compareMenus))
+  const visibleMealTimes = $derived.by<MealTime[]>(() => {
+    const ids = [
+      ...mealTimes.map((mealTime) => mealTime.id),
+      ...visibleMenus.map((menu) => menu.mealTimeId)
+    ]
+
+    return [...new Set(ids)].map((id) => mealTimes.find((mealTime) => mealTime.id === id) ?? fallbackMealTime(id))
+  })
   const visibleRows = $derived.by<MenuRow[]>(() => {
     if (!groupByMealTime) return visibleMenus.map((menu) => ({ type: 'menu', menu }))
 
-    return mealTimes.flatMap((mealTime) => {
+    return visibleMealTimes.flatMap((mealTime) => {
       const sectionMenus = visibleMenus.filter((menu) => menu.mealTimeId === mealTime.id)
       if (sectionMenus.length === 0) return []
       if (!isMealTimeExpanded(mealTime.id)) {

@@ -1,7 +1,7 @@
 import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
-import { ALL_MEAL_TIME_ID, autoSelectMealTime, todayStr } from '../utils.js'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, todayStr } from '../utils.js'
 
 type ParentData = {
   restaurants: Restaurant[]
@@ -44,6 +44,7 @@ const WELSTORY_FALLBACK_MEAL_TIMES: MealTime[] = [
 
 export function mealTimesForRestaurant(restaurant: Restaurant, mealTimes: MealTime[]): MealTime[] {
   if (mealTimes.length > 0) return mealTimes
+  if (restaurant.vendor === 'shinsegae') return ['6', '1', '2', '3', '4', '5'].map(fallbackMealTime)
   return restaurant.vendor === 'welstory' ? WELSTORY_FALLBACK_MEAL_TIMES : mealTimes
 }
 
@@ -421,11 +422,16 @@ export async function redirectToCurrentMenuRoute(
   basePath: '/takein' | '/takeout'
 ) {
   const { redirect } = await import('@sveltejs/kit')
-  const { mealTimes } = await parent()
+  const { restaurants, mealTimes } = await parent()
+  const routeMealTimes = mealTimes.length > 0
+    ? mealTimes
+    : restaurants.some((restaurant) => restaurant.vendor === 'shinsegae')
+      ? ['6', '1', '2', '3', '4', '5'].map(fallbackMealTime)
+      : mealTimes
   const date = todayStr()
   const mealTimeId =
     basePath === '/takeout'
-      ? autoSelectMealTime(mealTimes) ?? mealTimes[0]?.id
+      ? autoSelectMealTime(routeMealTimes) ?? routeMealTimes[0]?.id
       : ALL_MEAL_TIME_ID
 
   if (mealTimeId) redirect(302, `${basePath}/${date}/${mealTimeId}`)

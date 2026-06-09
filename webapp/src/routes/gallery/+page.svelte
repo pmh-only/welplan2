@@ -2,7 +2,7 @@
   import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
-  import { ALL_MEAL_TIME_ID, autoSelectMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
   import { ChevronDown, ChevronRight, Utensils, X } from '@lucide/svelte'
@@ -11,15 +11,6 @@
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
   type GalleryMenu = Menu & { restaurantIds: string[] }
   type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
-
-  const fallbackMealTimeNames: Record<string, string> = {
-    '1': '아침',
-    '2': '점심',
-    '3': '저녁',
-    '4': '야식',
-    '5': '간식',
-    '6': '전체'
-  }
 
   const nutrientDefs: NutrientDef[] = [
     { key: 'calories', label: '칼로리', unit: ' kcal' },
@@ -143,10 +134,7 @@
   }
 
   function galleryMealTime(mealTimeId: string): MealTime {
-    return data.mealTimes.find((mealTime: MealTime) => mealTime.id === mealTimeId) ?? {
-      id: mealTimeId,
-      name: fallbackMealTimeNames[mealTimeId] ?? mealTimeId
-    }
+    return data.mealTimes.find((mealTime: MealTime) => mealTime.id === mealTimeId) ?? fallbackMealTime(mealTimeId)
   }
 
   function defaultExpandedMealTimeIds (): string[] {

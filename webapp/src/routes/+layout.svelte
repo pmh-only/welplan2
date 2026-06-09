@@ -15,7 +15,7 @@
     WEB_MCP_TOOLS
   } from '$lib/agent'
   import type { MealTime, Menu, Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, formatKoreanDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate } from '$lib/utils'
 
   type RouteMeta = {
     title: string
@@ -87,7 +87,7 @@
 
   function mealTimeName (mealTimes: MealTime[], id: string): string {
     if (id === ALL_MEAL_TIME_ID) return '전체'
-    return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? id
+    return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? fallbackMealTime(id).name
   }
 
   function isRestaurant (value: unknown): value is Restaurant {

@@ -2,6 +2,19 @@ import type { MealTime } from './types.js'
 
 export const ALL_MEAL_TIME_ID = 'all'
 
+export const FALLBACK_MEAL_TIME_NAMES: Record<string, string> = {
+  '1': '아침',
+  '2': '점심',
+  '3': '저녁',
+  '4': '야식',
+  '5': '간식',
+  '6': '전체'
+}
+
+export function fallbackMealTime(id: string): MealTime {
+  return { id, name: FALLBACK_MEAL_TIME_NAMES[id] ?? id }
+}
+
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }

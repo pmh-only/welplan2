@@ -1,7 +1,7 @@
 import type { Cookies } from '@sveltejs/kit'
 import { service } from '$lib/server/service'
 import type { Restaurant } from '$lib/types'
-import { todayStr } from '$lib/utils'
+import { fallbackMealTime, todayStr } from '$lib/utils'
 
 const COOKIE = 'welplan_restaurants'
 
@@ -28,7 +28,8 @@ async function hasTakeOutMenus(restaurants: Restaurant[]): Promise<boolean> {
 
   const date = todayStr()
   for (const restaurant of restaurants) {
-    const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+    const fetchedMealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+    const mealTimes = fetchedMealTimes.length > 0 ? fetchedMealTimes : ['6', '1', '2', '3', '4', '5'].map(fallbackMealTime)
     for (const mealTime of mealTimes) {
       const menus = await service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
       if (menus.some((menu) => menu.isTakeOut)) return true

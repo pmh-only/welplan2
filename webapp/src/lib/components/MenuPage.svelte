@@ -4,7 +4,7 @@
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, fallbackMealTime, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
   import { Check, ChevronLeft, ChevronRight, Search, Store } from '@lucide/svelte'
 
   const LS_TAKEOUT_RESTAURANT = 'welplan_takeout_restaurant'
@@ -165,7 +165,7 @@
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
       .filter((menu: Menu) => kind !== 'takeout' || matchesTakeOutSearch(menu))
-      .filter((menu: Menu) => (menu.nutrition?.calories ?? 1) !== 0)
+      .filter((menu: Menu) => menu.vendor === 'shinsegae' || (menu.nutrition?.calories ?? 1) !== 0)
       .map((menu: Menu) => {
         if (kind !== 'takein') return menu
 
@@ -178,6 +178,14 @@
       })
     )
   )
+  const visibleMealTimes = $derived.by<MealTime[]>(() => {
+    const ids = [
+      ...data.mealTimes.map((mealTime: MealTime) => mealTime.id),
+      ...visibleMenus.map((menu: Menu) => menu.mealTimeId)
+    ]
+
+    return [...new Set(ids)].map((id) => data.mealTimes.find((mealTime: MealTime) => mealTime.id === id) ?? fallbackMealTime(id))
+  })
 
   function routeFor (date: string, time: string): string {
     return `/${kind}/${date}/${time}`
@@ -249,7 +257,7 @@
             {#if kind === 'takein'}
               <option value={ALL_MEAL_TIME_ID}>전체</option>
             {/if}
-            {#each data.mealTimes as mealTime (mealTime.id)}
+            {#each visibleMealTimes as mealTime (mealTime.id)}
               <option value={mealTime.id}>{mealTime.name}</option>
             {/each}
           </select>
@@ -329,7 +337,7 @@
     <MenuTable
       menus={visibleMenus}
       restaurants={data.restaurants}
-      mealTimes={data.mealTimes}
+      mealTimes={visibleMealTimes}
       date={data.date}
       time={data.time}
       emptyMessage={`${pageLabel} 메뉴가 없습니다`}
