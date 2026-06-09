@@ -13,7 +13,7 @@
     OPENAPI_PATH,
     WEB_MCP_TOOLS
   } from '$lib/agent'
-  import type { MealTime, Restaurant } from '$lib/types'
+  import type { MealTime, Menu, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, formatKoreanDate } from '$lib/utils'
 
   type RouteMeta = {
@@ -23,6 +23,8 @@
     robots: string
     keywords: string
   }
+
+  type JsonLdValue = Record<string, unknown>
 
   type PageTip = {
     title: string
@@ -45,6 +47,9 @@
 
   const INDEXABLE_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
   const NOINDEX_ROBOTS = 'noindex, follow'
+  const SITE_NAME = 'Welplan'
+  const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
+  const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
     '웰스토리 식단표',
@@ -99,6 +104,174 @@
 
   function vendorName (vendor: string): string {
     return vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
+  }
+
+  function jsonLdScript (value: JsonLdValue): string {
+    return `<script type="application/ld+json">${JSON.stringify(value).replace(/</g, '\\u003c')}</scr` + 'ipt>'
+  }
+
+  function breadcrumbName (segment: string, pathname: string, restaurant?: Restaurant): string {
+    if (segment === 'restaurants') return '식당'
+    if (segment === 'gallery') return '메뉴 갤러리'
+    if (segment === 'takein') return '테이크인'
+    if (segment === 'takeout') return '테이크아웃'
+    if (segment === 'docs') return '문서'
+    if (segment === 'api') return 'API'
+    if (/^\d{8}$/.test(segment)) return formatKoreanDate(segment)
+    if (restaurant && segment === restaurant.vendor) return vendorName(restaurant.vendor)
+    if (restaurant && segment === restaurant.id) return restaurant.name
+    if (restaurant && pathname.includes(`/${restaurant.id}/`) && !['restaurants', restaurant.vendor].includes(segment)) return restaurant.name
+    return decodeURIComponent(segment).replace(/-/g, ' ')
+  }
+
+  function breadcrumbJsonLd (pathname: string, origin: string, restaurant?: Restaurant): JsonLdValue | undefined {
+    const segments = pathname.split('/').filter(Boolean)
+    if (segments.length === 0) return undefined
+
+    const itemListElement = [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: SITE_NAME,
+        item: `${origin}/`
+      },
+      ...segments.map((segment, index) => {
+        const itemPath = `/${segments.slice(0, index + 1).join('/')}`
+        return {
+          '@type': 'ListItem',
+          position: index + 2,
+          name: breadcrumbName(segment, pathname, restaurant),
+          item: new URL(itemPath, origin).toString()
+        }
+      })
+    ]
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement
+    }
+  }
+
+  function menuJsonLd (menus: Menu[], mealTimes: MealTime[]): JsonLdValue | undefined {
+    const visibleMenus = menus.slice(0, 60)
+    if (visibleMenus.length === 0) return undefined
+
+    return {
+      '@type': 'Menu',
+      hasMenuSection: mealTimes
+        .map((mealTime) => {
+          const sectionMenus = visibleMenus.filter((menu) => menu.mealTimeId === mealTime.id)
+          if (sectionMenus.length === 0) return undefined
+
+          return {
+            '@type': 'MenuSection',
+            name: mealTime.name,
+            hasMenuItem: sectionMenus.map((menu) => ({
+              '@type': 'MenuItem',
+              name: menu.name,
+              image: menu.imageUrl,
+              nutrition: menu.nutrition?.calories == null
+                ? undefined
+                : {
+                    '@type': 'NutritionInformation',
+                    calories: `${Math.round(menu.nutrition.calories)} calories`
+                  }
+            }))
+          }
+        })
+        .filter(Boolean)
+    }
+  }
+
+  function jsonLdForPage (
+    pathname: string,
+    origin: string,
+    canonicalUrl: string,
+    routeMeta: RouteMeta,
+    restaurant?: Restaurant,
+    pageData?: unknown
+  ): JsonLdValue[] {
+    const organizationId = `${origin}/#organization`
+    const websiteId = `${origin}/#website`
+    const graph: JsonLdValue[] = [
+      {
+        '@type': 'Organization',
+        '@id': organizationId,
+        name: SITE_NAME,
+        url: origin,
+        logo: new URL('/favicon.svg', origin).toString(),
+        sameAs: [GITHUB_URL]
+      },
+      {
+        '@type': 'WebSite',
+        '@id': websiteId,
+        name: SITE_NAME,
+        url: origin,
+        description: SITE_DESCRIPTION,
+        inLanguage: 'ko-KR',
+        publisher: { '@id': organizationId },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${origin}/proxy/search?q={search_term_string}`
+          },
+          'query-input': 'required name=search_term_string'
+        }
+      },
+      {
+        '@type': 'WebApplication',
+        '@id': `${origin}/#webapp`,
+        name: SITE_NAME,
+        url: origin,
+        description: SITE_DESCRIPTION,
+        applicationCategory: 'FoodAndDrinkApplication',
+        operatingSystem: 'Any',
+        inLanguage: 'ko-KR',
+        isAccessibleForFree: true,
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'KRW'
+        },
+        publisher: { '@id': organizationId }
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        url: canonicalUrl,
+        name: routeMeta.title,
+        description: routeMeta.description,
+        inLanguage: 'ko-KR',
+        isPartOf: { '@id': websiteId }
+      }
+    ]
+
+    const breadcrumb = breadcrumbJsonLd(pathname, origin, restaurant)
+    if (breadcrumb) graph.push(breadcrumb)
+
+    if (restaurant && pageData && typeof pageData === 'object') {
+      const typedData = pageData as { menus?: Menu[], mealTimes?: MealTime[], date?: string }
+      const vendorLabel = vendorName(restaurant.vendor)
+      const menu = menuJsonLd(typedData.menus ?? [], typedData.mealTimes ?? [])
+      graph.push({
+        '@type': 'Restaurant',
+        '@id': `${canonicalUrl}#restaurant`,
+        name: restaurant.name,
+        url: canonicalUrl,
+        description: `${vendorLabel} ${restaurant.name} 식단표`,
+        servesCuisine: 'Korean',
+        provider: {
+          '@type': 'Organization',
+          name: vendorLabel
+        },
+        hasMenu: menu,
+        image: (typedData.menus ?? []).find((menuItem) => menuItem.imageUrl)?.imageUrl
+      })
+    }
+
+    return [{ '@context': 'https://schema.org', '@graph': graph }]
   }
 
   function routeMetaFor (pathname: string, mealTimes: MealTime[], restaurant?: Restaurant): RouteMeta {
@@ -428,14 +601,20 @@
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
+  const jsonLd = $derived(jsonLdForPage(page.url.pathname, page.url.origin, canonicalUrl, routeMeta, restaurantMeta, page.data))
 </script>
 
 <svelte:head>
   <title>{routeMeta.title}</title>
   <meta name="application-name" content="Welplan" />
+  <meta name="author" content="Welplan" />
+  <meta name="creator" content="Welplan" />
+  <meta name="publisher" content="Welplan" />
   <meta name="description" content={routeMeta.description} />
   <meta name="keywords" content={routeMeta.keywords} />
   <meta name="robots" content={routeMeta.robots} />
+  <meta name="googlebot" content={routeMeta.robots} />
+  <meta name="bingbot" content={routeMeta.robots} />
   <meta name="theme-color" content="#0f172a" />
   <meta property="og:locale" content="ko_KR" />
   <meta property="og:site_name" content="Welplan" />
@@ -444,13 +623,16 @@
   <meta property="og:description" content={routeMeta.description} />
   <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={ogImageWebpUrl} />
+  <meta property="og:image:secure_url" content={ogImageWebpUrl} />
   <meta property="og:image:type" content="image/webp" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={`${routeMeta.ogTitle} 대표 이미지`} />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={routeMeta.ogTitle} />
   <meta name="twitter:description" content={routeMeta.description} />
   <meta name="twitter:image" content={ogImageWebpUrl} />
+  <meta name="twitter:image:alt" content={`${routeMeta.ogTitle} 대표 이미지`} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
   <link rel="alternate" type="application/rss+xml" title="Welplan RSS" href={rssUrl} />
@@ -462,23 +644,9 @@
   {#if isRestaurantDetailPage}
     <link rel="alternate" type="text/markdown" href={canonicalUrl} />
   {/if}
-  {#if page.url.pathname === '/' || page.url.pathname.startsWith('/gallery')}
-    {@html `<script type="application/ld+json">${JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'WebSite',
-      name: 'Welplan',
-      url: page.url.origin,
-      description: '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스',
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: {
-          '@type': 'EntryPoint',
-          urlTemplate: `${page.url.origin}/proxy/search?q={search_term_string}`
-        },
-        'query-input': 'required name=search_term_string'
-      }
-    })}</script>`}
-  {/if}
+  {#each jsonLd as item}
+    {@html jsonLdScript(item)}
+  {/each}
 </svelte:head>
 
 <div class="app">
