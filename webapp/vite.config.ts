@@ -11,7 +11,6 @@ export default defineConfig({
       includeAssets: [
         'apple-touch-icon.png',
         'favicon.svg',
-        'offline.html',
         'og-image.webp'
       ],
       includeManifestIcons: true,
@@ -272,20 +271,8 @@ export default defineConfig({
         globIgnores: ['**/node_modules/**', '**/workbox-*.js'],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^gclid$/],
         cleanupOutdatedCaches: true,
-        clientsClaim: false,
-        skipWaiting: false,
-        navigateFallback: '/offline.html',
-        navigateFallbackDenylist: [
-          /^\/api\//,
-          /^\/admin\//,
-          /^\/img\//,
-          /^\/proxy\//,
-          /^\/\.well-known\//,
-          /^\/openapi\.json$/,
-          /^\/robots\.txt$/,
-          /^\/sitemap\.xml$/,
-          /^\/rss(?:\/.*|\.xml)$/
-        ],
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/_app/immutable/'),
