@@ -39,8 +39,56 @@ export default defineConfig({
         },
         icons: [
           {
+            src: '/manifest-icon-48.webp',
+            sizes: '48x48',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-72.webp',
+            sizes: '72x72',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-96.webp',
+            sizes: '96x96',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-128.webp',
+            sizes: '128x128',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-144.webp',
+            sizes: '144x144',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-152.webp',
+            sizes: '152x152',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-180.webp',
+            sizes: '180x180',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
             src: '/manifest-icon-192.webp',
             sizes: '192x192',
+            type: 'image/webp',
+            purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-384.webp',
+            sizes: '384x384',
             type: 'image/webp',
             purpose: 'any'
           },
@@ -49,6 +97,18 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/webp',
             purpose: 'any'
+          },
+          {
+            src: '/manifest-icon-maskable-192.webp',
+            sizes: '192x192',
+            type: 'image/webp',
+            purpose: 'maskable'
+          },
+          {
+            src: '/manifest-icon-maskable-384.webp',
+            sizes: '384x384',
+            type: 'image/webp',
+            purpose: 'maskable'
           },
           {
             src: '/manifest-icon-maskable-512.webp',
