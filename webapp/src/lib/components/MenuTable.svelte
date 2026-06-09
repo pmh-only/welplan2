@@ -13,7 +13,8 @@
     emptyMessage,
     preferInlineComponents = false,
     enableSelection = false,
-    groupByMealTime = false
+    groupByMealTime = false,
+    hideRestaurantLabels = false
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -24,6 +25,7 @@
     preferInlineComponents?: boolean
     enableSelection?: boolean
     groupByMealTime?: boolean
+    hideRestaurantLabels?: boolean
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -320,7 +322,7 @@
         <tr>
           {#if enableSelection}<th class="col-check"></th>{/if}
           {#if hasAnyImage}<th class="col-img"></th>{/if}
-          <th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>
+          {#if !hideRestaurantLabels}<th class="col-rest hide-sm"><button type="button" class="sort-btn" onclick={() => toggleSort('restaurant')}>식당 {sortArrow('restaurant')}</button></th>{/if}
           <th class="col-name"><button type="button" class="sort-btn" onclick={() => toggleSort('name')}>메뉴 {sortArrow('name')}</button></th>
           <th class="col-num"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('calories')}>칼로리 {sortArrow('calories')}</button></th>
           <th class="col-num hide-sm"><button type="button" class="sort-btn sort-btn-right" onclick={() => toggleSort('carbohydrates')}>탄수화물 {sortArrow('carbohydrates')}</button></th>
@@ -335,7 +337,7 @@
           {#if row.type === 'mealTime'}
             {@const isExpanded = isMealTimeExpanded(row.mealTime.id)}
             <tr class="meal-time-row">
-              <th colspan={enableSelection ? 10 : 9}>
+              <th colspan={(enableSelection ? 10 : 9) - (hideRestaurantLabels ? 1 : 0)}>
                 <button
                   type="button"
                   class="meal-time-toggle"
@@ -358,10 +360,11 @@
           {@const isExpanded = expandedMenuId === key}
           {@const canExpand = isExpandable(menu)}
           {@const selected = isSelected(key)}
+          {@const restaurant = restaurantName(menu.restaurantId)}
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
           {@const imgSrc = proxyImg(menu.imageUrl)}
-          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection && !canExpand) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
+          <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
                 <input type="checkbox" checked={selected} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelection(key)} />
@@ -376,18 +379,25 @@
                 {/if}
               </td>
             {/if}
-            <td class="col-rest hide-sm" data-label="식당">
-              <span class="rest-tag">{restaurantName(menu.restaurantId)}</span>
-            </td>
+            {#if !hideRestaurantLabels}
+              <td class="col-rest hide-sm" data-label="식당">
+                <span class="rest-tag">{restaurant}</span>
+              </td>
+            {/if}
             <td class="col-name" data-label="메뉴">
-              {#if preferInlineComponents || enableSelection}
-                <span class="rest-tag rest-tag-mobile">{restaurantName(menu.restaurantId)}</span>
+              {#if (preferInlineComponents || enableSelection) && !hideRestaurantLabels && !parentName}
+                <span class="rest-tag rest-tag-mobile">{restaurant}</span>
               {/if}
-              {#if parentName}
+              {#if parentName && !hideRestaurantLabels}
                 <span class="menu-parent">{parentName}</span>
               {/if}
               <span class="menu-name">{menu.name}</span>
               {#if menu.isTakeOut}<span class="badge">포장</span>{/if}
+              {#if enableSelection && canExpand}
+                <button type="button" class="detail-toggle-btn" onclick={(e) => { e.stopPropagation(); toggleMenu(menu) }}>
+                  {isExpanded ? '상세 닫기' : '상세'}
+                </button>
+              {/if}
               {#if preferInlineComponents && menu.components.length > 0}
                 <span class="menu-desc">{menu.components.map((c) => c.name).join(' · ')}</span>
               {:else if preferInlineComponents && menu.vendor === 'shinsegae'}
@@ -470,7 +480,7 @@
       <div class="selected-info">
         <div class="selected-count-mobile">
           <BarChart3 class="inline-icon" aria-hidden="true" />
-          {selectedMenus.length}개 항목 선택
+          {selectedCoinTotal}/4 Coin · {selectedMenus.length}개 항목 선택
         </div>
         <div class="selected-items-mobile">{selectedItemsText}</div>
       </div>
@@ -927,6 +937,21 @@
   .menu-desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
   .menu-desc-unavailable { font-style: italic; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-sans); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
+  .detail-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .detail-toggle-btn:hover { border-color: #94a3b8; color: var(--text); background: var(--surface-hover); }
 
   .detail-row td { padding: 0 12px 14px 76px; background: var(--surface); border-bottom: 1px solid var(--border); }
   .detail-table-wrap { overflow-x: auto; }
@@ -987,10 +1012,10 @@
     }
     .menu-table.selection-mode .menu-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto repeat(3, minmax(0, 1fr));
       gap: 8px 10px;
-      margin-bottom: 10px;
-      padding: 12px;
+      margin-bottom: 8px;
+      padding: 10px;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--bg);
@@ -1005,7 +1030,7 @@
     }
     .menu-table.selection-mode .menu-row .col-check {
       grid-column: 1;
-      grid-row: 1 / 3;
+      grid-row: 1 / 4;
       width: auto;
       padding-top: 2px;
     }
@@ -1014,19 +1039,14 @@
       height: 20px;
       accent-color: #10b981;
     }
-    .menu-table.selection-mode .menu-row .col-img {
-      grid-column: 3;
-      grid-row: 1 / 3;
-      width: auto;
-      padding: 0;
-    }
+    .menu-table.selection-mode .menu-row .col-img { display: none; }
     .menu-table.selection-mode .menu-row .col-rest {
-      grid-column: 2;
+      grid-column: 2 / -1;
       grid-row: 1;
       width: auto;
     }
     .menu-table.selection-mode .menu-row .col-name {
-      grid-column: 2;
+      grid-column: 2 / -1;
       grid-row: 2;
       min-width: 0;
     }
@@ -1035,18 +1055,21 @@
       align-items: center;
       justify-content: space-between;
       gap: 4px;
+      grid-column: auto;
+      grid-row: 3;
       width: auto;
       min-width: 0;
-      padding: 4px 8px;
+      padding: 3px 8px;
       border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--surface);
       color: var(--text-muted);
       font-family: var(--font-sans);
-      font-size: 11px;
+      font-size: 10px;
       line-height: 1.2;
       white-space: nowrap;
     }
+    .menu-table.selection-mode .menu-row .col-num.hide-sm { display: none; }
     .menu-table.selection-mode .menu-row .col-num::before {
       content: attr(data-label);
       color: var(--text-dim);
@@ -1113,7 +1136,7 @@
       position: fixed;
       left: 0;
       right: 0;
-      bottom: 0;
+      bottom: calc(62px + env(safe-area-inset-bottom, 0px));
       z-index: 45;
       background: #fff;
       border-top: 1px solid var(--border);

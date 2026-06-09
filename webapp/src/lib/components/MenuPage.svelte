@@ -253,6 +253,7 @@
       preferInlineComponents={kind === 'takein'}
       enableSelection={kind === 'takeout'}
       groupByMealTime={isAllMealTime}
+      hideRestaurantLabels={kind === 'takeout'}
     />
   </div>
 {/if}
@@ -385,6 +386,16 @@
   .select-input:focus { border-color: var(--border-focus); }
 
   @media (max-width: 640px) {
-    .controls-row { width: 100%; }
+    .section-head { padding: 12px; }
+    .section-head-left { width: 100%; }
+    .controls-row { width: 100%; gap: 6px; }
+    .form-group { min-width: 0; }
+    .date-row { width: 100%; }
+    .date-input { flex: 1; min-width: 0; }
+    .select-input { min-width: 0; }
+    #meal-time-select { width: 96px; }
+    .takeout-restaurant-group { flex: 1 1 160px; min-width: 0; }
+    #takeout-restaurant-select { width: 100%; }
+    .chip-group { flex: 0 0 auto; }
   }
 </style>
