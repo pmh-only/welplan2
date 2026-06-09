@@ -26,6 +26,11 @@
 
   type JsonLdValue = Record<string, unknown>
 
+  type BeforeInstallPromptEvent = Event & {
+    platforms?: string[]
+    prompt: () => Promise<{ outcome: 'accepted' | 'dismissed', platform?: string }>
+  }
+
   type PageTip = {
     title: string
     items: string[]
@@ -414,6 +419,8 @@
   let noticeOpen = $state(false)
   let updateAvailable = $state(false)
   let offlineReady = $state(false)
+  let installAvailable = $state(false)
+  let installPromptEvent = $state<BeforeInstallPromptEvent | undefined>()
   let waitingServiceWorker: ServiceWorker | undefined
 
   function dismissPageTip () {
@@ -423,6 +430,25 @@
 
   function applyAppUpdate () {
     waitingServiceWorker?.postMessage({ type: 'SKIP_WAITING' })
+  }
+
+  function clearInstallPrompt () {
+    installPromptEvent = undefined
+    installAvailable = false
+  }
+
+  async function installApp () {
+    if (!installPromptEvent) return
+    const promptEvent = installPromptEvent
+    clearInstallPrompt()
+    await promptEvent.prompt().catch(() => undefined)
+  }
+
+  function isInstalledDisplayMode () {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
   }
 
   async function requestPersistentStorage () {
@@ -492,6 +518,16 @@
 
     registerServiceWorker().catch(() => {})
 
+    function handleBeforeInstallPrompt (event: Event) {
+      if (isInstalledDisplayMode()) return
+      event.preventDefault()
+      installPromptEvent = event as BeforeInstallPromptEvent
+      installAvailable = true
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', clearInstallPrompt)
+
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
         registerTool?: (
@@ -509,7 +545,12 @@
     }
 
     const modelContext = navigatorWithModelContext.modelContext
-    if (!modelContext?.registerTool) return
+    if (!modelContext?.registerTool) {
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+        window.removeEventListener('appinstalled', clearInstallPrompt)
+      }
+    }
 
     const controller = new AbortController()
 
@@ -580,6 +621,8 @@
 
     return () => {
       controller.abort()
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', clearInstallPrompt)
     }
   })
 
@@ -689,17 +732,22 @@
     </section>
   {/if}
 
-  {#if updateAvailable || offlineReady}
+  {#if updateAvailable || installAvailable || offlineReady}
     <section class="pwa-status" aria-live="polite" aria-label="앱 상태">
       <div>
-        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
-        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
+        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : installAvailable ? 'Welplan 앱을 설치할 수 있습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
+        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : installAvailable ? '홈 화면이나 작업 표시줄에서 바로 열고 더 빠르게 식단을 확인하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
       </div>
-      {#if updateAvailable}
-        <button type="button" onclick={applyAppUpdate}>업데이트</button>
-      {:else}
-        <button type="button" onclick={() => { offlineReady = false }}>확인</button>
-      {/if}
+      <div class="pwa-status-actions">
+        {#if updateAvailable}
+          <button type="button" onclick={applyAppUpdate}>업데이트</button>
+        {:else if installAvailable}
+          <button type="button" onclick={installApp}>설치</button>
+          <button type="button" class="pwa-status-secondary" onclick={clearInstallPrompt}>나중에</button>
+        {:else}
+          <button type="button" onclick={() => { offlineReady = false }}>확인</button>
+        {/if}
+      </div>
     </section>
   {/if}
 
@@ -918,6 +966,12 @@
     line-height: 1.45;
   }
 
+  .pwa-status-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .pwa-status button {
     border: 0;
     border-radius: 999px;
@@ -931,6 +985,15 @@
 
   .pwa-status button:hover {
     background: #e0f2fe;
+  }
+
+  .pwa-status .pwa-status-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+  }
+
+  .pwa-status .pwa-status-secondary:hover {
+    background: rgba(255, 255, 255, 0.18);
   }
 
   .github-ribbon {
