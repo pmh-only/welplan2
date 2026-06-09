@@ -1066,6 +1066,35 @@
     border-radius: 2px;
   }
 
+  @media (display-mode: window-controls-overlay) {
+    header {
+      min-height: max(52px, env(titlebar-area-height, 52px));
+      -webkit-app-region: drag;
+      app-region: drag;
+    }
+
+    .header-inner {
+      width: env(titlebar-area-width, 100%);
+      max-width: none;
+      height: max(52px, env(titlebar-area-height, 52px));
+      margin-left: env(titlebar-area-x, 0);
+      margin-right: 0;
+      padding-left: max(20px, env(safe-area-inset-left));
+      padding-right: 20px;
+    }
+
+    .brand,
+    .header-nav,
+    .tab-btn,
+    .github-ribbon,
+    .pwa-status,
+    button,
+    a {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+    }
+  }
+
   .content {
     max-width: 1200px;
     margin: 0 auto;
