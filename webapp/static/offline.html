@@ -94,26 +94,32 @@
     <script>
       const status = document.getElementById('status')
       const retryButton = document.getElementById('retry')
+      let retrying = false
 
       async function reloadWhenOnline () {
+        if (retrying) return
+        retrying = true
+        retryButton.disabled = true
         status.textContent = '연결 상태를 확인하는 중입니다.'
 
         try {
-          await fetch('/api/health', { cache: 'no-store' })
+          const response = await fetch(`/api/health?__welplan_health=${Date.now()}`, { cache: 'no-store' })
+          if (!response.ok) throw new Error(`Health check failed: ${response.status}`)
+
           const target = new URL(window.location.pathname === '/offline.html' ? '/' : window.location.href, window.location.origin)
-          target.searchParams.set('__welplan_retry', Date.now().toString())
+          if (!target.searchParams.has('__welplan_retry')) {
+            target.searchParams.set('__welplan_retry', '1')
+          }
           window.location.replace(target)
         } catch {
-          status.textContent = '아직 서버에 연결할 수 없습니다. 연결되면 자동으로 다시 시도합니다.'
+          retrying = false
+          retryButton.disabled = false
+          status.textContent = '아직 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.'
         }
       }
 
       retryButton.addEventListener('click', reloadWhenOnline)
       window.addEventListener('online', reloadWhenOnline)
-
-      if (navigator.onLine) {
-        reloadWhenOnline()
-      }
     </script>
   </body>
 </html>
