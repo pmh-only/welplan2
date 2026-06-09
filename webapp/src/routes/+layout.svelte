@@ -426,6 +426,7 @@
   let firstVisitDialogOpen = $state(false)
   let dialogRestaurants = $state<Restaurant[]>([])
   let restaurantQuery = $state('')
+  let allDialogRestaurants = $state<Restaurant[]>([])
   let restaurantSearchResults = $state<Restaurant[]>([])
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
@@ -435,7 +436,12 @@
   let installPromptEvent = $state<BeforeInstallPromptEvent | undefined>()
   let waitingServiceWorker: ServiceWorker | undefined
 
-  const dialogRestaurantIds = $derived(new Set(dialogRestaurants.map((restaurant) => restaurant.id)))
+  const dialogRestaurantIds = $derived(new Set(dialogRestaurants.map((restaurant) => restaurantKey(restaurant))))
+  const visibleRestaurantSearchResults = $derived(restaurantQuery.trim() ? restaurantSearchResults : allDialogRestaurants)
+
+  function restaurantKey (restaurant: Restaurant): string {
+    return `${restaurant.vendor}:${restaurant.id}:${restaurant.name}:${restaurantPathText(restaurant)}`
+  }
 
   $effect(() => {
     if (!firstVisitDialogOpen) dialogRestaurants = data.restaurants ?? []
@@ -450,6 +456,26 @@
     }
   })
 
+  $effect(() => {
+    if (!browser || !showFirstVisitDialog || restaurantQuery.trim() || restaurantSearching || allDialogRestaurants.length) return
+    loadAllDialogRestaurants()
+  })
+
+  async function loadAllDialogRestaurants () {
+    restaurantSearching = true
+    restaurantSearchError = ''
+    try {
+      const response = await fetch('/proxy/search?q=')
+      if (!response.ok) throw new Error('검색 실패')
+      allDialogRestaurants = await response.json()
+    } catch (error) {
+      restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
+      allDialogRestaurants = []
+    } finally {
+      restaurantSearching = false
+    }
+  }
+
   function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
     document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
@@ -457,19 +483,22 @@
   }
 
   function addDialogRestaurant (restaurant: Restaurant) {
-    if (dialogRestaurantIds.has(restaurant.id)) return
+    if (dialogRestaurantIds.has(restaurantKey(restaurant))) return
     trackEvent('Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
     persistDialogRestaurants([...dialogRestaurants, restaurant])
   }
 
   function removeDialogRestaurant (restaurant: Restaurant) {
     trackEvent('Restaurant Removed', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
-    persistDialogRestaurants(dialogRestaurants.filter((item) => item.id !== restaurant.id))
+    persistDialogRestaurants(dialogRestaurants.filter((item) => restaurantKey(item) !== restaurantKey(restaurant)))
   }
 
   async function searchDialogRestaurants () {
     const query = restaurantQuery.trim()
-    if (!query) { restaurantSearchResults = []; return }
+    if (!query) {
+      if (allDialogRestaurants.length === 0) loadAllDialogRestaurants()
+      return
+    }
     restaurantSearching = true
     restaurantSearchError = ''
     try {
@@ -587,6 +616,7 @@
     pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
     firstVisitDialogOpen = data.isFirstVisit
     dialogRestaurants = data.restaurants ?? []
+    if (firstVisitDialogOpen) loadAllDialogRestaurants()
 
     requestPersistentStorage()
 
@@ -835,7 +865,6 @@
       <div class="first-visit-dialog" role="dialog" aria-modal="true" aria-labelledby="first-visit-title">
         <div class="first-visit-head">
           <div>
-            <p class="first-visit-eyebrow">첫 방문 설정</p>
             <h2 id="first-visit-title">자주 이용하는 식당을 선택해 주세요</h2>
             <p>선택한 식당 기준으로 갤러리, 테이크인, 테이크아웃 메뉴가 표시됩니다.</p>
           </div>
@@ -852,10 +881,13 @@
             </div>
 
             {#if dialogRestaurants.length === 0}
-              <div class="first-visit-empty">추가된 식당이 없습니다. 오른쪽 검색에서 식당을 추가하세요.</div>
+                <div class="first-visit-empty first-visit-empty-selected">
+                  <Store class="first-visit-empty-icon" aria-hidden="true" />
+                  <span>추가된 식당이 없습니다. 검색에서 식당을 추가하세요.</span>
+                </div>
             {:else}
               <ul class="first-visit-list">
-                {#each dialogRestaurants as restaurant (restaurant.id)}
+                {#each dialogRestaurants as restaurant (restaurantKey(restaurant))}
                   <li class="first-visit-item">
                     <div class="first-visit-restaurant">
                       <p>{restaurant.name}</p>
@@ -889,12 +921,12 @@
 
             {#if restaurantSearchError}
               <p class="first-visit-error">{restaurantSearchError}</p>
-            {:else if restaurantSearchResults.length === 0 && restaurantQuery.trim() && !restaurantSearching}
+            {:else if visibleRestaurantSearchResults.length === 0 && restaurantQuery.trim() && !restaurantSearching}
               <div class="first-visit-empty">검색 결과가 없습니다.</div>
-            {:else if restaurantSearchResults.length > 0}
+            {:else if visibleRestaurantSearchResults.length > 0}
               <ul class="first-visit-list">
-                {#each restaurantSearchResults as restaurant (restaurant.id)}
-                  {@const added = dialogRestaurantIds.has(restaurant.id)}
+                {#each visibleRestaurantSearchResults as restaurant (restaurantKey(restaurant))}
+                  {@const added = dialogRestaurantIds.has(restaurantKey(restaurant))}
                   <li class="first-visit-item" class:first-visit-item-added={added}>
                     <div class="first-visit-restaurant">
                       <p>{restaurant.name}</p>
@@ -1175,13 +1207,13 @@
   }
 
   .first-visit-dialog {
-    width: min(980px, 100%);
-    max-height: min(760px, calc(100vh - 40px));
+    width: min(1120px, 100%);
+    height: min(920px, calc(100vh - 24px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 24px;
+    border: 0;
+    border-radius: 14px;
     background: #f8fafc;
     box-shadow: 0 30px 80px rgba(15, 23, 42, 0.34);
   }
@@ -1191,7 +1223,7 @@
     justify-content: space-between;
     gap: 18px;
     padding: 22px 24px 18px;
-    background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+    background: #0f172a;
     color: #f8fafc;
   }
 
@@ -1238,6 +1270,7 @@
   }
 
   .first-visit-grid {
+    flex: 1;
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1248,11 +1281,17 @@
 
   .first-visit-panel {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: #fff;
     box-shadow: var(--shadow-sm);
+  }
+
+  .first-visit-panel[aria-labelledby="first-visit-search-title"] {
+    order: -1;
   }
 
   .first-visit-panel-head {
@@ -1284,7 +1323,8 @@
   }
 
   .first-visit-list {
-    max-height: 314px;
+    flex: 1;
+    min-height: 0;
     overflow: auto;
     list-style: none;
     display: flex;
@@ -1445,6 +1485,22 @@
   .first-visit-empty {
     color: var(--text-dim);
     font-style: italic;
+  }
+
+  .first-visit-empty-selected {
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 12px;
+    text-align: center;
+  }
+
+  :global(.first-visit-empty-icon) {
+    width: 44px;
+    height: 44px;
+    color: #94a3b8;
+    stroke-width: 1.8;
   }
 
   .first-visit-error {
@@ -1795,6 +1851,10 @@
       gap: 12px;
       padding: 12px;
       overflow: hidden;
+    }
+
+    .first-visit-panel[aria-labelledby="first-visit-search-title"] {
+      order: 0;
     }
 
     .first-visit-panel[aria-labelledby="first-visit-search-title"] {

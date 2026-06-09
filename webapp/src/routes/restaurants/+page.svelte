@@ -4,7 +4,8 @@
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
   import { todayStr } from '$lib/utils'
-  import { Check, Search } from '@lucide/svelte'
+  import { Check, Search, Store } from '@lucide/svelte'
+  import { onMount } from 'svelte'
 
   type RestaurantsPageData = {
     restaurants: Restaurant[]
@@ -17,11 +18,17 @@
   $effect(() => { restaurants = data.restaurants })
 
   let query = $state('')
+  let allRestaurants = $state<Restaurant[]>([])
   let searchResults = $state<Restaurant[]>([])
   let searching = $state(false)
   let searchError = $state('')
 
-  const myIds = $derived(new Set(restaurants.map((r: Restaurant) => r.id)))
+  const myIds = $derived(new Set(restaurants.map((r: Restaurant) => restaurantKey(r))))
+  const visibleSearchResults = $derived(query.trim() ? searchResults : allRestaurants)
+
+  function restaurantKey (restaurant: Restaurant) {
+    return `${restaurant.vendor}:${restaurant.id}:${restaurant.name}:${pathText(restaurant)}`
+  }
 
   function pathText (restaurant: Restaurant) {
     return restaurant.path?.filter(Boolean).join(' / ') ?? ''
@@ -38,7 +45,7 @@
   }
 
   function addRestaurant (r: Restaurant) {
-    if (!myIds.has(r.id)) {
+    if (!myIds.has(restaurantKey(r))) {
       trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id })
       saveRestaurants([...restaurants, r])
     }
@@ -46,12 +53,30 @@
 
   function removeRestaurant (r: Restaurant) {
     trackEvent('Restaurant Removed', { vendor: r.vendor, restaurantId: r.id })
-    saveRestaurants(restaurants.filter((x: Restaurant) => x.id !== r.id))
+    saveRestaurants(restaurants.filter((x: Restaurant) => restaurantKey(x) !== restaurantKey(r)))
+  }
+
+  async function loadAllRestaurants () {
+    searching = true
+    searchError = ''
+    try {
+      const res = await fetch('/proxy/search?q=')
+      if (!res.ok) throw new Error('검색 실패')
+      allRestaurants = await res.json()
+    } catch (e) {
+      searchError = `검색 중 오류가 발생했습니다: ${e instanceof Error ? e.message : e}`
+      allRestaurants = []
+    } finally {
+      searching = false
+    }
   }
 
   async function search () {
     const q = query.trim()
-    if (!q) { searchResults = []; return }
+    if (!q) {
+      if (allRestaurants.length === 0) loadAllRestaurants()
+      return
+    }
     searching = true
     searchError = ''
     try {
@@ -66,6 +91,10 @@
       searching = false
     }
   }
+
+  onMount(() => {
+    loadAllRestaurants()
+  })
 </script>
 
 <div class="restaurants-layout">
@@ -79,11 +108,14 @@
 
     {#if restaurants.length === 0}
       <div class="hint-block">
-        <p class="hint">추가된 식당이 없습니다. 아래에서 검색해 추가하세요.</p>
+        <div class="empty-selected">
+          <Store class="empty-selected-icon" aria-hidden="true" />
+          <p class="hint">추가된 식당이 없습니다. 검색에서 식당을 추가하세요.</p>
+        </div>
       </div>
     {:else}
       <ul class="rest-list">
-        {#each restaurants as r (r.id)}
+        {#each restaurants as r (restaurantKey(r))}
           <li class="rest-item">
             <div class="rest-info">
               <div class="rest-copy">
@@ -123,14 +155,14 @@
 
       {#if searchError}
         <p class="error">{searchError}</p>
-      {:else if searchResults.length === 0 && query.trim() && !searching}
+      {:else if visibleSearchResults.length === 0 && query.trim() && !searching}
         <div class="hint-block">
           <p class="hint">검색 결과가 없습니다.</p>
         </div>
-      {:else if searchResults.length > 0}
-        <ul class="rest-list">
-          {#each searchResults as r (r.id)}
-            {@const added = myIds.has(r.id)}
+      {:else if visibleSearchResults.length > 0}
+        <ul class="rest-list rest-search-list">
+          {#each visibleSearchResults as r (restaurantKey(r))}
+            {@const added = myIds.has(restaurantKey(r))}
             <li class="rest-item" class:rest-item-added={added}>
               <div class="rest-info">
                 <div class="rest-copy">
@@ -190,9 +222,12 @@
 
   .hint-block { padding: 20px 16px; }
   .hint { font-size: 13px; color: var(--text-dim); font-style: italic; }
+  .empty-selected { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; }
+  .empty-selected-icon { width: 44px; height: 44px; color: #94a3b8; stroke-width: 1.8; }
   .error { font-size: 13px; color: #dc2626; padding: 8px 16px; }
 
   .rest-list { list-style: none; padding: 8px 16px 16px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .rest-search-list { max-height: min(620px, calc(100vh - 280px)); overflow: auto; }
   .rest-item {
     display: flex;
     align-items: center;
@@ -245,6 +280,10 @@
     .restaurants-layout {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       align-items: start;
+    }
+
+    .section:last-child {
+      order: -1;
     }
   }
 </style>

@@ -1342,6 +1342,10 @@ export class CafeteriaService {
     )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
+    if (!query.trim()) {
+      return fromCache.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    }
+
     const fromWelstory = this.allowRemoteFetch
       ? await Promise.resolve()
         .then(() => this.getWelstoryClient().searchRestaurants(query))

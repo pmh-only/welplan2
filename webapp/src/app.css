@@ -7,6 +7,7 @@
 }
 
 :root {
+  color-scheme: light;
   --bg: #ffffff;
   --surface: #f8fafc;
   --surface-hover: #f1f5f9;
