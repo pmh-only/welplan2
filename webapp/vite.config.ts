@@ -11,7 +11,6 @@ export default defineConfig({
       includeAssets: [
         'favicon.svg',
         'offline.html',
-        'og-image.png',
         'og-image.webp'
       ],
       includeManifestIcons: true,
@@ -25,10 +24,19 @@ export default defineConfig({
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone', 'browser'],
         lang: 'ko-KR',
+        dir: 'ltr',
         start_url: '/',
         scope: '/',
         orientation: 'any',
         categories: ['food', 'productivity', 'utilities'],
+        prefer_related_applications: false,
+        launch_handler: {
+          client_mode: 'navigate-existing'
+        },
+        handle_links: 'preferred',
+        edge_side_panel: {
+          preferred_width: 420
+        },
         icons: [
           {
             src: '/manifest-icon-192.webp',
@@ -40,19 +48,13 @@ export default defineConfig({
             src: '/manifest-icon-512.webp',
             sizes: '512x512',
             type: 'image/webp',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/manifest-icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/manifest-icon-512.png',
+            src: '/manifest-icon-maskable-512.webp',
             sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
+            type: 'image/webp',
+            purpose: 'maskable'
           },
           {
             src: '/favicon.svg',
@@ -97,8 +99,7 @@ export default defineConfig({
             description: '오늘의 메뉴 사진과 영양정보를 확인합니다.',
             url: '/',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
-              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
             ]
           },
           {
@@ -107,8 +108,7 @@ export default defineConfig({
             description: '매장 식사 메뉴와 영양정보를 엽니다.',
             url: '/takein',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
-              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
             ]
           },
           {
@@ -117,8 +117,7 @@ export default defineConfig({
             description: '포장 메뉴와 코인 계산 화면을 엽니다.',
             url: '/takeout',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
-              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
             ]
           },
           {
@@ -127,8 +126,7 @@ export default defineConfig({
             description: '조회할 식당을 검색하고 저장합니다.',
             url: '/restaurants',
             icons: [
-              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' },
-              { src: '/manifest-icon-192.png', sizes: '192x192', type: 'image/png' }
+              { src: '/manifest-icon-192.webp', sizes: '192x192', type: 'image/webp' }
             ]
           }
         ]
@@ -139,11 +137,51 @@ export default defineConfig({
         ],
         modifyURLPrefix: {},
         globIgnores: ['**/node_modules/**', '**/workbox-*.js'],
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^gclid$/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: '/offline.html',
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/admin\//,
+          /^\/img\//,
+          /^\/proxy\//,
+          /^\/\.well-known\//,
+          /^\/openapi\.json$/,
+          /^\/robots\.txt$/,
+          /^\/sitemap\.xml$/,
+          /^\/rss(?:\/.*|\.xml)$/
+        ],
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/_app/immutable/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'welplan-app-assets',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 128,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              }
+            }
+          },
+          {
+            urlPattern: ({ url }) => url.origin === self.location.origin && /\.(?:svg|webp|png|json|txt|webmanifest)$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'welplan-static-assets',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              }
+            }
+          },
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
             handler: 'NetworkFirst',

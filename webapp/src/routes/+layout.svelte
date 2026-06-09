@@ -376,7 +376,6 @@
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
-  const ogImagePngUrl = $derived(new URL('/og-image.png', page.url.origin).toString())
 </script>
 
 <svelte:head>
@@ -394,10 +393,6 @@
   <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={ogImageWebpUrl} />
   <meta property="og:image:type" content="image/webp" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image" content={ogImagePngUrl} />
-  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -478,7 +473,7 @@
     <header>
       <div class="header-inner">
         <a href="/" class="brand">
-          <Utensils class="brand-icon" aria-hidden="true" />
+          <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true" />
           <div class="brand-text">
             <span class="brand-name">Welplan</span>
             <span class="brand-sub">웰스토리 · 신세계푸드</span>
@@ -751,7 +746,7 @@
     text-decoration: none;
     flex-shrink: 0;
   }
-  :global(.brand-icon) { width: 22px; height: 22px; color: #10b981; flex-shrink: 0; }
+  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
   .brand-text { display: flex; flex-direction: column; gap: 0; }
   .brand-name { font-size: 1rem; font-weight: 700; color: #f8fafc; line-height: 1.2; letter-spacing: -0.01em; }
   .brand-sub { font-size: 0.7rem; color: #94a3b8; line-height: 1; }
