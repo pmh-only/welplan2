@@ -716,7 +716,7 @@
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
-  const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage)
+  const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
   const showPageTip = $derived(showGlobalChrome && !isAdminPage && !pageTipDismissed)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
