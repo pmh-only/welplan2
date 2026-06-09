@@ -7,7 +7,7 @@ const config = {
   kit: {
     adapter: adapter(),
     csrf: {
-      checkOrigin: false
+      trustedOrigins: ['https://welplan.pmh.codes']
     }
   }
 }

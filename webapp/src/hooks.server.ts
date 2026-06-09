@@ -10,11 +10,6 @@ import {
 import { renderMarkdownPage } from '$lib/server/markdown'
 
 const trafficLog = createServerLogger('traffic')
-const FORM_CONTENT_TYPES = [
-  'application/x-www-form-urlencoded',
-  'multipart/form-data',
-  'text/plain'
-]
 
 let requestSequence = 0
 
@@ -50,22 +45,6 @@ function isProtectedAdminRoute(pathname: string): boolean {
   return pathname === '/admin' || (pathname.startsWith('/admin/') && !isAdminAuthRoute(pathname))
 }
 
-function publicOrigin(): string | undefined {
-  return process.env.ORIGIN?.trim().replace(/\/+$/, '') || undefined
-}
-
-function isFormPost(request: Request): boolean {
-  if (request.method !== 'POST') return false
-  const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
-  return FORM_CONTENT_TYPES.some((type) => contentType.startsWith(type))
-}
-
-function isAllowedFormOrigin(request: Request, requestOrigin: string): boolean {
-  const origin = request.headers.get('origin')?.trim().replace(/\/+$/, '')
-  if (!origin) return true
-  return origin === requestOrigin || origin === publicOrigin()
-}
-
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now()
   const requestId = nextRequestId()
@@ -78,17 +57,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   })
 
   try {
-    if (isFormPost(event.request) && !isAllowedFormOrigin(event.request, event.url.origin)) {
-      trafficLog.warn('cross-site form post rejected', {
-        requestId,
-        path,
-        origin: event.request.headers.get('origin'),
-        requestOrigin: event.url.origin,
-        publicOrigin: publicOrigin()
-      })
-      return new Response('Cross-site POST form submissions are forbidden', { status: 403 })
-    }
-
     if (isProtectedAdminRoute(event.url.pathname)) {
       if (!adminOidcConfigured()) {
         return new Response('Admin OIDC is not configured', { status: 503 })
