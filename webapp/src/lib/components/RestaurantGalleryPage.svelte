@@ -1032,6 +1032,7 @@
 
   .detail-col-name { min-width: 140px; }
   .detail-col-num { width: 80px; text-align: right; white-space: nowrap; }
+  .detail-table th.detail-col-num { text-align: right; }
   .dish-name { color: var(--text-muted); }
 
   .lightbox-close {

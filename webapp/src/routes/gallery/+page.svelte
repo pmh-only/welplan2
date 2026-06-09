@@ -634,6 +634,7 @@
   .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .detail-table thead tr { border-bottom: 1px solid var(--border); }
   .detail-table th { padding: 7px 8px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+  .detail-table th.detail-col-num { text-align: right; }
   .detail-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .detail-table tbody tr:last-child td { border-bottom: none; }
   .detail-col-name { min-width: 140px; }

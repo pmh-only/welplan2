@@ -901,6 +901,7 @@
     font-size: 13px;
   }
   .selection-detail-table th { background: var(--surface); text-align: left; color: var(--text-muted); }
+  .selection-detail-table th:not(:first-child) { text-align: right; }
   .selection-item-context { margin-top: 4px; font-size: 11px; color: var(--text-dim); }
   .col-check { width: 40px; text-align: center; }
   .col-img { width: 60px; padding: 0 8px; }
@@ -946,6 +947,8 @@
   .detail-table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 12px; }
   .detail-table thead tr { border-bottom: 1px solid var(--border); }
   .detail-table th { padding: 7px 8px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+  .menu-table th.col-num,
+  .detail-table th.detail-col-num { text-align: right; }
   .detail-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .detail-table tbody tr:last-child td { border-bottom: none; }
   .detail-col-name { min-width: 220px; }
