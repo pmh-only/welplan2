@@ -1379,9 +1379,20 @@
     .brand-sub { display: none; }
     .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }
     .pwa-status {
+      left: 10px;
       right: 10px;
       bottom: calc(76px + env(safe-area-inset-bottom));
-      width: calc(100vw - 20px);
+      width: auto;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 16px;
+    }
+    .pwa-status-actions {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .pwa-status button {
+      flex: 1 1 96px;
     }
     .page-tip { grid-template-columns: auto 1fr auto; gap: 10px; }
     .page-tip-icon { width: 30px; height: 30px; }
