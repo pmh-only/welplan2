@@ -173,23 +173,36 @@
         <ul class="rest-list rest-search-list">
           {#each visibleSearchResults as r (restaurantKey(r))}
             {@const added = myIds.has(restaurantKey(r))}
-            <li class="rest-item" class:rest-item-added={added}>
-              <div class="rest-info">
-                <div class="rest-copy">
-                  <p class="rest-name">{r.name}</p>
-                  {#if pathText(r)}
-                    <span class="rest-path">{pathText(r)}</span>
-                  {/if}
-                </div>
-                <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
-              </div>
+            <li>
               {#if added}
-                <span class="added-tag">
-                  <Check class="added-tag-icon" aria-hidden="true" />
-                  추가됨
-                </span>
+                <div class="rest-item rest-item-added">
+                  <div class="rest-info">
+                    <div class="rest-copy">
+                      <p class="rest-name">{r.name}</p>
+                      {#if pathText(r)}
+                        <span class="rest-path">{pathText(r)}</span>
+                      {/if}
+                    </div>
+                    <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
+                  </div>
+                  <span class="added-tag">
+                    <Check class="added-tag-icon" aria-hidden="true" />
+                    추가됨
+                  </span>
+                </div>
               {:else}
-                <button class="add-btn" onclick={() => addRestaurant(r)}>+ 추가</button>
+                <button type="button" class="rest-item rest-item-button" onclick={() => addRestaurant(r)}>
+                  <div class="rest-info">
+                    <div class="rest-copy">
+                      <p class="rest-name">{r.name}</p>
+                      {#if pathText(r)}
+                        <span class="rest-path">{pathText(r)}</span>
+                      {/if}
+                    </div>
+                    <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
+                  </div>
+                  <span class="add-btn">+ 추가</span>
+                </button>
               {/if}
             </li>
           {/each}
@@ -251,6 +264,14 @@
   }
   .rest-item:hover { border-color: #cbd5e1; }
   .rest-item-added { opacity: 0.65; }
+  .rest-item-button {
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .rest-item-button:hover { border-color: #6ee7b7; background: #ecfdf5; }
   .rest-info { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
   .rest-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .rest-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
