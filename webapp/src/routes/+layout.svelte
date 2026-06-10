@@ -801,19 +801,6 @@
 </svelte:head>
 
 <div class="app">
-  <a
-    class="github-ribbon"
-    href="https://github.com/pmh-only/welplan2"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Welplan GitHub 저장소 열기"
-  >
-    <svg class="github-icon-desktop" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2.25 14.4 9h7.1l-5.75 4.17 2.2 6.58L12 15.64 6.05 19.75l2.2-6.58L2.5 9h7.1z" />
-    </svg>
-    <span class="github-label-desktop">Star on GitHub</span>
-  </a>
-
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
       <button type="button" class="notice-bar" aria-expanded={noticeOpen} onclick={() => { noticeOpen = !noticeOpen; trackEvent('Notice Toggled', { expanded: noticeOpen ? 1 : 0 }) }}>
@@ -1537,41 +1524,6 @@
     background: #059669;
   }
 
-  .github-ribbon {
-    position: fixed;
-    top: 18px;
-    right: -52px;
-    z-index: 140;
-    width: 196px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 0;
-    background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
-    color: #f8fafc;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    transform: rotate(42deg);
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.24);
-    transition: background 0.14s ease, box-shadow 0.14s ease;
-  }
-
-  .github-ribbon:hover {
-    background: linear-gradient(135deg, #111827 0%, #0f766e 100%);
-    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
-  }
-
-  .github-ribbon svg {
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-    flex-shrink: 0;
-  }
-
   header {
     background: #0f172a;
     border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -1690,7 +1642,6 @@
     .brand,
     .header-nav,
     .tab-btn,
-    .github-ribbon,
     .pwa-status,
     button,
     a {
@@ -1803,10 +1754,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .github-ribbon {
-      transition: none;
-    }
-
     .route-progress-bar-primary,
     .route-progress-bar-secondary {
       animation: none;
