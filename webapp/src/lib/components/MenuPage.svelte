@@ -27,6 +27,7 @@
 
   let takeInFilterMainOnly = $state(false)
   let takeInFilterExcludeOptional = $state(true)
+  let selectedTakeInRestaurantId = $state('')
   let selectedTakeoutRestaurantId = $state('')
   let takeOutFilterDrinks = $state(true)
   let takeOutSearch = $state('')
@@ -136,6 +137,21 @@
       data.menus.some((menu: Menu) => menu.isTakeOut && menu.restaurantId === restaurant.id)
     )
   )
+  const takeInRestaurants = $derived(
+    data.restaurants.filter((restaurant: Restaurant) =>
+      data.menus.some((menu: Menu) =>
+        !menu.isTakeOut &&
+        menu.restaurantId === restaurant.id &&
+        (menu.vendor === 'shinsegae' || (menu.nutrition?.calories ?? 1) !== 0)
+      )
+    )
+  )
+
+  $effect(() => {
+    if (kind !== 'takein' || !selectedTakeInRestaurantId) return
+    const availableIds = new Set(takeInRestaurants.map((restaurant: Restaurant) => restaurant.id))
+    if (!availableIds.has(selectedTakeInRestaurantId)) selectedTakeInRestaurantId = ''
+  })
 
   $effect(() => {
     if (!browser || kind !== 'takeout') return
@@ -162,6 +178,7 @@
   const visibleMenus = $derived(
     dedupeMenus(data.menus
       .filter((menu: Menu) => kind === 'takeout' ? menu.isTakeOut : !menu.isTakeOut)
+      .filter((menu: Menu) => kind !== 'takein' || !selectedTakeInRestaurantId || menu.restaurantId === selectedTakeInRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
       .filter((menu: Menu) => kind !== 'takeout' || matchesTakeOutSearch(menu))
@@ -204,6 +221,11 @@
   function toggleTakeInExcludeOptional () {
     takeInFilterExcludeOptional = !takeInFilterExcludeOptional
     trackEvent('Menu Filter Changed', { kind, filter: 'exclude_optional', enabled: takeInFilterExcludeOptional ? 1 : 0 })
+  }
+
+  function selectTakeInRestaurant (restaurantId: string) {
+    selectedTakeInRestaurantId = restaurantId
+    trackEvent('Menu Filter Changed', { kind, filter: 'restaurant', restaurantId: restaurantId || 'all' })
   }
 
   function toggleTakeOutDrinks () {
@@ -263,6 +285,20 @@
           </select>
         </div>
         {#if kind === 'takein'}
+          <div class="form-group takein-restaurant-group">
+            <select
+              id="takein-restaurant-select"
+              class="select-input"
+              value={selectedTakeInRestaurantId}
+              aria-label="식당 필터"
+              onchange={(e) => selectTakeInRestaurant(e.currentTarget.value)}
+            >
+              <option value="">전체 식당</option>
+              {#each takeInRestaurants as restaurant (restaurant.id)}
+                <option value={restaurant.id}>{restaurant.name}</option>
+              {/each}
+            </select>
+          </div>
           <div class="chip-group">
             <button
               type="button"
@@ -435,6 +471,7 @@
   .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
   .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }
 
+  .takein-restaurant-group,
   .takeout-restaurant-group { min-width: min(100%, 260px); }
 
   .search-field {
@@ -514,7 +551,9 @@
     .select-input { min-width: 0; }
     .sort-select { min-width: 0; }
     #meal-time-select { width: 96px; }
+    .takein-restaurant-group,
     .takeout-restaurant-group { flex: 1 1 160px; min-width: 0; }
+    #takein-restaurant-select,
     #takeout-restaurant-select { width: 100%; }
     .search-field { order: 10; flex: 1 0 100%; min-width: 0; }
     .chip-group { flex: 0 0 auto; }
