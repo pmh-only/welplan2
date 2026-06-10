@@ -16,6 +16,7 @@
     enableSelection = false,
     groupByMealTime = false,
     hideRestaurantLabels = false,
+    mobileKcalOnly = false,
     sortKey = null,
     sortDirection = 'asc'
   }: {
@@ -29,6 +30,7 @@
     enableSelection?: boolean
     groupByMealTime?: boolean
     hideRestaurantLabels?: boolean
+    mobileKcalOnly?: boolean
     sortKey?: SortKey | null
     sortDirection?: 'asc' | 'desc'
   } = $props()
@@ -252,6 +254,7 @@
   })
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
   const tableColumnCount = $derived(7 + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
+  const tableClass = $derived(`menu-table${enableSelection ? ' selection-mode' : ''}${mobileKcalOnly ? ' mobile-kcal-only' : ''}`)
   const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menuKey(menu))))
   const selectedNutrition = $derived(
     selectedMenus.reduce(
@@ -348,7 +351,7 @@
   <div class="empty-state"><p>{emptyMessage}</p></div>
 {:else}
   <div class={enableSelection ? 'table-wrap selection-mode' : 'table-wrap'}>
-    <table class={enableSelection ? 'menu-table selection-mode' : 'menu-table'}>
+    <table class={tableClass}>
       <thead>
         <tr>
           {#if enableSelection}<th class="col-check"></th>{/if}
@@ -358,8 +361,8 @@
           <th class="col-num">칼로리</th>
           <th class="col-num hide-sm">탄수화물</th>
           <th class="col-num hide-sm">당</th>
-          <th class="col-num">지방</th>
-          <th class="col-num">단백질</th>
+          <th class="col-num mobile-extra-nutrient">지방</th>
+          <th class="col-num mobile-extra-nutrient">단백질</th>
           <th class="col-num hide-sm">나트륨</th>
         </tr>
       </thead>
@@ -439,8 +442,8 @@
             <td class="col-num" data-label="칼로리">{n?.calories != null ? `${n.calories.toLocaleString()} kcal` : '—'}</td>
             <td class="col-num hide-sm" data-label="탄수화물">{n?.carbohydrates != null ? `${n.carbohydrates}g` : '—'}</td>
             <td class="col-num hide-sm" data-label="당">{n?.sugar != null ? `${n.sugar}g` : '—'}</td>
-            <td class="col-num" data-label="지방">{n?.fat != null ? `${n.fat}g` : '—'}</td>
-            <td class="col-num" data-label="단백질">{n?.protein != null ? `${n.protein}g` : '—'}</td>
+            <td class="col-num mobile-extra-nutrient" data-label="지방">{n?.fat != null ? `${n.fat}g` : '—'}</td>
+            <td class="col-num mobile-extra-nutrient" data-label="단백질">{n?.protein != null ? `${n.protein}g` : '—'}</td>
             <td class="col-num hide-sm" data-label="나트륨">{n?.sodium != null ? `${n.sodium}mg` : '—'}</td>
           </tr>
           {#if isExpanded}
@@ -464,7 +467,7 @@
                           <tr>
                             <th class="detail-col-name">항목</th>
                             {#each detailMetrics as metric}
-                              <th class="detail-col-num">{metric.label}</th>
+                              <th class="detail-col-num" class:detail-extra-nutrient={metric.key !== 'calories'}>{metric.label}</th>
                             {/each}
                           </tr>
                         </thead>
@@ -474,7 +477,7 @@
                             <tr>
                               <td class="detail-col-name dish-name">{dish.name}</td>
                               {#each detailMetrics as metric}
-                                <td class="detail-col-num" data-label={metric.label}>
+                                <td class="detail-col-num" class:detail-extra-nutrient={metric.key !== 'calories'} data-label={metric.label}>
                                   {formatMetric(dn?.[metric.key], metric.unit)}
                                 </td>
                               {/each}
@@ -1008,6 +1011,8 @@
 
   @media (max-width: 640px) {
     .hide-sm { display: none; }
+    .menu-table.mobile-kcal-only .mobile-extra-nutrient,
+    .menu-table.mobile-kcal-only .detail-extra-nutrient { display: none; }
     .rest-tag-mobile { display: block; }
     .detail-row td { padding-left: 12px; }
 

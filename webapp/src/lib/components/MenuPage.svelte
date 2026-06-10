@@ -393,6 +393,7 @@
       enableSelection={kind === 'takeout'}
       groupByMealTime={isAllMealTime}
       hideRestaurantLabels={kind === 'takeout'}
+      mobileKcalOnly={kind === 'takein'}
       sortKey={menuSortKey()}
       sortDirection={menuSortDirection()}
     />
