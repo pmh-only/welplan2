@@ -28,11 +28,6 @@
 
   type JsonLdValue = Record<string, unknown>
 
-  type BeforeInstallPromptEvent = Event & {
-    platforms?: string[]
-    prompt: () => Promise<{ outcome: 'accepted' | 'dismissed', platform?: string }>
-  }
-
   type LayoutData = {
     restaurants?: Restaurant[]
     mealTimes?: MealTime[]
@@ -381,12 +376,6 @@
   let restaurantSearchResults = $state<Restaurant[]>([])
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
-  let updateAvailable = $state(false)
-  let offlineReady = $state(false)
-  let installAvailable = $state(false)
-  let installPromptEvent = $state<BeforeInstallPromptEvent | undefined>()
-  let waitingServiceWorker: ServiceWorker | undefined
-
   const dialogRestaurantIds = $derived(new Set(dialogRestaurants.map((restaurant) => restaurantKey(restaurant))))
   const visibleRestaurantSearchResults = $derived(restaurantQuery.trim() ? restaurantSearchResults : allDialogRestaurants)
 
@@ -468,30 +457,9 @@
     firstVisitDialogOpen = false
   }
 
-  function applyAppUpdate () {
-    trackEvent('PWA Update Applied')
-    waitingServiceWorker?.postMessage({ type: 'SKIP_WAITING' })
-  }
-
-  function clearInstallPrompt (trackDismissal = true) {
-    if (trackDismissal) trackEvent('PWA Install Dismissed')
-    installPromptEvent = undefined
-    installAvailable = false
-  }
-
-  async function installApp () {
-    if (!installPromptEvent) return
-    const promptEvent = installPromptEvent
-    clearInstallPrompt(false)
-    trackEvent('PWA Install Prompted')
-    await promptEvent.prompt().catch(() => undefined)
-  }
-
-  function isInstalledDisplayMode () {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true
+  function activateAppUpdate (worker: ServiceWorker) {
+    trackEvent('PWA Update Applied Automatically')
+    worker.postMessage({ type: 'SKIP_WAITING' })
   }
 
   async function requestPersistentStorage () {
@@ -506,8 +474,7 @@
     const registration = await navigator.serviceWorker.register('/sw.js')
 
     if (registration.waiting && navigator.serviceWorker.controller) {
-      waitingServiceWorker = registration.waiting
-      updateAvailable = true
+      activateAppUpdate(registration.waiting)
     }
 
     registration.addEventListener('updatefound', () => {
@@ -518,10 +485,7 @@
         if (installingWorker.state !== 'installed') return
 
         if (navigator.serviceWorker.controller) {
-          waitingServiceWorker = installingWorker
-          updateAvailable = true
-        } else {
-          offlineReady = true
+          activateAppUpdate(installingWorker)
         }
       })
     })
@@ -562,22 +526,6 @@
     requestPersistentStorage()
 
     registerServiceWorker().catch(() => {})
-
-    function handleBeforeInstallPrompt (event: Event) {
-      if (isInstalledDisplayMode()) return
-      event.preventDefault()
-      installPromptEvent = event as BeforeInstallPromptEvent
-      installAvailable = true
-    }
-
-    function handleAppInstalled () {
-      clearInstallPrompt(false)
-      trackEvent('PWA Installed')
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    window.addEventListener('appinstalled', handleAppInstalled)
-
     const navigatorWithModelContext = navigator as Navigator & {
       modelContext?: {
         registerTool?: (
@@ -596,10 +544,7 @@
 
     const modelContext = navigatorWithModelContext.modelContext
     if (!modelContext?.registerTool) {
-      return () => {
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-        window.removeEventListener('appinstalled', handleAppInstalled)
-      }
+      return
     }
 
     const controller = new AbortController()
@@ -671,8 +616,6 @@
 
     return () => {
       controller.abort()
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   })
 
@@ -689,8 +632,6 @@
   const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
-  const showInstallPrompt = $derived(installAvailable && !isRestaurantDetailPage)
-  const showPwaStatus = $derived(updateAvailable || showInstallPrompt || offlineReady)
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -766,25 +707,6 @@
           <p>{notice.detail || notice.summary}</p>
         </div>
       {/if}
-    </section>
-  {/if}
-
-  {#if showPwaStatus}
-    <section class="pwa-status" aria-live="polite" aria-label="앱 상태">
-      <div>
-        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : showInstallPrompt ? 'Welplan 앱을 설치할 수 있습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
-        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : showInstallPrompt ? '홈 화면이나 작업 표시줄에서 바로 열고 더 빠르게 식단을 확인하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
-      </div>
-      <div class="pwa-status-actions">
-        {#if updateAvailable}
-          <button type="button" onclick={applyAppUpdate}>업데이트</button>
-        {:else if showInstallPrompt}
-          <button type="button" onclick={installApp}>설치</button>
-          <button type="button" class="pwa-status-secondary" onclick={() => clearInstallPrompt()}>나중에</button>
-        {:else}
-          <button type="button" onclick={() => { offlineReady = false; trackEvent('PWA Offline Ready Confirmed') }}>확인</button>
-        {/if}
-      </div>
     </section>
   {/if}
 
@@ -1055,68 +977,6 @@
     margin: 0;
     color: #dbeafe;
     line-height: 1.65;
-  }
-
-  .pwa-status {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 170;
-    width: min(360px, calc(100vw - 32px));
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 14px;
-    align-items: center;
-    padding: 14px;
-    border: 1px solid rgba(125, 211, 252, 0.34);
-    border-radius: 18px;
-    background: rgba(15, 23, 42, 0.94);
-    color: #f8fafc;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
-    backdrop-filter: blur(16px);
-  }
-
-  .pwa-status strong {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 13px;
-  }
-
-  .pwa-status p {
-    margin: 0;
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .pwa-status-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .pwa-status button {
-    border: 0;
-    border-radius: 999px;
-    padding: 9px 12px;
-    background: #f8fafc;
-    color: #0f172a;
-    font-size: 12px;
-    font-weight: 800;
-    cursor: pointer;
-  }
-
-  .pwa-status button:hover {
-    background: #e0f2fe;
-  }
-
-  .pwa-status .pwa-status-secondary {
-    background: rgba(255, 255, 255, 0.12);
-    color: #e2e8f0;
-  }
-
-  .pwa-status .pwa-status-secondary:hover {
-    background: rgba(255, 255, 255, 0.18);
   }
 
   .first-visit-backdrop {
@@ -1609,7 +1469,6 @@
     .brand,
     .header-nav,
     .tab-btn,
-    .pwa-status,
     button,
     a {
       -webkit-app-region: no-drag;
@@ -1760,33 +1619,5 @@
     .tab-btn.active::after { top: 3px; bottom: auto; width: 18px; }
     .brand-sub { display: none; }
     .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }
-    .pwa-status {
-      left: auto;
-      right: 12px;
-      bottom: calc(76px + env(safe-area-inset-bottom));
-      width: min(300px, calc(100vw - 24px));
-      grid-template-columns: 1fr;
-      gap: 10px;
-      padding: 12px;
-      border-radius: 14px;
-    }
-    .pwa-status strong {
-      margin-bottom: 2px;
-      font-size: 12px;
-    }
-    .pwa-status p {
-      font-size: 11px;
-      line-height: 1.4;
-    }
-    .pwa-status-actions {
-      flex-direction: row;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .pwa-status button {
-      flex: 1 1 76px;
-      padding: 7px 10px;
-      font-size: 11px;
-    }
   }
 </style>
