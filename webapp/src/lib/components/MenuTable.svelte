@@ -251,6 +251,7 @@
     })
   })
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
+  const tableColumnCount = $derived(7 + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
   const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menuKey(menu))))
   const selectedNutrition = $derived(
     selectedMenus.reduce(
@@ -367,7 +368,7 @@
           {#if row.type === 'mealTime'}
             {@const isExpanded = isMealTimeExpanded(row.mealTime.id)}
             <tr class="meal-time-row">
-              <th colspan={(enableSelection ? 10 : 9) - (hideRestaurantLabels ? 1 : 0)}>
+              <th colspan={tableColumnCount}>
                 <button
                   type="button"
                   class="meal-time-toggle"
@@ -444,7 +445,7 @@
           </tr>
           {#if isExpanded}
             <tr class="detail-row">
-              <td colspan={enableSelection ? 10 : 9}>
+              <td colspan={tableColumnCount}>
                 {#if loadingDetail}
                   <div class="detail-loading">
                     {#each Array(4) as _}
@@ -1028,6 +1029,14 @@
     }
     .menu-table.selection-mode .menu-row.selected { background: #f0fdf4; border-color: #bbf7d0; }
     .menu-table.selection-mode .menu-row.expanded { margin-bottom: 0; border-radius: 12px 12px 0 0; }
+    .menu-table.selection-mode .meal-time-row {
+      display: block;
+      width: 100%;
+    }
+    .menu-table.selection-mode .meal-time-row > th {
+      display: block;
+      width: 100%;
+    }
     .menu-table.selection-mode .menu-row td {
       display: block;
       padding: 0;
