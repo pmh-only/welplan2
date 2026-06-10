@@ -407,18 +407,18 @@
 
     return {
       title: 'Welplan 팁',
-      items: ['상단 탭으로 갤러리, 테이크인, 테이크아웃, 식당 선택 화면을 빠르게 이동할 수 있습니다.']
+      items: ['상단 탭으로 메뉴 갤러리, 메뉴 리스트, 식당 선택 화면을 빠르게 이동할 수 있습니다.']
     }
   }
 
   let { data, children }: { data: LayoutData, children: Snippet } = $props()
 
-  const navLinks = [
-    { href: '/', label: '갤러리', icon: Camera },
-    { href: '/takein', label: '테이크 인', icon: Utensils },
+  const navLinks = $derived([
+    { href: '/', label: '메뉴 갤러리', icon: Camera },
+    { href: '/takein', label: data.hasTakeOutMenu === true ? '테이크 인' : '메뉴 리스트', icon: Utensils },
     { href: '/takeout', label: '테이크 아웃', icon: Package },
     { href: '/restaurants', label: '식당 선택', icon: Store }
-  ]
+  ])
   const visibleNavLinks = $derived(navLinks.filter((link) => link.href !== '/takeout' || data.hasTakeOutMenu === true))
 
   const isNavigating = $derived(navigating.to !== null)
