@@ -6,8 +6,8 @@
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { fromInputDate, proxyImg, toInputDate } from '$lib/utils'
-  import { X, ZoomIn } from '@lucide/svelte'
+  import { fromInputDate, proxyImg, shiftDate, toInputDate } from '$lib/utils'
+  import { ChevronLeft, ChevronRight, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -247,15 +247,24 @@
   <section class="hero-panel">
     <h1 id="restaurant-title">{data.restaurant.name} 식단표</h1>
     <div class="controls-row" aria-label="메뉴 조회 조건">
-      <label class="control-field" for="date-input">
-        <input
-          id="date-input"
-          class="date-input"
-          type="date"
-          value={toInputDate(selectedDate)}
-          oninput={(event) => navigate(fromInputDate(event.currentTarget.value))}
-        />
-      </label>
+      <div class="control-field">
+        <div class="date-row">
+          <button class="date-nav-btn" type="button" onclick={() => navigate(shiftDate(selectedDate, -1))} aria-label="이전 날">
+            <ChevronLeft class="date-nav-icon" aria-hidden="true" />
+          </button>
+          <input
+            id="date-input"
+            class="date-input"
+            type="date"
+            aria-label="날짜 선택"
+            value={toInputDate(selectedDate)}
+            oninput={(event) => navigate(fromInputDate(event.currentTarget.value))}
+          />
+          <button class="date-nav-btn" type="button" onclick={() => navigate(shiftDate(selectedDate, 1))} aria-label="다음 날">
+            <ChevronRight class="date-nav-icon" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <div class="kind-toggle" role="group" aria-label="식사 형태 선택">
         <button
           type="button"
@@ -523,6 +532,34 @@
     color: var(--text-dim);
     font-size: 11px;
     font-weight: 700;
+  }
+
+  .date-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .date-nav-btn {
+    min-height: 36px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .date-nav-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  :global(.date-nav-icon) {
+    width: 16px;
+    height: 16px;
   }
 
   .date-input {
@@ -1146,8 +1183,14 @@
     }
 
     .control-field,
+    .date-row,
     .date-input {
       width: 100%;
+    }
+
+    .date-input {
+      flex: 1;
+      min-width: 0;
     }
 
     .meal-section-head {

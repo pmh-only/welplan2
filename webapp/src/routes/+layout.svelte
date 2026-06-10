@@ -973,6 +973,13 @@
     </header>
   {/if}
 
+  {#if showLoading && isRestaurantDetailPage}
+    <div class="route-progress route-progress-floating" role="status" aria-label="페이지 불러오는 중">
+      <div class="route-progress-bar route-progress-bar-secondary" aria-hidden="true"></div>
+      <div class="route-progress-bar route-progress-bar-primary" aria-hidden="true"></div>
+    </div>
+  {/if}
+
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
     {#if showPageTip}
       <aside class="page-tip" aria-label={pageTip.title}>
@@ -1542,6 +1549,13 @@
     overflow: hidden;
     pointer-events: none;
     background: rgba(148, 163, 184, 0.14);
+  }
+
+  .route-progress-floating {
+    position: fixed;
+    top: 0;
+    bottom: auto;
+    z-index: 120;
   }
 
   .route-progress-bar {

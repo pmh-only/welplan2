@@ -2,10 +2,10 @@
   import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
-  import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
-  import { ChevronDown, ChevronRight, Utensils, X, ZoomIn } from '@lucide/svelte'
+  import { ChevronDown, ChevronLeft, ChevronRight, Utensils, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -256,13 +256,21 @@
     </div>
     <div class="controls">
       {#if data.restaurants.length > 0}
-        <input
-          class="date-input"
-          type="date"
-          aria-label="날짜 선택"
-          value={toInputDate(selectedDate)}
-          oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime, 'date_input')}
-        />
+        <div class="date-row">
+          <button class="date-nav-btn" type="button" onclick={() => navigate(shiftDate(selectedDate, -1), selectedTime, 'previous_day')} aria-label="이전 날">
+            <ChevronLeft class="date-nav-icon" aria-hidden="true" />
+          </button>
+          <input
+            class="date-input"
+            type="date"
+            aria-label="날짜 선택"
+            value={toInputDate(selectedDate)}
+            oninput={(e) => navigate(fromInputDate(e.currentTarget.value), selectedTime, 'date_input')}
+          />
+          <button class="date-nav-btn" type="button" onclick={() => navigate(shiftDate(selectedDate, 1), selectedTime, 'next_day')} aria-label="다음 날">
+            <ChevronRight class="date-nav-icon" aria-hidden="true" />
+          </button>
+        </div>
         <select class="select-input" aria-label="식사 시간" value={selectedTime} onchange={(e) => navigate(selectedDate, e.currentTarget.value, 'meal_time_select')}>
           <option value={ALL_MEAL_TIME_ID}>전체</option>
           {#each data.mealTimes as mealTime (mealTime.id)}
@@ -525,6 +533,21 @@
 
   .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+  .date-row { display: flex; align-items: center; gap: 4px; }
+
+  .date-nav-btn {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .date-nav-btn:hover { background: var(--surface-hover); color: var(--text); }
+  :global(.date-nav-icon) { width: 16px; height: 16px; }
+
   .sort-select,
   .select-input,
   .date-input {
@@ -757,6 +780,8 @@
 
   @media (max-width: 640px) {
     .controls { width: 100%; }
+    .date-row { width: 100%; }
+    .date-input { flex: 1; min-width: 0; }
     .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 12px; }
     .lightbox { padding: 0; align-items: stretch; justify-content: stretch; }
     .lightbox-inner {
