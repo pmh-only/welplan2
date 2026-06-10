@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
+  import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -146,11 +147,16 @@
       )
     )
   )
+  const takeInRestaurantOptions = $derived.by<Restaurant[]>(() => {
+    if (!selectedTakeInRestaurantId || takeInRestaurants.some((restaurant: Restaurant) => restaurant.id === selectedTakeInRestaurantId)) return takeInRestaurants
+    const selectedRestaurant = data.restaurants.find((restaurant: Restaurant) => restaurant.id === selectedTakeInRestaurantId)
+    return selectedRestaurant ? [selectedRestaurant, ...takeInRestaurants] : takeInRestaurants
+  })
 
   $effect(() => {
-    if (kind !== 'takein' || !selectedTakeInRestaurantId) return
-    const availableIds = new Set(takeInRestaurants.map((restaurant: Restaurant) => restaurant.id))
-    if (!availableIds.has(selectedTakeInRestaurantId)) selectedTakeInRestaurantId = ''
+    if (kind !== 'takein') return
+    const restaurantId = page.url.searchParams.get('restaurant') ?? ''
+    if (selectedTakeInRestaurantId !== restaurantId) selectedTakeInRestaurantId = restaurantId
   })
 
   $effect(() => {
@@ -204,8 +210,13 @@
     return [...new Set(ids)].map((id) => data.mealTimes.find((mealTime: MealTime) => mealTime.id === id) ?? fallbackMealTime(id))
   })
 
-  function routeFor (date: string, time: string): string {
-    return `/${kind}/${date}/${time}`
+  function takeInRestaurantQuery (restaurantId = selectedTakeInRestaurantId): string {
+    if (kind !== 'takein' || !restaurantId) return ''
+    return `?${new URLSearchParams({ restaurant: restaurantId })}`
+  }
+
+  function routeFor (date: string, time: string, restaurantId = selectedTakeInRestaurantId): string {
+    return `/${kind}/${date}/${time}${takeInRestaurantQuery(restaurantId)}`
   }
 
   function navigate (date: string, time: string, source: string) {
@@ -226,6 +237,7 @@
   function selectTakeInRestaurant (restaurantId: string) {
     selectedTakeInRestaurantId = restaurantId
     trackEvent('Menu Filter Changed', { kind, filter: 'restaurant', restaurantId: restaurantId || 'all' })
+    goto(routeFor(data.date, data.time, restaurantId), { replaceState: true, noScroll: true, keepFocus: true })
   }
 
   function toggleTakeOutDrinks () {
@@ -294,7 +306,7 @@
               onchange={(e) => selectTakeInRestaurant(e.currentTarget.value)}
             >
               <option value="">전체 식당</option>
-              {#each takeInRestaurants as restaurant (restaurant.id)}
+              {#each takeInRestaurantOptions as restaurant (restaurant.id)}
                 <option value={restaurant.id}>{restaurant.name}</option>
               {/each}
             </select>

@@ -4,7 +4,7 @@
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
-  import { todayStr } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, todayStr } from '$lib/utils'
   import { Check, Search, Store } from '@lucide/svelte'
   import { onMount } from 'svelte'
 
@@ -37,6 +37,11 @@
 
   function restaurantLink (restaurant: Restaurant) {
     return restaurantDatedPath(restaurant, todayStr())
+  }
+
+  function takeInLink (restaurant: Restaurant) {
+    const params = new URLSearchParams({ restaurant: restaurant.id })
+    return `/takein/${todayStr()}/${ALL_MEAL_TIME_ID}?${params}`
   }
 
   function saveRestaurants (next: Restaurant[]) {
@@ -128,7 +133,10 @@
               </div>
               <span class="vendor-badge vendor-{r.vendor}">{r.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
             </div>
-            <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
+            <div class="rest-actions">
+              <a class="move-btn" href={takeInLink(r)} onclick={() => trackEvent('Restaurant Take-In Opened', { vendor: r.vendor, restaurantId: r.id, source: 'restaurants_page' })}>이동</a>
+              <button class="remove-btn" onclick={() => removeRestaurant(r)}>삭제</button>
+            </div>
           </li>
         {/each}
       </ul>
@@ -252,6 +260,14 @@
   .vendor-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
   .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
   .vendor-shinsegae { background: #fce7f3; color: #be185d; }
+
+  .rest-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .move-btn {
+    flex-shrink: 0; padding: 5px 12px; border: 1px solid #6ee7b7; border-radius: 20px;
+    background: #ecfdf5; color: #059669; font-size: 12px; font-weight: 500; text-decoration: none; transition: all 0.12s;
+  }
+  .move-btn:hover { background: #d1fae5; border-color: #34d399; }
 
   .remove-btn {
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 20px;
