@@ -1,6 +1,6 @@
 type RybbitProperties = Record<string, string | number>
 
-export function trackEvent (name: string, properties?: RybbitProperties) {
+export function trackEvent(name: string, properties?: RybbitProperties) {
   try {
     window.rybbit?.event(name, properties)
   } catch {
