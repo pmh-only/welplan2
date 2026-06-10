@@ -22,7 +22,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 | `impl/welstory_plus`  | `@pmh-only/welplan2-welstory-plus`  | Welstory Plus API client used by the web app.             |
 | `impl/planeat_choice` | `@pmh-only/welplan2-planeat-choice` | PlanEAT Choice API client used by the web app.            |
 | `webapp`              | `@pmh-only/welplan2-webapp`         | SvelteKit application for browsing menus.                 |
-| `worker`              | `@pmh-only/welplan2-worker`         | Background poller that prefetches menus into PostgreSQL.   |
+| `worker`              | `@pmh-only/welplan2-worker`         | Background poller that prefetches menus into PostgreSQL.  |
 
 ## Requirements
 
@@ -37,36 +37,38 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 The app now loads variables from `.env` automatically (same directory as the running package).
 You can also set `DOTENV_PATH` to point at a custom env file.
 
-| Variable               | Required     | Default        | Description                                                            |
-| ---------------------- | ------------ | -------------- | ---------------------------------------------------------------------- |
-| `WELSTORY_USERNAME`    | For Welstory | none           | Welstory Plus login ID.                                                |
-| `WELSTORY_PASSWORD`    | For Welstory | none           | Welstory Plus password.                                                |
-| `WELSTORY_DEVICE_ID`   | No           | generated UUID | Optional device identifier sent to Welstory.                           |
-| `WELPLAN_VERBOSE_LOGS` | No           | off            | Enables all verbose server, sync, traffic, and auth logs.              |
-| `WELPLAN_SYNC_LOGS`    | No           | off            | Enables detailed cache warmup, cache hit/miss, and poller logs.        |
-| `WELPLAN_TRAFFIC_LOGS` | No           | off            | Enables inbound web request logs and outbound vendor API traffic logs. |
-| `WELPLAN_AUTH_LOGS`    | No           | off            | Enables detailed Welstory login and session refresh logs.              |
-| `DOTENV_PATH`          | No           | auto           | Custom path to a dotenv file (for worker or custom layouts).             |
-| `DATABASE_URL`         | No           | generated      | PostgreSQL connection URL used by Drizzle.                           |
-| `PGHOST`               | No           | `localhost`    | PostgreSQL host (used when `DATABASE_URL` is not set).                |
-| `PGPORT`               | No           | `5432`         | PostgreSQL port (used when `DATABASE_URL` is not set).                |
-| `PGDATABASE`           | No           | `welplan2`     | PostgreSQL database name (used when `DATABASE_URL` is not set).       |
-| `PGUSER`               | No           | `welplan2`     | PostgreSQL user (used when `DATABASE_URL` is not set).                |
-| `PGPASSWORD`           | No           | none           | PostgreSQL password (used when `DATABASE_URL` is not set).            |
-| `HOST`                 | No           | `0.0.0.0`      | Host used by the production Node server.                               |
-| `PORT`                 | No           | `3000`         | Port used by the production Node server.                               |
-| `ORIGIN`               | Recommended behind proxy | request origin | Public origin, e.g. `https://welplan.pmh.codes`, used by SvelteKit CSRF checks and absolute URLs. |
-| `HOST_HEADER`          | No           | none           | Header adapter-node should trust for host, e.g. `x-forwarded-host`, when using a reverse proxy. |
-| `PROTOCOL_HEADER`      | No           | none           | Header adapter-node should trust for protocol, e.g. `x-forwarded-proto`, when using a reverse proxy. |
-| `ADMIN_OIDC_RESPONSE_MODE` | No       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks. |
+| Variable                       | Required                 | Default        | Description                                                                                                        |
+| ------------------------------ | ------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `WELSTORY_USERNAME`            | For Welstory             | none           | Welstory Plus login ID.                                                                                            |
+| `WELSTORY_PASSWORD`            | For Welstory             | none           | Welstory Plus password.                                                                                            |
+| `WELSTORY_DEVICE_ID`           | No                       | generated UUID | Optional device identifier sent to Welstory.                                                                       |
+| `WELPLAN_VERBOSE_LOGS`         | No                       | off            | Enables all verbose server, sync, traffic, and auth logs.                                                          |
+| `WELPLAN_SYNC_LOGS`            | No                       | off            | Enables detailed cache warmup, cache hit/miss, and poller logs.                                                    |
+| `WELPLAN_TRAFFIC_LOGS`         | No                       | off            | Enables inbound web request logs and outbound vendor API traffic logs.                                             |
+| `WELPLAN_AUTH_LOGS`            | No                       | off            | Enables detailed Welstory login and session refresh logs.                                                          |
+| `DOTENV_PATH`                  | No                       | auto           | Custom path to a dotenv file (for worker or custom layouts).                                                       |
+| `DATABASE_URL`                 | No                       | generated      | PostgreSQL connection URL used by Drizzle.                                                                         |
+| `PGHOST`                       | No                       | `localhost`    | PostgreSQL host (used when `DATABASE_URL` is not set).                                                             |
+| `PGPORT`                       | No                       | `5432`         | PostgreSQL port (used when `DATABASE_URL` is not set).                                                             |
+| `PGDATABASE`                   | No                       | `welplan2`     | PostgreSQL database name (used when `DATABASE_URL` is not set).                                                    |
+| `PGUSER`                       | No                       | `welplan2`     | PostgreSQL user (used when `DATABASE_URL` is not set).                                                             |
+| `PGPASSWORD`                   | No                       | none           | PostgreSQL password (used when `DATABASE_URL` is not set).                                                         |
+| `HOST`                         | No                       | `0.0.0.0`      | Host used by the production Node server.                                                                           |
+| `PORT`                         | No                       | `3000`         | Port used by the production Node server.                                                                           |
+| `ORIGIN`                       | Recommended behind proxy | request origin | Public origin, e.g. `https://welplan.pmh.codes`, used by SvelteKit CSRF checks and absolute URLs.                  |
+| `HOST_HEADER`                  | No                       | none           | Header adapter-node should trust for host, e.g. `x-forwarded-host`, when using a reverse proxy.                    |
+| `PROTOCOL_HEADER`              | No                       | none           | Header adapter-node should trust for protocol, e.g. `x-forwarded-proto`, when using a reverse proxy.               |
+| `ADMIN_OIDC_RESPONSE_MODE`     | No                       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks.        |
+| `TWA_PACKAGE_NAME`             | For Android TWA          | none           | Android package name allowed to claim this web origin through Digital Asset Links.                                 |
+| `TWA_SHA256_CERT_FINGERPRINTS` | For Android TWA          | none           | Comma or whitespace separated SHA-256 signing certificate fingerprints served from `/.well-known/assetlinks.json`. |
 
 ### Worker Environment Variables
 
-| Variable                        | Required | Default       | Description                                               |
-| ------------------------------- | -------- | ------------- | --------------------------------------------------------- |
-| `WORKER_ACTIVE_PREFETCH_INTERVAL_MS` | No   | `600000`      | Poll interval for active user-selected restaurants.         |
-| `WORKER_FULL_SCAN_INTERVAL_MS`   | No   | `21600000`    | Poll interval for full cache scan across all cached restaurants. |
-| `WORKER_ACTIVE_PREFETCH_DAYS`    | No   | `2`           | Days from today for active prefetch.                       |
+| Variable                             | Required | Default    | Description                                                      |
+| ------------------------------------ | -------- | ---------- | ---------------------------------------------------------------- |
+| `WORKER_ACTIVE_PREFETCH_INTERVAL_MS` | No       | `600000`   | Poll interval for active user-selected restaurants.              |
+| `WORKER_FULL_SCAN_INTERVAL_MS`       | No       | `21600000` | Poll interval for full cache scan across all cached restaurants. |
+| `WORKER_ACTIVE_PREFETCH_DAYS`        | No       | `2`        | Days from today for active prefetch.                             |
 
 PlanEAT Choice requests do not currently require credentials.
 
@@ -143,6 +145,7 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/restaurants`: manage the restaurant list stored in the `welplan_restaurants` cookie.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
+- `/.well-known/assetlinks.json`: Android Digital Asset Links for Trusted Web Activity verification when TWA env vars are configured.
 
 ## Package Usage
 
@@ -223,6 +226,43 @@ docker run --rm \
 Webapp is cache-only in normal operation, so web-only containers should be paired with the worker for cache warm-up.
 
 The container uses PostgreSQL for cache storage and does not create a local `/data` volume.
+
+## Android TWA / Google Play
+
+Trusted Web Activity is Android-only and is published through Google Play. It is not an Apple App Store format; for iOS, use the installed PWA experience or build a native iOS shell that satisfies App Store Review requirements.
+
+The web app already provides the core PWA pieces needed by a TWA: HTTPS-compatible SvelteKit app, generated `manifest.webmanifest`, icons, screenshots, and service worker registration. The remaining production requirement is proving ownership between the Android app and this web origin with Digital Asset Links.
+
+Configure the production web app with the Android package name and SHA-256 signing certificate fingerprint:
+
+```bash
+TWA_PACKAGE_NAME=com.example.welplan
+TWA_SHA256_CERT_FINGERPRINTS=AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99
+```
+
+Use the Google Play app signing certificate fingerprint for production releases. If you test locally with a debug or upload key, include that certificate fingerprint too, separated by a comma.
+
+Verify the web-side association after deployment:
+
+```bash
+curl https://welplan.example.com/.well-known/assetlinks.json
+```
+
+Generate the Android wrapper with Bubblewrap:
+
+```bash
+pnpm dlx @bubblewrap/cli init --manifest=https://welplan.example.com/manifest.webmanifest
+```
+
+During Bubblewrap setup, use the same package name as `TWA_PACKAGE_NAME`, set the start URL to `/`, and use the production HTTPS origin. Build a signed Android App Bundle from the generated Android project and upload the `.aab` to Google Play Console.
+
+Google Play release checklist:
+
+- Production site is available on HTTPS.
+- `/.well-known/assetlinks.json` returns the package name and Play app signing SHA-256 fingerprint.
+- `manifest.webmanifest` has `name`, `short_name`, `start_url`, `scope`, `display`, theme colors, and 192/512 icons.
+- Service worker is available at `/sw.js` after a production build.
+- Store listing, screenshots, privacy policy, data safety, and content rating are completed in Play Console.
 
 ## CI/CD
 
