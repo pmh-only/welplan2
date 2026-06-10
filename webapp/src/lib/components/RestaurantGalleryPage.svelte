@@ -77,7 +77,7 @@
     if (registered) return
     trackEvent('Restaurant Added', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id, source: 'detail_page' })
     const next = [...savedRestaurants(), data.restaurant]
-    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
+    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
     registered = true
     void recordRestaurantSelection(data.restaurant).catch(() => undefined)
     invalidateAll()

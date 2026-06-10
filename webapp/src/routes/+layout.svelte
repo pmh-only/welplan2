@@ -424,7 +424,7 @@
 
   function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
     invalidateAll()
   }
 

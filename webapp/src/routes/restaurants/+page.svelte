@@ -46,7 +46,7 @@
 
   function saveRestaurants (next: Restaurant[]) {
     restaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
     invalidateAll()
   }
 
