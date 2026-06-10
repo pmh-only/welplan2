@@ -3,6 +3,7 @@
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
+  import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { fromInputDate, proxyImg, toInputDate } from '$lib/utils'
@@ -78,6 +79,7 @@
     const next = [...savedRestaurants(), data.restaurant]
     document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=31536000; SameSite=Lax`
     registered = true
+    void recordRestaurantSelection(data.restaurant).catch(() => undefined)
     invalidateAll()
   }
 

@@ -7,6 +7,7 @@ import { createServerLogger } from './log.js'
 import { deleteRedisPrefix, getRedisJson, setRedisJson } from './redis-cache.js'
 import {
   restaurants as restaurantsTable,
+  restaurantSelectionRecency,
   mealTimesCache,
   menusCache,
   menuDetailCache,
@@ -198,6 +199,21 @@ export class CafeteriaService {
     return [...merged.values()]
       .sort((a, b) => b.score - a.score || a.restaurant.name.localeCompare(b.restaurant.name, 'ko'))
       .map((entry) => entry.restaurant)
+  }
+
+  private async readRestaurantSelectionRecency(): Promise<Map<string, number>> {
+    await ensureDbInitialized()
+    const rows = await db.select().from(restaurantSelectionRecency).execute()
+    return new Map(rows.map((row) => [row.restaurantId, row.selectedAt]))
+  }
+
+  private sortRestaurantsByGlobalSelectionRecency(restaurants: Restaurant[], recency: Map<string, number>): Restaurant[] {
+    return [...restaurants].sort((a, b) => {
+      const aSelectedAt = recency.get(a.id) ?? 0
+      const bSelectedAt = recency.get(b.id) ?? 0
+      if (aSelectedAt !== bSelectedAt) return bSelectedAt - aSelectedAt
+      return 0
+    })
   }
 
   private async readRestaurants(): Promise<Restaurant[]> {
@@ -1335,15 +1351,37 @@ export class CafeteriaService {
     })
   }
 
+  async recordRestaurantSelection(restaurant: Restaurant): Promise<void> {
+    await this.registerRestaurant(restaurant)
+    const selectedAt = this.now()
+
+    await db
+      .insert(restaurantSelectionRecency)
+      .values({ restaurantId: restaurant.id, selectedAt })
+      .onConflictDoUpdate({
+        target: restaurantSelectionRecency.restaurantId,
+        set: { selectedAt }
+      })
+      .execute()
+
+    syncLog.info('recorded restaurant selection', {
+      restaurantId: restaurant.id,
+      vendor: restaurant.vendor,
+      restaurantName: restaurant.name,
+      selectedAt
+    })
+  }
+
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
+    const selectionRecency = await this.readRestaurantSelectionRecency()
     const fromCache = (await this.readRestaurants()).filter(
       (restaurant) => !this.isClosedRestaurant(restaurant)
     )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
     if (!query.trim()) {
-      return fromCache.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+      return this.sortRestaurantsByGlobalSelectionRecency(fromCache, selectionRecency)
     }
 
     const fromWelstory = this.allowRemoteFetch
@@ -1369,7 +1407,10 @@ export class CafeteriaService {
         )
       : []
 
-    const merged = this.mergeSearchResults(query, fromCache, fromWelstory)
+    const merged = this.sortRestaurantsByGlobalSelectionRecency(
+      this.mergeSearchResults(query, fromCache, fromWelstory),
+      selectionRecency
+    )
     syncLog.info('restaurant search completed', {
       query,
       cachedRestaurantCount: fromCache.length,

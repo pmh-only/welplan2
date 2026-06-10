@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
+  import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
   import { todayStr } from '$lib/utils'
@@ -48,6 +49,7 @@
     if (!myIds.has(restaurantKey(r))) {
       trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id })
       saveRestaurants([...restaurants, r])
+      void recordRestaurantSelection(r).catch(() => undefined)
     }
   }
 

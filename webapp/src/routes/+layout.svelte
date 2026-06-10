@@ -6,6 +6,7 @@
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
+  import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { Camera, Check, Lightbulb, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
@@ -483,6 +484,7 @@
     if (dialogRestaurantIds.has(restaurantKey(restaurant))) return
     trackEvent('Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
     persistDialogRestaurants([...dialogRestaurants, restaurant])
+    void recordRestaurantSelection(restaurant).catch(() => undefined)
   }
 
   function removeDialogRestaurant (restaurant: Restaurant) {

@@ -28,6 +28,10 @@ const createSchemaSql = `
     data TEXT NOT NULL,
     cached_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS restaurant_selection_recency (
+    restaurant_id TEXT PRIMARY KEY,
+    selected_at BIGINT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS meal_times_cache (
     restaurant_id TEXT PRIMARY KEY,
     data TEXT NOT NULL,

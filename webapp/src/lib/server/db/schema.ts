@@ -6,6 +6,11 @@ export const restaurants = pgTable('restaurants', {
   cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
 
+export const restaurantSelectionRecency = pgTable('restaurant_selection_recency', {
+  restaurantId: text('restaurant_id').primaryKey(),
+  selectedAt: bigint('selected_at', { mode: 'number' }).notNull()
+})
+
 export const mealTimesCache = pgTable('meal_times_cache', {
   restaurantId: text('restaurant_id').primaryKey(),
   data: text('data').notNull(), // JSON: MealTime[]
