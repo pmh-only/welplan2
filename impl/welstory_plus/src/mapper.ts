@@ -6,6 +6,7 @@ import type {
   NutritionInfo,
   Restaurant
 } from '@pmh-only/welplan2-model'
+import { hasTakeOutConditionTag } from '@pmh-only/welplan2-model'
 import type { WpDish, WpMealTime, WpMenuDetail, WpMenuNutrient, WpRestaurant } from './types.js'
 
 // Nutrition values from the API are strings and may contain commas (e.g. "1,475")
@@ -81,7 +82,7 @@ export function groupDishesToMenus(dishes: WpDish[], restaurantId: string): Menu
 
 function isTakeOutName(name: string): boolean {
   return (
-    /^\[\d+Coin\]/.test(name) ||
+    hasTakeOutConditionTag(name) ||
     name.includes('코인') ||
     /\(\d+\)/.test(name) ||
     /외\s*\d+종$/.test(name) ||

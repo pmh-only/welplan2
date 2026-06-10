@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { takeOutConditionValue } from '@pmh-only/welplan2-model'
   import { trackEvent } from '$lib/analytics'
   import { autoSelectMealTime, fallbackMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -274,8 +275,8 @@
   const selectedItemsText = $derived(selectedMenus.map((menu) => menu.name).join(', '))
 
   function extractCoin (name: string): number {
-    const coinMatch = name.match(/\[(\d+)Coin\]/)
-    if (coinMatch) return parseInt(coinMatch[1], 10)
+    const coinValue = takeOutConditionValue(name)
+    if (coinValue !== undefined) return coinValue
     const mainMatch = name.match(/\[Main(\d+)\]/)
     if (mainMatch) return parseInt(mainMatch[1], 10)
     return 0

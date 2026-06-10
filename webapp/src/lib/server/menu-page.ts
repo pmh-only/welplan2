@@ -1,5 +1,6 @@
 import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
+import { hasTakeOutConditionTag } from '@pmh-only/welplan2-model'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
 import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, todayStr } from '../utils.js'
 
@@ -217,7 +218,7 @@ export async function computeGalleryMenusForRestaurantDate(
         const enrichedMenus = options.enrichNutrientDetails === false
           ? rawMenus
           : await enrichGalleryMenus(rawMenus, date, cafeteriaService)
-        const menus = await flattenTakeOutMenus(enrichedMenus.map(normalizeHighCalorieTakeOut), date, cafeteriaService)
+        const menus = await flattenTakeOutMenus(enrichedMenus.map(normalizeTakeOutMenu), date, cafeteriaService)
 
         return {
           menus,
@@ -308,8 +309,8 @@ function normalizeMenuName(name: string): string {
   return name.replace(/\s*포장$/, '').trim()
 }
 
-function normalizeHighCalorieTakeOut(menu: Menu): Menu {
-  if (menu.isTakeOut || (menu.nutrition?.calories ?? 0) <= 3000) return menu
+function normalizeTakeOutMenu(menu: Menu): Menu {
+  if (menu.isTakeOut || ((menu.nutrition?.calories ?? 0) <= 3000 && !hasTakeOutConditionTag(menu.name))) return menu
   return { ...menu, isTakeOut: true }
 }
 

@@ -1,5 +1,22 @@
 export type Vendor = 'welstory' | 'shinsegae'
 
+const TAKE_OUT_COIN_TAG_PATTERN = /^\[(\d+)(?:~(\d+))?Coin\]/i
+const TAKE_OUT_PICK_TAG_PATTERN = /(?:^|[^\p{Letter}\p{Number}])(\d+)(?:~(\d+))?\s*(?:pick|픽)(?=$|[^\p{Letter}\p{Number}])/iu
+
+function takeOutValueFromMatch(match: RegExpMatchArray | null): number | undefined {
+  if (!match) return undefined
+  return parseInt(match[2] ?? match[1], 10)
+}
+
+export function takeOutConditionValue(name: string): number | undefined {
+  return takeOutValueFromMatch(name.match(TAKE_OUT_COIN_TAG_PATTERN)) ??
+    takeOutValueFromMatch(name.match(TAKE_OUT_PICK_TAG_PATTERN))
+}
+
+export function hasTakeOutConditionTag(name: string): boolean {
+  return takeOutConditionValue(name) !== undefined
+}
+
 export type MealTypeName = 'breakfast' | 'lunch' | 'dinner' | 'supper' | 'snack' | 'dawn'
 
 export interface Restaurant {
