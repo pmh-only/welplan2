@@ -688,6 +688,8 @@
   const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
+  const showInstallPrompt = $derived(installAvailable && !isRestaurantDetailPage)
+  const showPwaStatus = $derived(updateAvailable || showInstallPrompt || offlineReady)
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -766,16 +768,16 @@
     </section>
   {/if}
 
-  {#if updateAvailable || installAvailable || offlineReady}
+  {#if showPwaStatus}
     <section class="pwa-status" aria-live="polite" aria-label="앱 상태">
       <div>
-        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : installAvailable ? 'Welplan 앱을 설치할 수 있습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
-        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : installAvailable ? '홈 화면이나 작업 표시줄에서 바로 열고 더 빠르게 식단을 확인하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
+        <strong>{updateAvailable ? '새 버전이 준비되었습니다.' : showInstallPrompt ? 'Welplan 앱을 설치할 수 있습니다.' : '오프라인에서도 사용할 준비가 되었습니다.'}</strong>
+        <p>{updateAvailable ? '편한 시점에 새로고침해 최신 앱으로 전환하세요.' : showInstallPrompt ? '홈 화면이나 작업 표시줄에서 바로 열고 더 빠르게 식단을 확인하세요.' : '최근에 연 화면과 앱 리소스가 캐시에 저장되었습니다.'}</p>
       </div>
       <div class="pwa-status-actions">
         {#if updateAvailable}
           <button type="button" onclick={applyAppUpdate}>업데이트</button>
-        {:else if installAvailable}
+        {:else if showInstallPrompt}
           <button type="button" onclick={installApp}>설치</button>
           <button type="button" class="pwa-status-secondary" onclick={() => clearInstallPrompt()}>나중에</button>
         {:else}
@@ -1728,20 +1730,32 @@
     .brand-sub { display: none; }
     .content { padding: 14px 12px calc(82px + env(safe-area-inset-bottom)); }
     .pwa-status {
-      left: 10px;
-      right: 10px;
+      left: auto;
+      right: 12px;
       bottom: calc(76px + env(safe-area-inset-bottom));
-      width: auto;
+      width: min(300px, calc(100vw - 24px));
       grid-template-columns: 1fr;
-      gap: 12px;
-      padding: 16px;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 14px;
+    }
+    .pwa-status strong {
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+    .pwa-status p {
+      font-size: 11px;
+      line-height: 1.4;
     }
     .pwa-status-actions {
       flex-direction: row;
       flex-wrap: wrap;
+      gap: 6px;
     }
     .pwa-status button {
-      flex: 1 1 96px;
+      flex: 1 1 76px;
+      padding: 7px 10px;
+      font-size: 11px;
     }
   }
 </style>
