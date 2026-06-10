@@ -462,6 +462,7 @@
   }
 
   function closeFirstVisitDialog () {
+    if (dialogRestaurants.length === 0) return
     trackEvent('First Visit Dialog Closed', { restaurantCount: dialogRestaurants.length })
     persistDialogRestaurants(dialogRestaurants)
     firstVisitDialogOpen = false
@@ -795,9 +796,6 @@
             <h2 id="first-visit-title">자주 이용하는 식당을 선택해 주세요</h2>
             <p>선택한 식당 기준으로 갤러리, 테이크인, 테이크아웃 메뉴가 표시됩니다.</p>
           </div>
-          <button type="button" class="first-visit-close" aria-label="첫 방문 설정 닫기" onclick={closeFirstVisitDialog}>
-            <X class="first-visit-close-icon" aria-hidden="true" />
-          </button>
         </div>
 
         <div class="first-visit-grid">
@@ -854,21 +852,32 @@
               <ul class="first-visit-list">
                 {#each visibleRestaurantSearchResults as restaurant (restaurantKey(restaurant))}
                   {@const added = dialogRestaurantIds.has(restaurantKey(restaurant))}
-                  <li class="first-visit-item" class:first-visit-item-added={added}>
-                    <div class="first-visit-restaurant">
-                      <p>{restaurant.name}</p>
-                      {#if restaurantPathText(restaurant)}
-                        <span>{restaurantPathText(restaurant)}</span>
-                      {/if}
-                    </div>
-                    <span class="first-visit-vendor vendor-{restaurant.vendor}">{vendorName(restaurant.vendor)}</span>
+                  <li>
                     {#if added}
-                      <span class="first-visit-added">
-                        <Check class="first-visit-added-icon" aria-hidden="true" />
-                        추가됨
-                      </span>
+                      <div class="first-visit-item first-visit-item-added">
+                        <div class="first-visit-restaurant">
+                          <p>{restaurant.name}</p>
+                          {#if restaurantPathText(restaurant)}
+                            <span>{restaurantPathText(restaurant)}</span>
+                          {/if}
+                        </div>
+                        <span class="first-visit-vendor vendor-{restaurant.vendor}">{vendorName(restaurant.vendor)}</span>
+                        <span class="first-visit-added">
+                          <Check class="first-visit-added-icon" aria-hidden="true" />
+                          추가됨
+                        </span>
+                      </div>
                     {:else}
-                      <button type="button" class="first-visit-add" onclick={() => addDialogRestaurant(restaurant)}>+ 추가</button>
+                      <button type="button" class="first-visit-item first-visit-item-button" onclick={() => addDialogRestaurant(restaurant)}>
+                        <div class="first-visit-restaurant">
+                          <p>{restaurant.name}</p>
+                          {#if restaurantPathText(restaurant)}
+                            <span>{restaurantPathText(restaurant)}</span>
+                          {/if}
+                        </div>
+                        <span class="first-visit-vendor vendor-{restaurant.vendor}">{vendorName(restaurant.vendor)}</span>
+                        <span class="first-visit-add">+ 추가</span>
+                      </button>
                     {/if}
                   </li>
                 {/each}
@@ -878,7 +887,7 @@
         </div>
 
         <div class="first-visit-actions">
-          <button type="button" onclick={closeFirstVisitDialog}>이대로 시작하기</button>
+          <button type="button" disabled={dialogRestaurants.length === 0} onclick={closeFirstVisitDialog}>이대로 시작하기</button>
         </div>
       </div>
     </div>
@@ -1264,6 +1273,19 @@
     opacity: 0.68;
   }
 
+  .first-visit-item-button {
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .first-visit-item-button:hover {
+    border-color: #6ee7b7;
+    background: #ecfdf5;
+  }
+
   .first-visit-restaurant {
     min-width: 0;
   }
@@ -1453,6 +1475,15 @@
     background: #059669;
   }
 
+  .first-visit-actions button:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+  }
+
+  .first-visit-actions button:disabled:hover {
+    background: #cbd5e1;
+  }
   header {
     background: #0f172a;
     border-bottom: 1px solid rgba(255,255,255,0.07);
