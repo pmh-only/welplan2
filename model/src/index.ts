@@ -1,7 +1,10 @@
 export type Vendor = 'welstory' | 'shinsegae'
 
+export const TAKE_OUT_ITEM_COUNT_THRESHOLD = 10
+
 const TAKE_OUT_COIN_TAG_PATTERN = /^\[(\d+)(?:~(\d+))?Coin\]/i
 const TAKE_OUT_PICK_TAG_PATTERN = /(?:^|[^\p{Letter}\p{Number}])(\d+)(?:~(\d+))?\s*(?:pick|픽)(?=$|[^\p{Letter}\p{Number}])/iu
+const TAKE_OUT_MARKER_PATTERN = /(?:^|[^\p{Letter}\p{Number}])T\s*\/\s*O(?=$|[^\p{Letter}\p{Number}])/iu
 
 function takeOutValueFromMatch(match: RegExpMatchArray | null): number | undefined {
   if (!match) return undefined
@@ -14,7 +17,7 @@ export function takeOutConditionValue(name: string): number | undefined {
 }
 
 export function hasTakeOutConditionTag(name: string): boolean {
-  return takeOutConditionValue(name) !== undefined
+  return takeOutConditionValue(name) !== undefined || TAKE_OUT_MARKER_PATTERN.test(name)
 }
 
 export type MealTypeName = 'breakfast' | 'lunch' | 'dinner' | 'supper' | 'snack' | 'dawn'

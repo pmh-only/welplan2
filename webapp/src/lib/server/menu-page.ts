@@ -1,6 +1,6 @@
 import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
-import { hasTakeOutConditionTag } from '@pmh-only/welplan2-model'
+import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
 import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, todayStr } from '../utils.js'
 
@@ -310,7 +310,7 @@ function normalizeMenuName(name: string): string {
 }
 
 function normalizeTakeOutMenu(menu: Menu): Menu {
-  if (menu.isTakeOut || ((menu.nutrition?.calories ?? 0) <= 3000 && !hasTakeOutConditionTag(menu.name))) return menu
+  if (menu.isTakeOut || ((menu.nutrition?.calories ?? 0) <= 3000 && !hasTakeOutConditionTag(menu.name) && menu.components.length <= TAKE_OUT_ITEM_COUNT_THRESHOLD)) return menu
   return { ...menu, isTakeOut: true }
 }
 

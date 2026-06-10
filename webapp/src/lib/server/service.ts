@@ -1,5 +1,5 @@
 import type { Vendor, CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant } from '@pmh-only/welplan2-model'
-import { hasTakeOutConditionTag } from '@pmh-only/welplan2-model'
+import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import { WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
 import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
 import './env.js'
@@ -308,7 +308,7 @@ export class CafeteriaService {
   private normalizeMenus(menus: Menu[]): { menus: Menu[]; takeOutAdjustments: number } {
     let takeOutAdjustments = 0
     for (const menu of menus) {
-      if (!menu.isTakeOut && ((menu.nutrition?.calories ?? 0) > 3000 || hasTakeOutConditionTag(menu.name))) {
+      if (!menu.isTakeOut && ((menu.nutrition?.calories ?? 0) > 3000 || hasTakeOutConditionTag(menu.name) || menu.components.length > TAKE_OUT_ITEM_COUNT_THRESHOLD)) {
         menu.isTakeOut = true
         takeOutAdjustments++
       }

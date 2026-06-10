@@ -6,7 +6,7 @@ import type {
   NutritionInfo,
   Restaurant
 } from '@pmh-only/welplan2-model'
-import { hasTakeOutConditionTag } from '@pmh-only/welplan2-model'
+import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import type { WpDish, WpMealTime, WpMenuDetail, WpMenuNutrient, WpRestaurant } from './types.js'
 
 // Nutrition values from the API are strings and may contain commas (e.g. "1,475")
@@ -91,7 +91,7 @@ function isTakeOutName(name: string): boolean {
 }
 
 function isTakeOutCourse(dishes: WpDish[]): boolean {
-  return dishes.some((dish) => isTakeOutName(dish.menuName))
+  return dishes.length > TAKE_OUT_ITEM_COUNT_THRESHOLD || dishes.some((dish) => isTakeOutName(dish.menuName))
 }
 
 function mapCourseToMenu(dishes: WpDish[], restaurantId: string): Menu {
