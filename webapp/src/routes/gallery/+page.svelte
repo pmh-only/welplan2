@@ -5,7 +5,7 @@
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, proxyImg, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
-  import { ChevronDown, ChevronRight, Utensils, X } from '@lucide/svelte'
+  import { ChevronDown, ChevronRight, Utensils, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -316,6 +316,9 @@
                     <div class="gallery-img-wrap">
                       {#if isImageAvailable(proxyImg(menu.imageUrl))}
                         <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                        <span class="zoom-indicator" aria-hidden="true">
+                          <ZoomIn class="zoom-indicator-icon" />
+                        </span>
                       {:else}
                         <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
                           <span class="placeholder-icon" aria-hidden="true">
@@ -353,6 +356,9 @@
             <div class="gallery-img-wrap">
                 {#if isImageAvailable(proxyImg(menu.imageUrl))}
                   <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                  <span class="zoom-indicator" aria-hidden="true">
+                    <ZoomIn class="zoom-indicator-icon" />
+                  </span>
               {:else}
                 <div class="gallery-placeholder" aria-label={`${menu.name} 이미지 준비중`}>
                   <span class="placeholder-icon" aria-hidden="true">
@@ -687,6 +693,23 @@
   .gallery-img-wrap { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--surface); }
   .gallery-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.2s; }
   .gallery-card:hover .gallery-img { transform: scale(1.04); }
+  .zoom-indicator {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.62);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+    pointer-events: none;
+  }
+  :global(.zoom-indicator-icon) { width: 15px; height: 15px; }
   .gallery-placeholder,
   .lightbox-placeholder {
     display: flex;

@@ -7,7 +7,7 @@
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { fromInputDate, proxyImg, toInputDate } from '$lib/utils'
-  import { X } from '@lucide/svelte'
+  import { X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -324,6 +324,9 @@
                   <span class="image-wrap">
                     {#if isImageAvailable(proxyImg(menu.imageUrl))}
                       <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                      <span class="zoom-indicator" aria-hidden="true">
+                        <ZoomIn class="zoom-indicator-icon" />
+                      </span>
                     {:else}
                       <span class="no-image-placeholder" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
@@ -695,6 +698,28 @@
     height: 100%;
     object-fit: contain;
     transition: transform 0.2s;
+  }
+
+  .zoom-indicator {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.62);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+    pointer-events: none;
+  }
+
+  :global(.zoom-indicator-icon) {
+    width: 15px;
+    height: 15px;
   }
 
   .gallery-card:hover .image-wrap img,
