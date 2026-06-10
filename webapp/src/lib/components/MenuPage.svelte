@@ -142,8 +142,7 @@
     data.restaurants.filter((restaurant: Restaurant) =>
       data.menus.some((menu: Menu) =>
         !menu.isTakeOut &&
-        menu.restaurantId === restaurant.id &&
-        (menu.vendor === 'shinsegae' || (menu.nutrition?.calories ?? 1) !== 0)
+        menu.restaurantId === restaurant.id
       )
     )
   )
@@ -188,7 +187,6 @@
       .filter((menu: Menu) => kind !== 'takeout' || !selectedTakeoutRestaurantId || menu.restaurantId === selectedTakeoutRestaurantId)
       .filter((menu: Menu) => kind !== 'takeout' || !takeOutFilterDrinks || !isDrinkMenu(menu))
       .filter((menu: Menu) => kind !== 'takeout' || matchesTakeOutSearch(menu))
-      .filter((menu: Menu) => menu.vendor === 'shinsegae' || (menu.nutrition?.calories ?? 1) !== 0)
       .map((menu: Menu) => {
         if (kind !== 'takein') return menu
 

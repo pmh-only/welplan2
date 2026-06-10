@@ -1,6 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-import { ALL_MEAL_TIME_ID, formatKoreanDate, todayStr } from '$lib/utils'
+import { ALL_MEAL_TIME_ID, formatKoreanDate, hasNutritionInfo, todayStr } from '$lib/utils'
 import {
   APP_NAME,
   AGENT_SKILLS_INDEX_PATH,
@@ -42,18 +42,18 @@ function listPath(restaurant: Restaurant): string {
 }
 
 function nutritionSummary(nutrition?: NutritionInfo): string {
-  if (!nutrition) return 'No nutrition data'
+  if (!hasNutritionInfo(nutrition)) return '(영양 정보 없음)'
 
   const values = [
-    nutrition.calories != null ? `${nutrition.calories} kcal` : null,
-    nutrition.carbohydrates != null ? `carb ${nutrition.carbohydrates}g` : null,
-    nutrition.protein != null ? `protein ${nutrition.protein}g` : null,
-    nutrition.fat != null ? `fat ${nutrition.fat}g` : null,
-    nutrition.sugar != null ? `sugar ${nutrition.sugar}g` : null,
-    nutrition.sodium != null ? `sodium ${nutrition.sodium}mg` : null
+    nutrition.calories != null ? `${Math.round(nutrition.calories)} kcal` : null,
+    nutrition.carbohydrates != null ? `carb ${Math.round(nutrition.carbohydrates)}g` : null,
+    nutrition.protein != null ? `protein ${Math.round(nutrition.protein)}g` : null,
+    nutrition.fat != null ? `fat ${Math.round(nutrition.fat)}g` : null,
+    nutrition.sugar != null ? `sugar ${Math.round(nutrition.sugar)}g` : null,
+    nutrition.sodium != null ? `sodium ${Math.round(nutrition.sodium)}mg` : null
   ].filter(Boolean)
 
-  return values.length > 0 ? values.join(', ') : 'No nutrition data'
+  return values.length > 0 ? values.join(', ') : '(영양 정보 없음)'
 }
 
 function sumNutrition(components: MenuComponent[]): NutritionInfo | undefined {
@@ -125,7 +125,6 @@ function flattenGalleryMenus(data: { menus: Menu[]; restaurants: Restaurant[] })
 function visibleTakeInMenus(data: { menus: Menu[] }) {
   return data.menus
     .filter((menu) => !menu.isTakeOut)
-    .filter((menu) => (menu.nutrition?.calories ?? 1) !== 0)
     .map((menu) => {
       const components = hasDetailedComponents(menu)
         ? menu.components.filter((component) => !isOptionalComponent(component))
@@ -143,7 +142,6 @@ function visibleTakeOutMenus(data: { menus: Menu[] }) {
   return data.menus
     .filter((menu) => menu.isTakeOut)
     .filter((menu) => !isDrinkMenu(menu))
-    .filter((menu) => (menu.nutrition?.calories ?? 1) !== 0)
 }
 
 function formatDateLabel(date: string): string {
@@ -335,7 +333,7 @@ async function renderRestaurantDateMarkdown(
     await Promise.all(
       mealTimes.map(async (mealTime) => {
         const menus = await service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
-        const visible = menus.filter((menu) => (menu.nutrition?.calories ?? 1) !== 0)
+        const visible = menus
         if (visible.length === 0) return null
 
         const items = visible

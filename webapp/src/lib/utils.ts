@@ -1,6 +1,20 @@
-import type { MealTime } from './types.js'
+import type { MealTime, NutritionInfo } from './types.js'
 
 export const ALL_MEAL_TIME_ID = 'all'
+
+const NUTRITION_KEYS: (keyof NutritionInfo)[] = [
+  'calories',
+  'carbohydrates',
+  'sugar',
+  'fiber',
+  'fat',
+  'protein',
+  'sodium',
+  'cholesterol',
+  'transFat',
+  'saturatedFat',
+  'calcium'
+]
 
 export const FALLBACK_MEAL_TIME_NAMES: Record<string, string> = {
   1: '아침',
@@ -13,6 +27,10 @@ export const FALLBACK_MEAL_TIME_NAMES: Record<string, string> = {
 
 export function fallbackMealTime(id: string): MealTime {
   return { id, name: FALLBACK_MEAL_TIME_NAMES[id] ?? id }
+}
+
+export function hasNutritionInfo(nutrition: NutritionInfo | undefined): boolean {
+  return nutrition != null && NUTRITION_KEYS.some((key) => (nutrition[key] ?? 0) !== 0)
 }
 
 function pad(n: number): string {

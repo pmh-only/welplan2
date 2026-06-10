@@ -2,7 +2,7 @@
   import { untrack } from 'svelte'
   import { goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
-  import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
   import { ChevronDown, ChevronLeft, ChevronRight, Utensils, X, ZoomIn } from '@lucide/svelte'
@@ -28,15 +28,12 @@
 
   function formatMetric (value: number | undefined, unit = ''): string {
     if (value == null) return '—'
-    const rounded = Math.round(value * 10) / 10
-    const display = Number.isInteger(rounded)
-      ? rounded.toLocaleString()
-      : rounded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    const display = Math.round(value).toLocaleString()
     return `${display}${unit}`
   }
 
   function activeNutrients (n: NutritionInfo | undefined): NutrientDef[] {
-    if (!n) return []
+    if (!hasNutritionInfo(n)) return []
     return nutrientDefs.filter(({ key }) => n[key] != null)
   }
 
@@ -62,7 +59,7 @@
   function detailRowsFor (menu: Menu): MenuComponent[] {
     if (detail.length <= 1) return detail
     const normalizedMenuName = normalizeMenuName(menu.name)
-    const rows = detail.filter((dish) => !(normalizeMenuName(dish.name) === normalizedMenuName && dish.nutrition?.calories === 0))
+    const rows = detail.filter((dish) => !(normalizeMenuName(dish.name) === normalizedMenuName && !hasNutritionInfo(dish.nutrition)))
     return rows.length > 0 ? rows : detail
   }
 
@@ -78,7 +75,7 @@
   }
 
   function activeDetailNutrients (rows: MenuComponent[]): NutrientDef[] {
-    return nutrientDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
+    return nutrientDefs.filter(({ key }) => rows.some((row) => hasNutritionInfo(row.nutrition) && row.nutrition?.[key] != null))
   }
 
   function hasMenuImage (menu: Menu): boolean {
@@ -344,8 +341,10 @@
                         <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
                       {/if}
                       <div class="gallery-meta">
-                        {#if menu.nutrition?.calories != null}
+                        {#if hasNutritionInfo(menu.nutrition) && menu.nutrition?.calories != null}
                           <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
+                        {:else}
+                          <span class="nutrition-unavailable-badge">(영양 정보 없음)</span>
                         {/if}
                         <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
                       </div>
@@ -384,8 +383,10 @@
                 <span class="gallery-components gallery-detail-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
               {/if}
               <div class="gallery-meta">
-                {#if menu.nutrition?.calories != null}
+                {#if hasNutritionInfo(menu.nutrition) && menu.nutrition?.calories != null}
                   <span class="kcal-badge">{formatMetric(menu.nutrition.calories, ' kcal')}</span>
+                {:else}
+                  <span class="nutrition-unavailable-badge">(영양 정보 없음)</span>
                 {/if}
                 <span class="gallery-restaurant">{restaurantNames(menu.restaurantIds)}</span>
               </div>
@@ -431,8 +432,10 @@
             {/if}
             <span class="lightbox-restaurant">{restaurantNames(zoomedMenu.restaurantIds)}</span>
           </div>
-          {#if zoomedMenu.nutrition?.calories != null}
+          {#if hasNutritionInfo(zoomedMenu.nutrition) && zoomedMenu.nutrition?.calories != null}
             <span class="kcal-badge">{formatMetric(zoomedMenu.nutrition.calories, ' kcal')}</span>
+          {:else}
+            <span class="nutrition-unavailable-badge">(영양 정보 없음)</span>
           {/if}
         </div>
       </div>
@@ -458,29 +461,38 @@
         {:else if detail.length > 0}
           {@const detailRows = detailRowsFor(zoomedMenu)}
           {@const detailMetrics = activeDetailNutrients(detailRows)}
-          <div class="detail-table-wrap">
-            <table class="detail-table">
-              <thead>
-                <tr>
-                  <th class="detail-col-name">항목</th>
-                  {#each detailMetrics as { label }}
-                    <th class="detail-col-num">{label}</th>
-                  {/each}
-                </tr>
-              </thead>
-              <tbody>
-                {#each detailRows as dish}
-                  {@const dn = dish.nutrition}
+          {#if detailMetrics.length > 0}
+            <div class="detail-table-wrap">
+              <table class="detail-table">
+                <thead>
                   <tr>
-                    <td class="detail-col-name dish-name">{dish.name}</td>
-                    {#each detailMetrics as { key, unit }}
-                      <td class="detail-col-num">{formatMetric(dn?.[key], unit)}</td>
+                    <th class="detail-col-name">항목</th>
+                    {#each detailMetrics as { label }}
+                      <th class="detail-col-num">{label}</th>
                     {/each}
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {#each detailRows as dish}
+                    {@const dn = dish.nutrition}
+                    {@const hasDishNutrition = hasNutritionInfo(dn)}
+                    <tr>
+                      <td class="detail-col-name dish-name">{dish.name}</td>
+                      {#if hasDishNutrition}
+                        {#each detailMetrics as { key, unit }}
+                          <td class="detail-col-num">{formatMetric(dn?.[key], unit)}</td>
+                        {/each}
+                      {:else}
+                        <td class="detail-col-num nutrition-unavailable" colspan={detailMetrics.length}>(영양 정보 없음)</td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {:else}
+            <p class="detail-empty">(영양 정보 없음)</p>
+          {/if}
         {/if}
       </div>
       <button class="lightbox-close" onclick={closeZoom} aria-label="닫기">
@@ -777,6 +789,10 @@
   .gallery-restaurant { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .kcal-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+  .nutrition-unavailable-badge,
+  .nutrition-unavailable { color: var(--text-dim); font-size: 11px; font-style: italic; }
+  .nutrition-unavailable-badge { white-space: nowrap; flex-shrink: 0; }
+  .nutrition-unavailable { text-align: center; }
 
   @media (max-width: 640px) {
     .controls { width: 100%; }

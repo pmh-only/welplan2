@@ -2,7 +2,7 @@
   import { untrack } from 'svelte'
   import { takeOutConditionValue } from '@pmh-only/welplan2-model'
   import { trackEvent } from '$lib/analytics'
-  import { autoSelectMealTime, fallbackMealTime, proxyImg } from '$lib/utils'
+  import { autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { BarChart3, ChevronDown, ChevronRight, Coins, Minus, Plus, TriangleAlert, X } from '@lucide/svelte'
 
@@ -212,8 +212,7 @@
 
   function formatMetric (value: number | undefined, unit = ''): string {
     if (value == null) return '—'
-    const rounded = Math.round(value * 10) / 10
-    const display = Number.isInteger(rounded) ? rounded.toLocaleString() : rounded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    const display = Math.round(value).toLocaleString()
     return `${display}${unit}`
   }
 
@@ -224,6 +223,7 @@
 
   function sortValueFor (menu: Menu, key: SortKey): SortValue {
     const nutrition = menu.nutrition
+    if (!hasNutritionInfo(nutrition)) return null
 
     switch (key) {
       case 'restaurant': return restaurantName(menu.restaurantId)
@@ -279,17 +279,21 @@
     })
   })
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
-  const tableColumnCount = $derived(7 + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
+  const hasAnyNutrition = $derived(visibleMenus.some((menu) => hasNutritionInfo(menu.nutrition)))
+  const nutrientColumnCount = $derived(hasAnyNutrition ? 6 : 1)
+  const tableColumnCount = $derived(1 + nutrientColumnCount + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
   const tableClass = $derived(`menu-table${enableSelection ? ' selection-mode' : ''}${mobileKcalOnly ? ' mobile-kcal-only' : ''}`)
   const selectedMenuEntries = $derived(
     visibleMenus
       .map((menu) => ({ menu, quantity: selectedMenuQuantity(menuKey(menu)) }))
       .filter(({ quantity }) => quantity > 0)
   )
+  const selectedNutritionEntries = $derived(selectedMenuEntries.filter(({ menu }) => hasNutritionInfo(menu.nutrition)))
   const selectedMenuCount = $derived(selectedMenuEntries.length)
   const selectedQuantityTotal = $derived(selectedMenuEntries.reduce((sum, { quantity }) => sum + quantity, 0))
+  const selectedHasNutrition = $derived(selectedNutritionEntries.length > 0)
   const selectedNutrition = $derived(
-    selectedMenuEntries.reduce(
+    selectedNutritionEntries.reduce(
       (totals: NutritionInfo, { menu, quantity }) => ({
         calories: (totals.calories ?? 0) + ((menu.nutrition?.calories ?? 0) * quantity),
         carbohydrates: (totals.carbohydrates ?? 0) + ((menu.nutrition?.carbohydrates ?? 0) * quantity),
@@ -334,7 +338,7 @@
   }
 
   function detailMetricsFor (rows: MenuComponent[]): DetailMetric[] {
-    return detailMetricDefs.filter(({ key }) => rows.some((row) => row.nutrition?.[key] != null))
+    return detailMetricDefs.filter(({ key }) => rows.some((row) => hasNutritionInfo(row.nutrition) && row.nutrition?.[key] != null))
   }
 
   function showDetailedNutrients (rows: MenuComponent[]): boolean {
@@ -390,12 +394,16 @@
           {#if hasAnyImage}<th class="col-img"></th>{/if}
           {#if !hideRestaurantLabels}<th class="col-rest hide-sm">식당</th>{/if}
           <th class="col-name">메뉴</th>
-          <th class="col-num">칼로리</th>
-          <th class="col-num hide-sm">탄수화물</th>
-          <th class="col-num hide-sm">당</th>
-          <th class="col-num mobile-extra-nutrient">지방</th>
-          <th class="col-num mobile-extra-nutrient">단백질</th>
-          <th class="col-num hide-sm">나트륨</th>
+          {#if hasAnyNutrition}
+            <th class="col-num">칼로리</th>
+            <th class="col-num hide-sm">탄수화물</th>
+            <th class="col-num hide-sm">당</th>
+            <th class="col-num mobile-extra-nutrient">지방</th>
+            <th class="col-num mobile-extra-nutrient">단백질</th>
+            <th class="col-num hide-sm">나트륨</th>
+          {:else}
+            <th class="col-num">영양 정보</th>
+          {/if}
         </tr>
       </thead>
       <tbody>
@@ -429,7 +437,7 @@
           {@const selectedQuantity = selectedMenuQuantity(key)}
           {@const restaurant = restaurantName(menu.restaurantId)}
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
-          {@const n = menu.nutrition}
+          {@const n = hasNutritionInfo(menu.nutrition) ? menu.nutrition : undefined}
           <tr class="menu-row" class:selected={selected} class:expanded={isExpanded} class:expandable={canExpand} class:clickable={enableSelection || canExpand} onclick={() => { if (enableSelection) toggleSelection(key); else if (canExpand) toggleMenu(menu) }}>
             {#if enableSelection}
               <td class="col-check" data-label="선택">
@@ -494,12 +502,16 @@
                 <span class="menu-desc menu-desc-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
               {/if}
             </td>
-            <td class="col-num" data-label="칼로리">{n?.calories != null ? `${n.calories.toLocaleString()} kcal` : '—'}</td>
-            <td class="col-num hide-sm" data-label="탄수화물">{n?.carbohydrates != null ? `${n.carbohydrates}g` : '—'}</td>
-            <td class="col-num hide-sm" data-label="당">{n?.sugar != null ? `${n.sugar}g` : '—'}</td>
-            <td class="col-num mobile-extra-nutrient" data-label="지방">{n?.fat != null ? `${n.fat}g` : '—'}</td>
-            <td class="col-num mobile-extra-nutrient" data-label="단백질">{n?.protein != null ? `${n.protein}g` : '—'}</td>
-            <td class="col-num hide-sm" data-label="나트륨">{n?.sodium != null ? `${n.sodium}mg` : '—'}</td>
+            {#if n}
+              <td class="col-num" data-label="칼로리">{formatMetric(n.calories, ' kcal')}</td>
+              <td class="col-num hide-sm" data-label="탄수화물">{formatMetric(n.carbohydrates, 'g')}</td>
+              <td class="col-num hide-sm" data-label="당">{formatMetric(n.sugar, 'g')}</td>
+              <td class="col-num mobile-extra-nutrient" data-label="지방">{formatMetric(n.fat, 'g')}</td>
+              <td class="col-num mobile-extra-nutrient" data-label="단백질">{formatMetric(n.protein, 'g')}</td>
+              <td class="col-num hide-sm" data-label="나트륨">{formatMetric(n.sodium, 'mg')}</td>
+            {:else}
+              <td class="col-num nutrition-unavailable" colspan={nutrientColumnCount} data-label="영양 정보">(영양 정보 없음)</td>
+            {/if}
           </tr>
           {#if isExpanded}
             <tr class="detail-row">
@@ -529,13 +541,18 @@
                         <tbody>
                           {#each detailRows as dish}
                             {@const dn = dish.nutrition}
+                            {@const hasDishNutrition = hasNutritionInfo(dn)}
                             <tr>
                               <td class="detail-col-name dish-name">{dish.name}</td>
-                              {#each detailMetrics as metric}
-                                <td class="detail-col-num" class:detail-extra-nutrient={metric.key !== 'calories'} data-label={metric.label}>
-                                  {formatMetric(dn?.[metric.key], metric.unit)}
-                                </td>
-                              {/each}
+                              {#if hasDishNutrition}
+                                {#each detailMetrics as metric}
+                                  <td class="detail-col-num" class:detail-extra-nutrient={metric.key !== 'calories'} data-label={metric.label}>
+                                    {formatMetric(dn?.[metric.key], metric.unit)}
+                                  </td>
+                                {/each}
+                              {:else}
+                                <td class="detail-col-num nutrition-unavailable" colspan={detailMetrics.length}>(영양 정보 없음)</td>
+                              {/if}
                             </tr>
                           {/each}
                         </tbody>
@@ -547,7 +564,7 @@
                         {#each detailRows as dish}
                           <tr>
                             <td class="dish-name">{dish.name}</td>
-                            <td class="dish-num">{formatMetric(dish.nutrition?.calories, ' kcal')}</td>
+                            <td class="dish-num">{hasNutritionInfo(dish.nutrition) ? formatMetric(dish.nutrition?.calories, ' kcal') : '(영양 정보 없음)'}</td>
                           </tr>
                         {/each}
                       </tbody>
@@ -606,28 +623,32 @@
         {/if}
       </div>
 
-      <div class="nutrition-summary">
-        <div class="nutrition-item calorie-item">
-          <div class="nutrition-label">칼로리</div>
-          <div class="nutrition-value calorie-value">{formatMetric(selectedNutrition.calories, ' kcal')}</div>
+      {#if selectedHasNutrition}
+        <div class="nutrition-summary">
+          <div class="nutrition-item calorie-item">
+            <div class="nutrition-label">칼로리</div>
+            <div class="nutrition-value calorie-value">{formatMetric(selectedNutrition.calories, ' kcal')}</div>
+          </div>
+          <div class="nutrition-item">
+            <div class="nutrition-label">탄수화물</div>
+            <div class="nutrition-value">{formatMetric(selectedNutrition.carbohydrates, 'g')}</div>
+          </div>
+          <div class="nutrition-item">
+            <div class="nutrition-label">당분</div>
+            <div class="nutrition-value">{formatMetric(selectedNutrition.sugar, 'g')}</div>
+          </div>
+          <div class="nutrition-item">
+            <div class="nutrition-label">지방</div>
+            <div class="nutrition-value">{formatMetric(selectedNutrition.fat, 'g')}</div>
+          </div>
+          <div class="nutrition-item">
+            <div class="nutrition-label">단백질</div>
+            <div class="nutrition-value">{formatMetric(selectedNutrition.protein, 'g')}</div>
+          </div>
         </div>
-        <div class="nutrition-item">
-          <div class="nutrition-label">탄수화물</div>
-          <div class="nutrition-value">{formatMetric(selectedNutrition.carbohydrates, 'g')}</div>
-        </div>
-        <div class="nutrition-item">
-          <div class="nutrition-label">당분</div>
-          <div class="nutrition-value">{formatMetric(selectedNutrition.sugar, 'g')}</div>
-        </div>
-        <div class="nutrition-item">
-          <div class="nutrition-label">지방</div>
-          <div class="nutrition-value">{formatMetric(selectedNutrition.fat, 'g')}</div>
-        </div>
-        <div class="nutrition-item">
-          <div class="nutrition-label">단백질</div>
-          <div class="nutrition-value">{formatMetric(selectedNutrition.protein, 'g')}</div>
-        </div>
-      </div>
+      {:else}
+        <p class="nutrition-unavailable-note">(영양 정보 없음)</p>
+      {/if}
 
       <div class="float-actions">
         <button type="button" class="btn-float" onclick={clearSelection}>선택 해제</button>
@@ -678,28 +699,32 @@
         </div>
       </div>
 
-      <div class="selection-total-grid">
-        <div class="selection-total-card calorie-card">
-          <span class="selection-total-label">칼로리</span>
-          <span class="selection-total-value">{formatMetric(selectedNutrition.calories, ' kcal')}</span>
+      {#if selectedHasNutrition}
+        <div class="selection-total-grid">
+          <div class="selection-total-card calorie-card">
+            <span class="selection-total-label">칼로리</span>
+            <span class="selection-total-value">{formatMetric(selectedNutrition.calories, ' kcal')}</span>
+          </div>
+          <div class="selection-total-card">
+            <span class="selection-total-label">탄수화물</span>
+            <span class="selection-total-value">{formatMetric(selectedNutrition.carbohydrates, 'g')}</span>
+          </div>
+          <div class="selection-total-card">
+            <span class="selection-total-label">당분</span>
+            <span class="selection-total-value">{formatMetric(selectedNutrition.sugar, 'g')}</span>
+          </div>
+          <div class="selection-total-card">
+            <span class="selection-total-label">지방</span>
+            <span class="selection-total-value">{formatMetric(selectedNutrition.fat, 'g')}</span>
+          </div>
+          <div class="selection-total-card">
+            <span class="selection-total-label">단백질</span>
+            <span class="selection-total-value">{formatMetric(selectedNutrition.protein, 'g')}</span>
+          </div>
         </div>
-        <div class="selection-total-card">
-          <span class="selection-total-label">탄수화물</span>
-          <span class="selection-total-value">{formatMetric(selectedNutrition.carbohydrates, 'g')}</span>
-        </div>
-        <div class="selection-total-card">
-          <span class="selection-total-label">당분</span>
-          <span class="selection-total-value">{formatMetric(selectedNutrition.sugar, 'g')}</span>
-        </div>
-        <div class="selection-total-card">
-          <span class="selection-total-label">지방</span>
-          <span class="selection-total-value">{formatMetric(selectedNutrition.fat, 'g')}</span>
-        </div>
-        <div class="selection-total-card">
-          <span class="selection-total-label">단백질</span>
-          <span class="selection-total-value">{formatMetric(selectedNutrition.protein, 'g')}</span>
-        </div>
-      </div>
+      {:else}
+        <p class="nutrition-unavailable-note">(영양 정보 없음)</p>
+      {/if}
 
       <div class="selection-detail-wrap">
         <table class="selection-detail-table">
@@ -707,11 +732,15 @@
             <tr>
               <th>메뉴</th>
               <th>수량</th>
-              <th>칼로리</th>
-              <th>탄수화물</th>
-              <th>당분</th>
-              <th>지방</th>
-              <th>단백질</th>
+              {#if selectedHasNutrition}
+                <th>칼로리</th>
+                <th>탄수화물</th>
+                <th>당분</th>
+                <th>지방</th>
+                <th>단백질</th>
+              {:else}
+                <th>영양 정보</th>
+              {/if}
             </tr>
           </thead>
           <tbody>
@@ -722,11 +751,15 @@
                   <div class="selection-item-context">{menuContext(menu)}</div>
                 </td>
                 <td data-label="수량">{quantity}</td>
-                <td data-label="칼로리">{formatMetric(metricForQuantity(menu.nutrition?.calories, quantity), ' kcal')}</td>
-                <td data-label="탄수화물">{formatMetric(metricForQuantity(menu.nutrition?.carbohydrates, quantity), 'g')}</td>
-                <td data-label="당분">{formatMetric(metricForQuantity(menu.nutrition?.sugar, quantity), 'g')}</td>
-                <td data-label="지방">{formatMetric(metricForQuantity(menu.nutrition?.fat, quantity), 'g')}</td>
-                <td data-label="단백질">{formatMetric(metricForQuantity(menu.nutrition?.protein, quantity), 'g')}</td>
+                {#if hasNutritionInfo(menu.nutrition)}
+                  <td data-label="칼로리">{formatMetric(metricForQuantity(menu.nutrition?.calories, quantity), ' kcal')}</td>
+                  <td data-label="탄수화물">{formatMetric(metricForQuantity(menu.nutrition?.carbohydrates, quantity), 'g')}</td>
+                  <td data-label="당분">{formatMetric(metricForQuantity(menu.nutrition?.sugar, quantity), 'g')}</td>
+                  <td data-label="지방">{formatMetric(metricForQuantity(menu.nutrition?.fat, quantity), 'g')}</td>
+                  <td data-label="단백질">{formatMetric(metricForQuantity(menu.nutrition?.protein, quantity), 'g')}</td>
+                {:else}
+                  <td class="nutrition-unavailable" colspan={selectedHasNutrition ? 5 : 1} data-label="영양 정보">(영양 정보 없음)</td>
+                {/if}
               </tr>
             {/each}
           </tbody>
@@ -1007,6 +1040,22 @@
   .col-rest { width: 90px; }
   .col-name { min-width: 140px; }
   .col-num { width: 90px; text-align: right; font-family: var(--font-sans); }
+  .nutrition-unavailable {
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+  }
+  .nutrition-unavailable-note {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
+  }
 
   .menu-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
   .menu-row.selected { background: #f0fdf4; }
