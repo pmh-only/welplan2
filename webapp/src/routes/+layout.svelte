@@ -7,7 +7,7 @@
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { Camera, Check, Lightbulb, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
+  import { Camera, Check, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -31,11 +31,6 @@
   type BeforeInstallPromptEvent = Event & {
     platforms?: string[]
     prompt: () => Promise<{ outcome: 'accepted' | 'dismissed', platform?: string }>
-  }
-
-  type PageTip = {
-    title: string
-    items: string[]
   }
 
   type LayoutData = {
@@ -79,8 +74,6 @@
     '신세계푸드 메뉴 조회',
     '신세계푸드 식단표'
   ].join(', ')
-  const PAGE_TIP_DISMISSED_STORAGE_KEY = 'welplan_page_tip_dismissed'
-
   function mergeKeywords (...groups: string[]): string {
     const keywords = groups.flatMap((group) => group.split(',').map((keyword) => keyword.trim()))
     return [...new Set(keywords.filter(Boolean))].join(', ')
@@ -367,50 +360,6 @@
     return baseMeta
   }
 
-  function routeTipFor (pathname: string): PageTip {
-    if (pathname === '/' || pathname.startsWith('/gallery')) {
-      return {
-        title: '갤러리 팁',
-        items: [
-          '메뉴 이미지를 누르면 크게 확대해서 자세히 볼 수 있습니다.'
-        ]
-      }
-    }
-
-    if (pathname.startsWith('/takein/')) {
-      return {
-        title: '테이크인 팁',
-        items: [
-          '상단 정렬 기준에서 메뉴를 원하는 순서로 정렬할 수 있습니다.'
-        ]
-      }
-    }
-
-    if (pathname.startsWith('/takeout/')) {
-      return {
-        title: '테이크아웃 팁',
-        items: [
-          '테이크아웃 메뉴를 클릭하면 4코인 계산을 자동으로 지원합니다.'
-        ]
-      }
-    }
-
-    if (pathname.startsWith('/restaurants')) {
-      return {
-        title: '식당 선택 팁',
-        items: [
-          '식당 이름 일부만 입력해도 검색할 수 있어 원하는 식당을 빠르게 추가할 수 있습니다.',
-          '추가한 식당 목록은 저장되어 다음 방문 때도 그대로 유지됩니다.'
-        ]
-      }
-    }
-
-    return {
-      title: 'Welplan 팁',
-      items: ['상단 탭으로 메뉴 갤러리, 메뉴 리스트, 식당 선택 화면을 빠르게 이동할 수 있습니다.']
-    }
-  }
-
   let { data, children }: { data: LayoutData, children: Snippet } = $props()
 
   const navLinks = $derived([
@@ -424,7 +373,6 @@
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
-  let pageTipDismissed = $state(false)
   let noticeOpen = $state(false)
   let firstVisitDialogOpen = $state(false)
   let dialogRestaurants = $state<Restaurant[]>([])
@@ -519,12 +467,6 @@
     firstVisitDialogOpen = false
   }
 
-  function dismissPageTip () {
-    trackEvent('Page Tip Dismissed', { path: page.url.pathname })
-    pageTipDismissed = true
-    localStorage.setItem(PAGE_TIP_DISMISSED_STORAGE_KEY, '1')
-  }
-
   function applyAppUpdate () {
     trackEvent('PWA Update Applied')
     waitingServiceWorker?.postMessage({ type: 'SKIP_WAITING' })
@@ -612,7 +554,6 @@
   })
 
   onMount(() => {
-    pageTipDismissed = localStorage.getItem(PAGE_TIP_DISMISSED_STORAGE_KEY) === '1'
     firstVisitDialogOpen = data.isFirstVisit
     dialogRestaurants = data.restaurants ?? []
     if (firstVisitDialogOpen) loadAllDialogRestaurants()
@@ -741,12 +682,10 @@
     const pageDescription = (page.data as { pageDescription?: string }).pageDescription
     return pageDescription ? { ...base, description: pageDescription } : base
   })
-  const pageTip = $derived(routeTipFor(page.url.pathname))
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
   const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
-  const showPageTip = $derived(showGlobalChrome && !isAdminPage && !pageTipDismissed)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
@@ -981,25 +920,6 @@
   {/if}
 
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
-    {#if showPageTip}
-      <aside class="page-tip" aria-label={pageTip.title}>
-        <div class="page-tip-icon" aria-hidden="true">
-          <Lightbulb />
-        </div>
-        <div class="page-tip-body">
-          <p class="page-tip-title">{pageTip.title}</p>
-          <ul class="page-tip-list">
-            {#each pageTip.items as item}
-              <li>{item}</li>
-            {/each}
-          </ul>
-        </div>
-        <button type="button" class="page-tip-close" aria-label="팁 닫기" onclick={dismissPageTip}>
-          <X class="page-tip-close-icon" aria-hidden="true" />
-        </button>
-      </aside>
-    {/if}
-
     {@render children()}
 
     <footer class="legal-notice" aria-label="상표 및 문의 안내">
@@ -1675,81 +1595,6 @@
     max-width: 1040px;
   }
 
-  .page-tip {
-    position: relative;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 12px;
-    align-items: flex-start;
-    margin-bottom: 14px;
-    padding: 14px 16px;
-    border: 1px solid #bfdbfe;
-    border-radius: var(--radius);
-    background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .page-tip-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
-    background: rgba(59, 130, 246, 0.12);
-    color: #2563eb;
-  }
-
-  .page-tip-icon :global(svg) {
-    width: 17px;
-    height: 17px;
-  }
-
-  .page-tip-body {
-    min-width: 0;
-  }
-
-  .page-tip-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    margin-top: -4px;
-    margin-right: -6px;
-    border-radius: 999px;
-    color: #1e3a8a;
-    font-size: 17px;
-    line-height: 1;
-  }
-
-  :global(.page-tip-close-icon) {
-    width: 16px;
-    height: 16px;
-  }
-
-  .page-tip-close:hover {
-    background: rgba(59, 130, 246, 0.12);
-  }
-
-  .page-tip-title {
-    margin-bottom: 4px;
-    color: #1e3a8a;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .page-tip-list {
-    margin: 0;
-    padding-left: 18px;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  .page-tip-list li + li {
-    margin-top: 2px;
-  }
-
   .content-loading {
     opacity: 0.88;
     filter: saturate(0.96);
@@ -1898,7 +1743,5 @@
     .pwa-status button {
       flex: 1 1 96px;
     }
-    .page-tip { grid-template-columns: auto 1fr auto; gap: 10px; }
-    .page-tip-icon { width: 30px; height: 30px; }
   }
 </style>
