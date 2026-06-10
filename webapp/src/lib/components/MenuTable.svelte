@@ -16,6 +16,7 @@
     enableSelection = false,
     groupByMealTime = false,
     hideRestaurantLabels = false,
+    hideMenuDescriptions = false,
     mobileKcalOnly = false,
     sortKey = null,
     sortDirection = 'asc'
@@ -30,6 +31,7 @@
     enableSelection?: boolean
     groupByMealTime?: boolean
     hideRestaurantLabels?: boolean
+    hideMenuDescriptions?: boolean
     mobileKcalOnly?: boolean
     sortKey?: SortKey | null
     sortDirection?: 'asc' | 'desc'
@@ -433,9 +435,9 @@
                   {isExpanded ? '상세 닫기' : '상세'}
                 </button>
               {/if}
-              {#if preferInlineComponents && menu.components.length > 0}
+              {#if preferInlineComponents && !hideMenuDescriptions && menu.components.length > 0}
                 <span class="menu-desc">{menu.components.map((c) => c.name).join(' · ')}</span>
-              {:else if preferInlineComponents && menu.vendor === 'shinsegae'}
+              {:else if preferInlineComponents && !hideMenuDescriptions && menu.vendor === 'shinsegae'}
                 <span class="menu-desc menu-desc-unavailable">(신세계푸드 식당은 상세 메뉴 정보를 제공하지 않습니다)</span>
               {/if}
             </td>

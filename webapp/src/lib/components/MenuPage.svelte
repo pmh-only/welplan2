@@ -201,6 +201,14 @@
       })
     )
   )
+  const selectedTakeInRestaurant = $derived(data.restaurants.find((restaurant: Restaurant) => restaurant.id === selectedTakeInRestaurantId))
+  const visibleTakeInRestaurantCount = $derived(new Set(visibleMenus.map((menu: Menu) => menu.restaurantId)).size)
+  const hideTakeInRestaurantLabels = $derived(kind === 'takein' && (selectedTakeInRestaurantId !== '' || data.restaurants.length === 1 || visibleTakeInRestaurantCount <= 1))
+  const hideTakeInMenuDescriptions = $derived(kind === 'takein' && (
+    selectedTakeInRestaurantId !== ''
+      ? selectedTakeInRestaurant?.vendor === 'shinsegae'
+      : visibleMenus.length > 0 && visibleMenus.every((menu: Menu) => menu.vendor === 'shinsegae')
+  ))
   const visibleMealTimes = $derived.by<MealTime[]>(() => {
     const ids = [
       ...data.mealTimes.map((mealTime: MealTime) => mealTime.id),
@@ -392,7 +400,8 @@
       preferInlineComponents={kind === 'takein'}
       enableSelection={kind === 'takeout'}
       groupByMealTime={isAllMealTime}
-      hideRestaurantLabels={kind === 'takeout'}
+      hideRestaurantLabels={kind === 'takeout' || hideTakeInRestaurantLabels}
+      hideMenuDescriptions={hideTakeInMenuDescriptions}
       mobileKcalOnly={kind === 'takein'}
       sortKey={menuSortKey()}
       sortDirection={menuSortDirection()}
