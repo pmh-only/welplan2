@@ -4,6 +4,7 @@ packages:
   - 'impl/planeat_choice'
   - 'webapp'
   - 'worker'
+  - 'pwabuild'
 
 onlyBuiltDependencies:
   - better-sqlite3

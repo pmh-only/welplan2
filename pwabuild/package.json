@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "build": "bubblewrap build"
+  },
+  "devDependencies": {
+    "@bubblewrap/cli": "^1.24.1"
+  }
+}

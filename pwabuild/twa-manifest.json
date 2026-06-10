@@ -1,0 +1,76 @@
+{
+  "packageId": "codes.pmh.welplan.twa",
+  "host": "welplan.pmh.codes",
+  "name": "Welplan - 웰스토리, 신세계푸드 구내식당 메뉴",
+  "launcherName": "Welplan",
+  "display": "standalone",
+  "themeColor": "#0F172A",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#F8FAFC",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://welplan.pmh.codes/manifest-icon.png",
+  "maskableIconUrl": "https://welplan.pmh.codes/manifest-icon-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/home/pmh/workspace/welplan2/pwabuild/android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "메뉴 갤러리",
+      "shortName": "갤러리",
+      "url": "https://welplan.pmh.codes/",
+      "chosenIconUrl": "https://welplan.pmh.codes/manifest-icon-192.png"
+    },
+    {
+      "name": "테이크 인 식단",
+      "shortName": "테이크 인",
+      "url": "https://welplan.pmh.codes/takein",
+      "chosenIconUrl": "https://welplan.pmh.codes/manifest-icon-192.png"
+    },
+    {
+      "name": "테이크 아웃 식단",
+      "shortName": "테이크 아웃",
+      "url": "https://welplan.pmh.codes/takeout",
+      "chosenIconUrl": "https://welplan.pmh.codes/manifest-icon-192.png"
+    },
+    {
+      "name": "식당 선택",
+      "shortName": "식당 선택",
+      "url": "https://welplan.pmh.codes/restaurants",
+      "chosenIconUrl": "https://welplan.pmh.codes/manifest-icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://welplan.pmh.codes/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://welplan.pmh.codes/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "navigate-existing",
+  "displayOverride": [
+    "window-controls-overlay",
+    "standalone",
+    "browser"
+  ],
+  "appVersion": "1"
+}
