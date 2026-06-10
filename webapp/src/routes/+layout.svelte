@@ -1844,10 +1844,14 @@
       flex: 1;
       min-height: 0;
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
       gap: 12px;
       padding: 12px;
       overflow: hidden;
+    }
+
+    .first-visit-panel[aria-labelledby="first-visit-selected-title"] {
+      display: none;
     }
 
     .first-visit-panel[aria-labelledby="first-visit-search-title"] {
