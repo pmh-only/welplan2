@@ -4,7 +4,7 @@
   import { trackEvent } from '$lib/analytics'
   import { autoSelectMealTime, fallbackMealTime, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { BarChart3, ChevronDown, ChevronRight, Coins, TriangleAlert, X } from '@lucide/svelte'
+  import { BarChart3, ChevronDown, ChevronRight, Coins, Minus, Plus, TriangleAlert, X } from '@lucide/svelte'
 
   let {
     menus,
@@ -46,7 +46,7 @@
   let brokenImageSrcs = $state<string[]>([])
   let showSelectionDetail = $state(false)
   let selectionFloatDismissed = $state(false)
-  let selectedMenuIds = $state<string[]>([])
+  let selectedMenuQuantities = $state<Record<string, number>>({})
   let expandedMealTimeIds = $state<string[]>(
     untrack(() =>
       groupByMealTime ? [autoSelectMealTime(mealTimes)].filter((id): id is string => id != null) : []
@@ -127,7 +127,7 @@
     loadingDetail = false
     showSelectionDetail = false
     selectionFloatDismissed = false
-    selectedMenuIds = []
+    selectedMenuQuantities = {}
     expandedMealTimeIds = groupByMealTime ? defaultExpandedMealTimeIds() : []
   })
 
@@ -136,7 +136,11 @@
   }
 
   function isSelected (menuId: string): boolean {
-    return selectedMenuIds.includes(menuId)
+    return selectedMenuQuantity(menuId) > 0
+  }
+
+  function selectedMenuQuantity (menuId: string): number {
+    return selectedMenuQuantities[menuId] ?? 0
   }
 
   function menuKey (menu: Menu): string {
@@ -161,30 +165,44 @@
     }
   }
 
+  function setMenuQuantity (menuId: string, quantity: number) {
+    if (quantity <= 0) {
+      const { [menuId]: _removed, ...rest } = selectedMenuQuantities
+      selectedMenuQuantities = rest
+      return
+    }
+
+    selectedMenuQuantities = { ...selectedMenuQuantities, [menuId]: quantity }
+  }
+
   function toggleSelection (menuId: string) {
     selectionFloatDismissed = false
+    const selected = isSelected(menuId)
     trackEvent('Takeout Menu Selection Changed', {
-      selected: isSelected(menuId) ? 0 : 1,
-      selectedCount: isSelected(menuId) ? selectedMenuIds.length - 1 : selectedMenuIds.length + 1
+      selected: selected ? 0 : 1,
+      selectedCount: selected ? selectedMenuCount - 1 : selectedMenuCount + 1
     })
-    if (isSelected(menuId)) {
-      selectedMenuIds = selectedMenuIds.filter((id) => id !== menuId)
-    } else {
-      selectedMenuIds = [...selectedMenuIds, menuId]
-    }
+    setMenuQuantity(menuId, selected ? 0 : 1)
+  }
+
+  function updateMenuQuantity (menuId: string, quantity: number) {
+    if (!isSelected(menuId)) return
+    selectionFloatDismissed = false
+    setMenuQuantity(menuId, Math.max(1, quantity))
+    trackEvent('Takeout Menu Quantity Changed', { quantity: Math.max(1, quantity) })
   }
 
   function selectAllVisible () {
     selectionFloatDismissed = false
     trackEvent('Takeout Menu Select All', { visibleCount: visibleMenus.length })
-    selectedMenuIds = visibleMenus.map(menuKey)
+    selectedMenuQuantities = Object.fromEntries(visibleMenus.map((menu) => [menuKey(menu), selectedMenuQuantity(menuKey(menu)) || 1]))
   }
 
   function clearSelection () {
-    trackEvent('Takeout Menu Selection Cleared', { selectedCount: selectedMenuIds.length })
+    trackEvent('Takeout Menu Selection Cleared', { selectedCount: selectedMenuCount })
     showSelectionDetail = false
     selectionFloatDismissed = false
-    selectedMenuIds = []
+    selectedMenuQuantities = {}
   }
 
   function menuContext (menu: Menu): string {
@@ -197,6 +215,11 @@
     const rounded = Math.round(value * 10) / 10
     const display = Number.isInteger(rounded) ? rounded.toLocaleString() : rounded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
     return `${display}${unit}`
+  }
+
+  function metricForQuantity (value: number | undefined, quantity: number): number | undefined {
+    if (value == null) return undefined
+    return value * quantity
   }
 
   function sortValueFor (menu: Menu, key: SortKey): SortValue {
@@ -258,21 +281,27 @@
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
   const tableColumnCount = $derived(7 + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
   const tableClass = $derived(`menu-table${enableSelection ? ' selection-mode' : ''}${mobileKcalOnly ? ' mobile-kcal-only' : ''}`)
-  const selectedMenus = $derived(visibleMenus.filter((menu) => isSelected(menuKey(menu))))
+  const selectedMenuEntries = $derived(
+    visibleMenus
+      .map((menu) => ({ menu, quantity: selectedMenuQuantity(menuKey(menu)) }))
+      .filter(({ quantity }) => quantity > 0)
+  )
+  const selectedMenuCount = $derived(selectedMenuEntries.length)
+  const selectedQuantityTotal = $derived(selectedMenuEntries.reduce((sum, { quantity }) => sum + quantity, 0))
   const selectedNutrition = $derived(
-    selectedMenus.reduce(
-      (totals: NutritionInfo, menu) => ({
-        calories: (totals.calories ?? 0) + (menu.nutrition?.calories ?? 0),
-        carbohydrates: (totals.carbohydrates ?? 0) + (menu.nutrition?.carbohydrates ?? 0),
-        sugar: (totals.sugar ?? 0) + (menu.nutrition?.sugar ?? 0),
-        fat: (totals.fat ?? 0) + (menu.nutrition?.fat ?? 0),
-        protein: (totals.protein ?? 0) + (menu.nutrition?.protein ?? 0),
-        sodium: (totals.sodium ?? 0) + (menu.nutrition?.sodium ?? 0)
+    selectedMenuEntries.reduce(
+      (totals: NutritionInfo, { menu, quantity }) => ({
+        calories: (totals.calories ?? 0) + ((menu.nutrition?.calories ?? 0) * quantity),
+        carbohydrates: (totals.carbohydrates ?? 0) + ((menu.nutrition?.carbohydrates ?? 0) * quantity),
+        sugar: (totals.sugar ?? 0) + ((menu.nutrition?.sugar ?? 0) * quantity),
+        fat: (totals.fat ?? 0) + ((menu.nutrition?.fat ?? 0) * quantity),
+        protein: (totals.protein ?? 0) + ((menu.nutrition?.protein ?? 0) * quantity),
+        sodium: (totals.sodium ?? 0) + ((menu.nutrition?.sodium ?? 0) * quantity)
       }),
       {} as NutritionInfo
     )
   )
-  const selectedItemsText = $derived(selectedMenus.map((menu) => menu.name).join(', '))
+  const selectedItemsText = $derived(selectedMenuEntries.map(({ menu, quantity }) => quantity > 1 ? `${menu.name} x${quantity}` : menu.name).join(', '))
 
   function extractCoin (name: string): number {
     const coinValue = takeOutConditionValue(name)
@@ -282,7 +311,7 @@
     return 0
   }
 
-  const selectedCoinTotal = $derived(selectedMenus.reduce((sum, menu) => sum + extractCoin(menu.name), 0))
+  const selectedCoinTotal = $derived(selectedMenuEntries.reduce((sum, { menu, quantity }) => sum + (extractCoin(menu.name) * quantity), 0))
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -397,6 +426,7 @@
           {@const isExpanded = expandedMenuId === key}
           {@const canExpand = isExpandable(menu)}
           {@const selected = isSelected(key)}
+          {@const selectedQuantity = selectedMenuQuantity(key)}
           {@const restaurant = restaurantName(menu.restaurantId)}
           {@const parentName = (menu as Menu & { parentName?: string }).parentName}
           {@const n = menu.nutrition}
@@ -435,6 +465,28 @@
                 <button type="button" class="detail-toggle-btn" onclick={(e) => { e.stopPropagation(); toggleMenu(menu) }}>
                   {isExpanded ? '상세 닫기' : '상세'}
                 </button>
+              {/if}
+              {#if enableSelection && selected}
+                <div class="quantity-stepper" role="group" aria-label={`${menu.name} 수량`}>
+                  <button
+                    type="button"
+                    class="quantity-button"
+                    disabled={selectedQuantity <= 1}
+                    aria-label={`${menu.name} 수량 줄이기`}
+                    onclick={(e) => { e.stopPropagation(); updateMenuQuantity(key, selectedQuantity - 1) }}
+                  >
+                    <Minus class="quantity-icon" aria-hidden="true" />
+                  </button>
+                  <span class="quantity-count" aria-live="polite">{selectedQuantity}</span>
+                  <button
+                    type="button"
+                    class="quantity-button"
+                    aria-label={`${menu.name} 수량 늘리기`}
+                    onclick={(e) => { e.stopPropagation(); updateMenuQuantity(key, selectedQuantity + 1) }}
+                  >
+                    <Plus class="quantity-icon" aria-hidden="true" />
+                  </button>
+                </div>
               {/if}
               {#if preferInlineComponents && !hideMenuDescriptions && menu.components.length > 0}
                 <span class="menu-desc">{menu.components.map((c) => c.name).join(' · ')}</span>
@@ -512,27 +564,27 @@
   </div>
 {/if}
 
-{#if enableSelection && selectedMenus.length > 0}
+{#if enableSelection && selectedMenuCount > 0}
   <div class="mobile-nutrition-toolbar">
     <div class="toolbar-content">
       <div class="selected-info">
         <div class="selected-count-mobile">
           <BarChart3 class="inline-icon" aria-hidden="true" />
-          {selectedCoinTotal}/4 Coin · {selectedMenus.length}개 항목 선택
+          {selectedCoinTotal}/4 Coin · {selectedQuantityTotal}개 항목 선택
         </div>
         <div class="selected-items-mobile">{selectedItemsText}</div>
       </div>
-      <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedMenus.length, source: 'mobile_toolbar' }) }}>영양성분 보기</button>
+      <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedQuantityTotal, source: 'mobile_toolbar' }) }}>영양성분 보기</button>
     </div>
   </div>
 {/if}
 
-{#if enableSelection && selectedMenus.length > 0 && !selectionFloatDismissed}
+{#if enableSelection && selectedMenuCount > 0 && !selectionFloatDismissed}
   <aside class="aggregated-nutrition-float">
     <div class="float-header">
       <h3 class="float-title">
         <BarChart3 class="float-title-icon" aria-hidden="true" />
-        선택된 {selectedMenus.length}개 항목
+        선택된 {selectedQuantityTotal}개 항목
       </h3>
       <button type="button" class="float-close" onclick={() => { selectionFloatDismissed = true }} aria-label="요약 닫기">
         <X class="float-close-icon" aria-hidden="true" />
@@ -579,7 +631,7 @@
 
       <div class="float-actions">
         <button type="button" class="btn-float" onclick={clearSelection}>선택 해제</button>
-        <button type="button" class="btn-float btn-primary" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedMenus.length, source: 'floating_summary' }) }}>상세보기</button>
+        <button type="button" class="btn-float btn-primary" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedQuantityTotal, source: 'floating_summary' }) }}>상세보기</button>
       </div>
     </div>
   </aside>
@@ -603,7 +655,7 @@
       <div class="selection-modal-head">
         <h3>
           <BarChart3 class="float-title-icon" aria-hidden="true" />
-          선택된 {selectedMenus.length}개 항목 통합 영양성분
+          선택된 {selectedQuantityTotal}개 항목 통합 영양성분
         </h3>
         <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">
           <X class="float-close-icon" aria-hidden="true" />
@@ -654,6 +706,7 @@
           <thead>
             <tr>
               <th>메뉴</th>
+              <th>수량</th>
               <th>칼로리</th>
               <th>탄수화물</th>
               <th>당분</th>
@@ -662,17 +715,18 @@
             </tr>
           </thead>
           <tbody>
-            {#each selectedMenus as menu (menu.id)}
+            {#each selectedMenuEntries as { menu, quantity } (menuKey(menu))}
               <tr>
                 <td>
                   <strong>{menu.name}</strong>
                   <div class="selection-item-context">{menuContext(menu)}</div>
                 </td>
-                <td data-label="칼로리">{formatMetric(menu.nutrition?.calories, ' kcal')}</td>
-                <td data-label="탄수화물">{formatMetric(menu.nutrition?.carbohydrates, 'g')}</td>
-                <td data-label="당분">{formatMetric(menu.nutrition?.sugar, 'g')}</td>
-                <td data-label="지방">{formatMetric(menu.nutrition?.fat, 'g')}</td>
-                <td data-label="단백질">{formatMetric(menu.nutrition?.protein, 'g')}</td>
+                <td data-label="수량">{quantity}</td>
+                <td data-label="칼로리">{formatMetric(metricForQuantity(menu.nutrition?.calories, quantity), ' kcal')}</td>
+                <td data-label="탄수화물">{formatMetric(metricForQuantity(menu.nutrition?.carbohydrates, quantity), 'g')}</td>
+                <td data-label="당분">{formatMetric(metricForQuantity(menu.nutrition?.sugar, quantity), 'g')}</td>
+                <td data-label="지방">{formatMetric(metricForQuantity(menu.nutrition?.fat, quantity), 'g')}</td>
+                <td data-label="단백질">{formatMetric(metricForQuantity(menu.nutrition?.protein, quantity), 'g')}</td>
               </tr>
             {/each}
           </tbody>
@@ -969,6 +1023,56 @@
   .rest-tag-mobile { display: none; margin-bottom: 4px; }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
   .menu-name { font-weight: 500; color: var(--text); line-height: 1.4; }
+  .quantity-stepper {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 6px;
+    border: 1px solid #059669;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  }
+  .quantity-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 31px;
+    height: 29px;
+    border: 0;
+    background: #10b981;
+    color: #fff;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s, box-shadow 0.12s;
+  }
+  .quantity-button:hover:not(:disabled) { background: #059669; }
+  .quantity-button:active:not(:disabled) { box-shadow: inset 0 2px 5px rgba(4, 120, 87, 0.35); }
+  .quantity-button:focus-visible { outline: 2px solid #34d399; outline-offset: -2px; }
+  .quantity-button:disabled {
+    background: #d1fae5;
+    color: #6ee7b7;
+    opacity: 1;
+    cursor: not-allowed;
+  }
+  :global(.quantity-icon) { width: 14px; height: 14px; stroke-width: 3; }
+  .quantity-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 29px;
+    padding: 0 9px;
+    border-left: 1px solid #059669;
+    border-right: 1px solid #059669;
+    background: #fff;
+    color: #065f46;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 700;
+  }
   .menu-desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
   .menu-desc-unavailable { font-style: italic; }
   .badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--font-sans); letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
