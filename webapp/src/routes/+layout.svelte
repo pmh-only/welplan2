@@ -458,11 +458,6 @@
     }
   })
 
-  $effect(() => {
-    if (!browser || !showFirstVisitDialog || restaurantQuery.trim() || restaurantSearching || allDialogRestaurants.length) return
-    loadAllDialogRestaurants()
-  })
-
   async function loadAllDialogRestaurants () {
     restaurantSearching = true
     restaurantSearchError = ''
