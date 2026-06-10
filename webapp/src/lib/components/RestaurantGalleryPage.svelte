@@ -7,7 +7,7 @@
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { fromInputDate, proxyImg, shiftDate, toInputDate } from '$lib/utils'
-  import { ChevronLeft, ChevronRight, X, ZoomIn } from '@lucide/svelte'
+  import { ChevronLeft, ChevronRight, Search, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
@@ -56,6 +56,12 @@
   let loadingDetail = $state(false)
   let menuKind = $state<'takein' | 'takeout'>('takein')
   let brokenImageSrcs = $state<string[]>([])
+  let restaurantSearchOpen = $state(false)
+  let restaurantQuery = $state('')
+  let allRestaurants = $state<Restaurant[]>([])
+  let restaurantSearchResults = $state<Restaurant[]>([])
+  let restaurantSearching = $state(false)
+  let restaurantSearchError = $state('')
 
   const COOKIE = 'welplan_restaurants'
 
@@ -84,6 +90,7 @@
   }
 
   const selectedDate = $derived(data.date)
+  const visibleRestaurantSearchResults = $derived(restaurantQuery.trim() ? restaurantSearchResults : allRestaurants)
 
   function normalizeMenuName (name: string): string {
     return name.replace(/\s*포장$/, '').trim()
@@ -181,6 +188,58 @@
     goto(`${data.detailPath ?? restaurantDetailPath(data.restaurant)}?${params}`)
   }
 
+  async function loadAllRestaurants () {
+    restaurantSearching = true
+    restaurantSearchError = ''
+    try {
+      const response = await fetch('/proxy/search?q=')
+      if (!response.ok) throw new Error('검색 실패')
+      allRestaurants = await response.json()
+    } catch (error) {
+      restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
+      allRestaurants = []
+    } finally {
+      restaurantSearching = false
+    }
+  }
+
+  function openRestaurantSearch () {
+    restaurantSearchOpen = true
+    trackEvent('Restaurant Switch Dialog Opened', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id })
+    if (allRestaurants.length === 0 && !restaurantSearching) loadAllRestaurants()
+  }
+
+  function closeRestaurantSearch () {
+    restaurantSearchOpen = false
+  }
+
+  async function searchRestaurants () {
+    const query = restaurantQuery.trim()
+    if (!query) {
+      if (allRestaurants.length === 0) loadAllRestaurants()
+      return
+    }
+
+    restaurantSearching = true
+    restaurantSearchError = ''
+    try {
+      const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
+      if (!response.ok) throw new Error('검색 실패')
+      restaurantSearchResults = await response.json()
+      trackEvent('Restaurant Search', { queryLength: query.length, resultCount: restaurantSearchResults.length, source: 'restaurant_detail_dialog' })
+    } catch (error) {
+      restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
+      restaurantSearchResults = []
+    } finally {
+      restaurantSearching = false
+    }
+  }
+
+  function openRestaurant (restaurant: Restaurant) {
+    trackEvent('Restaurant Switch Selected', { vendor: restaurant.vendor, restaurantId: restaurant.id, sourceVendor: data.restaurant.vendor, sourceRestaurantId: data.restaurant.id })
+    goto(restaurantDatedPath(restaurant, selectedDate))
+  }
+
   async function openZoom (menu: Menu) {
     trackEvent('Restaurant Gallery Menu Opened', { vendor: menu.vendor, restaurantId: menu.restaurantId, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
@@ -212,6 +271,7 @@
 
   function onKeydown (event: KeyboardEvent) {
     if (zoomedMenu && event.key === 'Escape') closeZoom()
+    if (restaurantSearchOpen && event.key === 'Escape') closeRestaurantSearch()
   }
 </script>
 
@@ -246,6 +306,11 @@
 <article class="menu-page" aria-labelledby="restaurant-title">
   <section class="hero-panel">
     <h1 id="restaurant-title">{data.restaurant.name} 식단표</h1>
+    <div class="restaurant-switch-row">
+      <span>찾으시는 식당이 아니신가요?</span>
+      <span aria-hidden="true">-</span>
+      <button type="button" onclick={openRestaurantSearch}>다른 식당 보기</button>
+    </div>
     <div class="controls-row" aria-label="메뉴 조회 조건">
       <div class="control-field">
         <div class="date-row">
@@ -485,6 +550,69 @@
   </div>
 {/if}
 
+{#if restaurantSearchOpen}
+  <div
+    class="restaurant-search-backdrop"
+    role="button"
+    tabindex="0"
+    aria-label="식당 검색 닫기"
+    onclick={closeRestaurantSearch}
+    onkeydown={(event) => (event.key === 'Escape' || event.key === 'Enter') && closeRestaurantSearch()}
+  >
+    <div
+      class="restaurant-search-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="restaurant-search-title"
+      onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => event.stopPropagation()}
+    >
+      <div class="restaurant-search-head">
+        <div>
+          <h2 id="restaurant-search-title">다른 식당 보기</h2>
+          <p>식당을 선택하면 해당 식당의 {selectedDate} 메뉴 페이지로 이동합니다.</p>
+        </div>
+        <button type="button" class="restaurant-search-close" aria-label="닫기" onclick={closeRestaurantSearch}>
+          <X class="restaurant-search-close-icon" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div class="restaurant-search-row">
+        <Search class="restaurant-search-icon" aria-hidden="true" />
+        <input
+          type="text"
+          placeholder="식당 이름을 입력하세요..."
+          bind:value={restaurantQuery}
+          oninput={searchRestaurants}
+        />
+        {#if restaurantSearching}<span>검색 중...</span>{/if}
+      </div>
+
+      {#if restaurantSearchError}
+        <p class="restaurant-search-error">{restaurantSearchError}</p>
+      {:else if visibleRestaurantSearchResults.length === 0 && restaurantQuery.trim() && !restaurantSearching}
+        <div class="restaurant-search-empty">검색 결과가 없습니다.</div>
+      {:else if visibleRestaurantSearchResults.length > 0}
+        <ul class="restaurant-search-list">
+          {#each visibleRestaurantSearchResults as restaurant (`${restaurant.vendor}:${restaurant.id}:${restaurant.name}:${restaurant.path?.join('/') ?? ''}`)}
+            <li>
+              <button type="button" class="restaurant-search-item" onclick={() => openRestaurant(restaurant)}>
+                <span class="restaurant-search-copy">
+                  <span class="restaurant-search-name">{restaurant.name}</span>
+                  {#if restaurant.path?.filter(Boolean).join(' / ')}
+                    <span class="restaurant-search-path">{restaurant.path.filter(Boolean).join(' / ')}</span>
+                  {/if}
+                </span>
+                <span class="restaurant-search-vendor vendor-{restaurant.vendor}">{restaurant.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <style>
   .menu-page {
     display: grid;
@@ -509,6 +637,31 @@
     font-size: 1.6rem;
     line-height: 1.25;
     letter-spacing: -0.03em;
+  }
+
+  .restaurant-switch-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .restaurant-switch-row button {
+    border: 0;
+    background: transparent;
+    color: var(--green);
+    font: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .restaurant-switch-row button:hover {
+    color: var(--accent);
   }
 
   h2 {
@@ -1154,6 +1307,197 @@
     background: var(--text-muted);
   }
 
+  .restaurant-search-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 230;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(8px);
+  }
+
+  .restaurant-search-dialog {
+    width: min(680px, 100%);
+    max-height: min(760px, calc(100vh - 40px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.34);
+  }
+
+  .restaurant-search-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #0f172a;
+    color: #f8fafc;
+  }
+
+  .restaurant-search-head h2 {
+    margin: 0 0 6px;
+    color: inherit;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+  }
+
+  .restaurant-search-head p {
+    margin: 0;
+    color: #d1fae5;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .restaurant-search-close {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+
+  .restaurant-search-close:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  :global(.restaurant-search-close-icon) {
+    width: 17px;
+    height: 17px;
+  }
+
+  .restaurant-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 16px 6px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .restaurant-search-row:focus-within {
+    border-color: var(--border-focus);
+    background: #fff;
+  }
+
+  .restaurant-search-row input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    padding: 10px 4px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .restaurant-search-row span {
+    color: var(--text-dim);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  :global(.restaurant-search-icon) {
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .restaurant-search-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 10px 16px 16px;
+  }
+
+  .restaurant-search-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .restaurant-search-item:hover {
+    border-color: #6ee7b7;
+    background: #ecfdf5;
+  }
+
+  .restaurant-search-copy {
+    min-width: 0;
+  }
+
+  .restaurant-search-name,
+  .restaurant-search-path {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .restaurant-search-name {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .restaurant-search-path {
+    margin-top: 2px;
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
+  .restaurant-search-vendor {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .restaurant-search-empty,
+  .restaurant-search-error {
+    margin: 0;
+    padding: 18px 16px;
+    font-size: 13px;
+  }
+
+  .restaurant-search-empty {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .restaurant-search-error {
+    color: #dc2626;
+  }
+
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
@@ -1180,6 +1524,10 @@
 
     h1 {
       font-size: 1.35rem;
+    }
+
+    .restaurant-switch-row {
+      font-size: 12px;
     }
 
     .control-field,
@@ -1231,6 +1579,30 @@
 
     .lightbox-right {
       overflow-y: visible;
+    }
+
+    .restaurant-search-backdrop {
+      place-items: stretch;
+      padding: 0;
+    }
+
+    .restaurant-search-dialog {
+      width: 100%;
+      max-height: 100vh;
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+
+    .restaurant-search-head {
+      padding: 16px;
+    }
+
+    .restaurant-search-head p {
+      display: none;
+    }
+
+    .restaurant-search-list {
+      padding: 8px 12px 12px;
     }
   }
 </style>
