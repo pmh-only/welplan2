@@ -4,7 +4,7 @@
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, todayStr } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, restaurantPathTags, todayStr } from '$lib/utils'
   import { Check, Search, Store } from '@lucide/svelte'
   import { onMount } from 'svelte'
 
@@ -32,7 +32,7 @@
   }
 
   function pathText (restaurant: Restaurant) {
-    return restaurant.path?.filter(Boolean).join(' / ') ?? ''
+    return restaurantPathTags(restaurant)
   }
 
   function restaurantLink (restaurant: Restaurant) {

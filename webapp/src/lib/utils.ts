@@ -1,4 +1,4 @@
-import type { MealTime, NutritionInfo } from './types.js'
+import type { MealTime, NutritionInfo, Restaurant } from './types.js'
 
 export const ALL_MEAL_TIME_ID = 'all'
 
@@ -31,6 +31,10 @@ export function fallbackMealTime(id: string): MealTime {
 
 export function hasNutritionInfo(nutrition: NutritionInfo | undefined): boolean {
   return nutrition != null && NUTRITION_KEYS.some((key) => (nutrition[key] ?? 0) !== 0)
+}
+
+export function restaurantPathTags(restaurant: Restaurant): string {
+  return restaurant.path?.filter(Boolean).map((part) => `#${part}`).join(' ') ?? ''
 }
 
 function pad(n: number): string {

@@ -16,7 +16,7 @@
     WEB_MCP_TOOLS
   } from '$lib/agent'
   import type { MealTime, Menu, Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate, restaurantPathTags } from '$lib/utils'
 
   type RouteMeta = {
     title: string
@@ -105,7 +105,7 @@
   }
 
   function restaurantPathText (restaurant: Restaurant): string {
-    return restaurant.path?.filter(Boolean).join(' / ') ?? ''
+    return restaurantPathTags(restaurant)
   }
 
   function jsonLdScript (value: JsonLdValue): string {

@@ -6,7 +6,7 @@
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
-  import { fromInputDate, hasNutritionInfo, proxyImg, shiftDate, toInputDate } from '$lib/utils'
+  import { fromInputDate, hasNutritionInfo, proxyImg, restaurantPathTags, shiftDate, toInputDate } from '$lib/utils'
   import { ChevronLeft, ChevronRight, Search, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
@@ -609,8 +609,8 @@
               <button type="button" class="restaurant-search-item" onclick={() => openRestaurant(restaurant)}>
                 <span class="restaurant-search-copy">
                   <span class="restaurant-search-name">{restaurant.name}</span>
-                  {#if restaurant.path?.filter(Boolean).join(' / ')}
-                    <span class="restaurant-search-path">{restaurant.path.filter(Boolean).join(' / ')}</span>
+                  {#if restaurantPathTags(restaurant)}
+                    <span class="restaurant-search-path">{restaurantPathTags(restaurant)}</span>
                   {/if}
                 </span>
                 <span class="restaurant-search-vendor vendor-{restaurant.vendor}">{restaurant.vendor === 'welstory' ? '삼성 웰스토리' : '신세계푸드'}</span>
