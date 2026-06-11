@@ -86,6 +86,14 @@
     { key: 'transFat', label: '트랜스지방', unit: 'g' },
     { key: 'calcium', label: '칼슘', unit: 'mg' }
   ]
+  const tableMetricDefs: DetailMetric[] = [
+    { key: 'calories', label: '칼로리', unit: ' kcal' },
+    { key: 'carbohydrates', label: '탄수화물', unit: 'g' },
+    { key: 'sugar', label: '당', unit: 'g' },
+    { key: 'fat', label: '지방', unit: 'g' },
+    { key: 'protein', label: '단백질', unit: 'g' },
+    { key: 'sodium', label: '나트륨', unit: 'mg' }
+  ]
 
   function openLightbox (src: string, alt: string, e: MouseEvent) {
     e.stopPropagation()
@@ -279,8 +287,9 @@
     })
   })
   const hasAnyImage = $derived(visibleMenus.some((menu) => !!menu.imageUrl))
-  const hasAnyNutrition = $derived(visibleMenus.some((menu) => hasNutritionInfo(menu.nutrition)))
-  const nutrientColumnCount = $derived(hasAnyNutrition ? 6 : 1)
+  const visibleTableMetrics = $derived(tableMetricDefs.filter(({ key }) => visibleMenus.some((menu) => hasNutritionInfo(menu.nutrition) && (menu.nutrition?.[key] ?? 0) !== 0)))
+  const hasAnyNutrition = $derived(visibleTableMetrics.length > 0)
+  const nutrientColumnCount = $derived(hasAnyNutrition ? visibleTableMetrics.length : 1)
   const tableColumnCount = $derived(1 + nutrientColumnCount + (enableSelection ? 1 : 0) + (hasAnyImage ? 1 : 0) + (hideRestaurantLabels ? 0 : 1))
   const tableClass = $derived(`menu-table${enableSelection ? ' selection-mode' : ''}${mobileKcalOnly ? ' mobile-kcal-only' : ''}`)
   const selectedMenuEntries = $derived(
@@ -395,12 +404,9 @@
           {#if !hideRestaurantLabels}<th class="col-rest hide-sm">식당</th>{/if}
           <th class="col-name">메뉴</th>
           {#if hasAnyNutrition}
-            <th class="col-num">칼로리</th>
-            <th class="col-num hide-sm">탄수화물</th>
-            <th class="col-num hide-sm">당</th>
-            <th class="col-num mobile-extra-nutrient">지방</th>
-            <th class="col-num mobile-extra-nutrient">단백질</th>
-            <th class="col-num hide-sm">나트륨</th>
+            {#each visibleTableMetrics as metric}
+              <th class="col-num" class:hide-sm={metric.key === 'carbohydrates' || metric.key === 'sugar' || metric.key === 'sodium'} class:mobile-extra-nutrient={metric.key === 'fat' || metric.key === 'protein'}>{metric.label}</th>
+            {/each}
           {:else}
             <th class="col-num">영양 정보</th>
           {/if}
@@ -503,12 +509,9 @@
               {/if}
             </td>
             {#if n}
-              <td class="col-num" data-label="칼로리">{formatMetric(n.calories, ' kcal')}</td>
-              <td class="col-num hide-sm" data-label="탄수화물">{formatMetric(n.carbohydrates, 'g')}</td>
-              <td class="col-num hide-sm" data-label="당">{formatMetric(n.sugar, 'g')}</td>
-              <td class="col-num mobile-extra-nutrient" data-label="지방">{formatMetric(n.fat, 'g')}</td>
-              <td class="col-num mobile-extra-nutrient" data-label="단백질">{formatMetric(n.protein, 'g')}</td>
-              <td class="col-num hide-sm" data-label="나트륨">{formatMetric(n.sodium, 'mg')}</td>
+              {#each visibleTableMetrics as metric}
+                <td class="col-num" class:hide-sm={metric.key === 'carbohydrates' || metric.key === 'sugar' || metric.key === 'sodium'} class:mobile-extra-nutrient={metric.key === 'fat' || metric.key === 'protein'} data-label={metric.label}>{formatMetric(n[metric.key], metric.unit)}</td>
+              {/each}
             {:else}
               <td class="col-num nutrition-unavailable" colspan={nutrientColumnCount} data-label="영양 정보">(영양 정보 없음)</td>
             {/if}
