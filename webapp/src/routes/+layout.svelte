@@ -34,6 +34,7 @@
     isFirstVisit: boolean
     notice?: NoticeSettings
     hasTakeOutMenu?: boolean
+    hasGalleryMenuPictures?: boolean
   }
 
   type NoticeSettings = {
@@ -363,7 +364,11 @@
     { href: '/takeout', label: '테이크 아웃', icon: Package },
     { href: '/restaurants', label: '식당 선택', icon: Store }
   ])
-  const visibleNavLinks = $derived(navLinks.filter((link) => link.href !== '/takeout' || data.hasTakeOutMenu === true))
+  const visibleNavLinks = $derived(navLinks.filter((link) => {
+    if (link.href === '/') return data.hasGalleryMenuPictures === true
+    if (link.href === '/takeout') return data.hasTakeOutMenu === true
+    return true
+  }))
 
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
@@ -828,7 +833,7 @@
         <nav class="header-nav">
           {#each visibleNavLinks as link}
             {@const Icon = link.icon}
-            <a href={link.href} class="tab-btn" class:active={page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
+            <a href={link.href} class="tab-btn" class:active={(page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')) || (link.href === '/takein' && page.url.pathname === '/' && data.hasGalleryMenuPictures !== true)} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
               <Icon class="tab-icon" aria-hidden="true" />
               <span class="tab-label">{link.label}</span>
             </a>

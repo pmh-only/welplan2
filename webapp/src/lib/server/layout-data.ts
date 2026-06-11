@@ -39,6 +39,22 @@ async function hasTakeOutMenus(restaurants: Restaurant[]): Promise<boolean> {
   return false
 }
 
+async function hasAnyGalleryMenuPictures(restaurants: Restaurant[]): Promise<boolean> {
+  if (restaurants.length === 0) return false
+
+  const date = todayStr()
+  for (const restaurant of restaurants) {
+    const fetchedMealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
+    const mealTimes = fetchedMealTimes.length > 0 ? fetchedMealTimes : ['6', '1', '2', '3', '4', '5'].map(fallbackMealTime)
+    for (const mealTime of mealTimes) {
+      const menus = await service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
+      if (menus.some((menu) => menu.imageUrl)) return true
+    }
+  }
+
+  return false
+}
+
 export async function loadLayoutData(cookies: Cookies) {
   const raw = cookies.get(COOKIE)
   const isFirstVisit = raw == null
@@ -53,11 +69,12 @@ export async function loadLayoutData(cookies: Cookies) {
 
   await Promise.all(restaurants.map((restaurant) => service.registerRestaurant(restaurant).catch(() => undefined)))
 
-  const [mealTimes, notice, hasTakeOutMenu] = await Promise.all([
+  const [mealTimes, notice, hasTakeOutMenu, hasGalleryMenuPictures] = await Promise.all([
     service.getMealTimesForRestaurants(restaurants).catch(() => []),
     service.getNoticeSettings().catch(() => undefined),
-    hasTakeOutMenus(restaurants).catch(() => false)
+    hasTakeOutMenus(restaurants).catch(() => false),
+    hasAnyGalleryMenuPictures(restaurants).catch(() => false)
   ])
 
-  return { restaurants, mealTimes, isFirstVisit, notice, hasTakeOutMenu }
+  return { restaurants, mealTimes, isFirstVisit, notice, hasTakeOutMenu, hasGalleryMenuPictures }
 }
