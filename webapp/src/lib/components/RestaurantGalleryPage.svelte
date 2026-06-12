@@ -64,6 +64,7 @@
   let restaurantSearchError = $state('')
 
   const COOKIE = 'welplan_restaurants'
+  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
   function savedRestaurants (): Restaurant[] {
     if (typeof document === 'undefined') return []
@@ -83,7 +84,7 @@
     if (registered) return
     trackEvent('Restaurant Added', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id, source: 'detail_page' })
     const next = [...savedRestaurants(), data.restaurant]
-    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
+    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
     registered = true
     void recordRestaurantSelection(data.restaurant).catch(() => undefined)
     invalidateAll()

@@ -50,6 +50,7 @@
   const SITE_NAME = 'Welplan'
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
+  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
     '웰스토리 식단표',
@@ -418,7 +419,7 @@
 
   function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
     invalidateAll()
   }
 

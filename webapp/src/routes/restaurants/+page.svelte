@@ -12,6 +12,8 @@
     restaurants: Restaurant[]
   }
 
+  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
   let { data }: { data: RestaurantsPageData } = $props()
 
   // Local copy for immediate UI updates; syncs from server data when it changes
@@ -46,7 +48,7 @@
 
   function saveRestaurants (next: Restaurant[]) {
     restaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; SameSite=Lax`
+    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
     invalidateAll()
   }
 
