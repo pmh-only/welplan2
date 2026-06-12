@@ -25,3 +25,7 @@ Thumbs.db
 # AI Agent
 .sisyphus/
 .playwright-mcp/
+
+# output from mcp
+logs/
+/*.png
