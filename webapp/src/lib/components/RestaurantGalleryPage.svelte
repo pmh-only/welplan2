@@ -476,7 +476,12 @@
     >
       <div class="lightbox-left">
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
-          <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
+          <div class="lightbox-image-frame">
+            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
+              더 크게 보기
+            </a>
+          </div>
         {:else}
           <div class="lightbox-img lightbox-placeholder" aria-label={`${zoomedMenu.name} 이미지 준비중`}>
             <span>이미지 준비중</span>
@@ -1172,6 +1177,34 @@
     aspect-ratio: 1;
     object-fit: contain;
     background: var(--surface);
+  }
+
+  .lightbox-image-frame {
+    position: relative;
+    background: var(--surface);
+  }
+
+  .lightbox-open-link {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+    backdrop-filter: blur(8px);
+  }
+
+  .lightbox-open-link:hover {
+    background: rgba(15, 23, 42, 0.9);
   }
 
   .lightbox-placeholder {

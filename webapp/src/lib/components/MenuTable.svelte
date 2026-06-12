@@ -789,13 +789,16 @@
     <button type="button" class="lightbox-close" aria-label="이미지 닫기" onclick={(e) => { e.stopPropagation(); closeLightbox() }}>
       <X class="lightbox-close-icon" aria-hidden="true" />
     </button>
-    <button type="button" class="lightbox-frame" aria-label="확대 이미지" onclick={(e) => e.stopPropagation()}>
+    <div class="lightbox-frame" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       {#if isImageAvailable(lightboxSrc)}
         <img class="lightbox-img" src={lightboxSrc} alt={lightboxAlt} onerror={() => markImageBroken(lightboxSrc)} />
+        <a class="lightbox-open-link" href={lightboxSrc} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+          더 크게 보기
+        </a>
       {:else}
         <span class="lightbox-img lightbox-placeholder" aria-label="이미지 준비중">이미지 준비중</span>
       {/if}
-    </button>
+    </div>
   </div>
 {/if}
 
@@ -1417,7 +1420,26 @@
     font-size: 13px;
     box-shadow: none;
   }
-  .lightbox-frame { padding: 0; border: 0; background: transparent; cursor: default; }
+  .lightbox-frame { position: relative; padding: 0; border: 0; background: transparent; cursor: default; }
+  .lightbox-open-link {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+    backdrop-filter: blur(8px);
+  }
+  .lightbox-open-link:hover { background: rgba(15, 23, 42, 0.9); }
   .lightbox-close {
     position: fixed;
     top: max(16px, env(safe-area-inset-top));
