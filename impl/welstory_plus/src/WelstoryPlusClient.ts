@@ -22,8 +22,7 @@ import {
   mapMealTime,
   mapMenuDetails,
   mapMenuNutrients,
-  mapRestaurant,
-  parseNum
+  mapRestaurant
 } from './mapper.js'
 
 export class WelstoryPlusError extends Error {
@@ -235,30 +234,6 @@ export class WelstoryPlusClient implements CafeteriaClient {
     const wrapper = unwrap<WpMealListWrapper>(raw)
     const dishes: WpDish[] = wrapper.mealList ?? []
     const menus = groupDishesToMenus(dishes, restaurant.id)
-
-    // Enrich each menu with carbs/sugar/calcium from the detail endpoint (not in list response)
-    await Promise.all(
-      menus.map(async (menu) => {
-        if (!menu.hallNo || !menu.courseType) return
-        try {
-          const rawDetail = await this.request<unknown>(
-            `/api/meal/detail?menuDt=${date}&hallNo=${menu.hallNo}&menuCourseType=${menu.courseType}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
-          )
-          const details = unwrap<WpMenuDetail[]>(rawDetail)
-          if (details.length > 0) {
-            const d = details[0]
-            menu.nutrition = {
-              ...menu.nutrition,
-              carbohydrates: parseNum(d.totCho),
-              sugar: parseNum(d.totSugar),
-              calcium: parseNum(d.totCalcium)
-            }
-          }
-        } catch {
-          // detail failure is non-fatal
-        }
-      })
-    )
 
     return menus
   }

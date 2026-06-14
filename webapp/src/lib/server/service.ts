@@ -20,7 +20,7 @@ import {
 import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
-const DEFAULT_MENU_CACHE_TTL_MS = 30 * 60 * 1000
+const DEFAULT_MENU_CACHE_TTL_MS = 6 * 60 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
 const redisKeys = {
   restaurants: 'restaurants:all',

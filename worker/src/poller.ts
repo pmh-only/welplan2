@@ -12,8 +12,8 @@ import { menuScanDates, scanRestaurantMealInfo } from './menu-availability.js'
 import { DEFAULT_RESTAURANTS } from './defaults.js'
 import { todayStr } from './utils.js'
 
-const ACTIVE_PREFETCH_INTERVAL_MS = 10 * 60 * 1000
-const FULL_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000
+const ACTIVE_PREFETCH_INTERVAL_MS = 6 * 60 * 60 * 1000
+const FULL_SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000
 const ACTIVE_PREFETCH_DAYS = 2
 const ALL_MEAL_TIME_ID = 'all'
 const syncLog = createServerLogger('sync')
@@ -31,14 +31,6 @@ const yield_ = () => new Promise<void>((resolve) => setImmediate(resolve))
 
 function uniqueRestaurants(restaurants: Restaurant[]): Restaurant[] {
   return [...new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])).values()]
-}
-
-function sameRestaurantSet(a: Restaurant[], b: Restaurant[]): boolean {
-  return restaurantSetId(a) === restaurantSetId(b)
-}
-
-function restaurantSetId(restaurants: Restaurant[]): string {
-  return restaurants.map((restaurant) => restaurant.id).sort().join(',')
 }
 
 function normalizeIntervalMs(value: string | undefined, fallback: number): number {
@@ -80,8 +72,8 @@ async function prefetchActiveRestaurants(service: CafeteriaService, activePrefet
   const startedAt = Date.now()
 
   try {
-    const restaurants = uniqueRestaurants(await service.getRestaurants())
     const defaultRestaurants = await service.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
+    const restaurants = uniqueRestaurants(defaultRestaurants)
     const dates = menuScanDates(todayStr(), activePrefetchDays)
     let menuBatches = 0
     let details = 0
@@ -117,9 +109,7 @@ async function prefetchActiveRestaurants(service: CafeteriaService, activePrefet
       }
     }
 
-    const pageRestaurantGroups = sameRestaurantSet(defaultRestaurants, restaurants)
-      ? [defaultRestaurants]
-      : [defaultRestaurants, restaurants]
+    const pageRestaurantGroups = [restaurants]
 
     for (const date of dates) {
       for (const group of pageRestaurantGroups) {
@@ -182,7 +172,9 @@ async function prefetchAllAvailability(service: CafeteriaService): Promise<void>
   const startedAt = Date.now()
 
   try {
-    const restaurants = await service.getRestaurants()
+    const restaurants = uniqueRestaurants(
+      await service.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
+    )
     if (restaurants.length === 0) {
       syncLog.info('full prefetch skipped because no restaurants are cached')
       return
