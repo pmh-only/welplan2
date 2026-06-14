@@ -3,6 +3,7 @@
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
+  import { readRestaurantSelectionFromClient, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -63,14 +64,9 @@
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
 
-  const COOKIE = 'welplan_restaurants'
-  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
-
   function savedRestaurants (): Restaurant[] {
     if (typeof document === 'undefined') return []
-    const raw = document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1)
-    if (!raw) return []
-    try { return JSON.parse(decodeURIComponent(raw)) } catch { return [] }
+    return readRestaurantSelectionFromClient()
   }
 
   function isRestaurantSaved (): boolean {
@@ -84,7 +80,7 @@
     if (registered) return
     trackEvent('Restaurant Added', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id, source: 'detail_page' })
     const next = [...savedRestaurants(), data.restaurant]
-    document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
+    saveRestaurantSelection(next)
     registered = true
     void recordRestaurantSelection(data.restaurant).catch(() => undefined)
     invalidateAll()

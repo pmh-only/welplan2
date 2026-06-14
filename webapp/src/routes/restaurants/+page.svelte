@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
+  import { saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
@@ -11,8 +12,6 @@
   type RestaurantsPageData = {
     restaurants: Restaurant[]
   }
-
-  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
   let { data }: { data: RestaurantsPageData } = $props()
 
@@ -48,7 +47,7 @@
 
   function saveRestaurants (next: Restaurant[]) {
     restaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
+    saveRestaurantSelection(next)
     invalidateAll()
   }
 

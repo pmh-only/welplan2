@@ -1,9 +1,8 @@
 import type { Cookies } from '@sveltejs/kit'
+import { decodeRestaurantCookie, RESTAURANT_COOKIE } from '$lib/restaurant-cookie'
 import { service } from '$lib/server/service'
 import type { Restaurant } from '$lib/types'
 import { fallbackMealTime, todayStr } from '$lib/utils'
-
-const COOKIE = 'welplan_restaurants'
 
 function restaurantPathText(restaurant: Restaurant): string {
   return restaurant.path?.filter(Boolean).join('/') ?? ''
@@ -56,14 +55,9 @@ async function hasAnyGalleryMenuPictures(restaurants: Restaurant[]): Promise<boo
 }
 
 export async function loadLayoutData(cookies: Cookies) {
-  const raw = cookies.get(COOKIE)
+  const raw = cookies.get(RESTAURANT_COOKIE)
   const isFirstVisit = raw == null
-  let restaurants: Restaurant[] = []
-  if (raw) {
-    try {
-      restaurants = JSON.parse(decodeURIComponent(raw))
-    } catch {}
-  }
+  let restaurants = decodeRestaurantCookie(raw)
 
   restaurants = dedupeRestaurants(await service.hydrateRestaurants(restaurants).catch(() => restaurants))
 

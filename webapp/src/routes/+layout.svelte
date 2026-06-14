@@ -6,6 +6,7 @@
   import { onMount } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
+  import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { Camera, Check, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
@@ -50,7 +51,6 @@
   const SITE_NAME = 'Welplan'
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
-  const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
     '웰스토리 식단표',
@@ -419,7 +419,7 @@
 
   function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
-    document.cookie = `welplan_restaurants=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
+    saveRestaurantSelection(next)
     invalidateAll()
   }
 
@@ -525,8 +525,15 @@
   })
 
   onMount(() => {
-    firstVisitDialogOpen = data.isFirstVisit
-    dialogRestaurants = data.restaurants ?? []
+    const restoredRestaurants = data.restaurants?.length ? [] : restoreRestaurantCookieFromStorage()
+    if (restoredRestaurants.length > 0) {
+      dialogRestaurants = restoredRestaurants
+      firstVisitDialogOpen = false
+      invalidateAll()
+    } else {
+      firstVisitDialogOpen = data.isFirstVisit
+      dialogRestaurants = data.restaurants ?? []
+    }
     if (firstVisitDialogOpen) loadAllDialogRestaurants()
 
     requestPersistentStorage()
