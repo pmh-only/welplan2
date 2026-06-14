@@ -34,10 +34,23 @@ export class AuthManager {
   private token: string | null = null
   private tokenExp: number | null = null
   private pendingAuth: Promise<void> | null = null
+  private authUnavailableUntil = 0
+  private lastAuthError: unknown = null
 
   private readonly authLog = createLogger('auth')
 
   constructor(private readonly options: AuthManagerOptions) {}
+
+  private markAuthUnavailable(error: unknown): void {
+    this.lastAuthError = error
+    this.authUnavailableUntil = Date.now() + 60_000
+  }
+
+  private throwIfAuthUnavailable(): void {
+    if (Date.now() >= this.authUnavailableUntil) return
+    if (this.lastAuthError instanceof Error) throw this.lastAuthError
+    throw new WelstoryAuthError('Welstory auth is temporarily unavailable')
+  }
 
   get deviceId(): string {
     return this.options.deviceId
@@ -100,6 +113,7 @@ export class AuthManager {
         expiresAt: this.tokenExp
       })
     } catch (error) {
+      this.markAuthUnavailable(error)
       if (!(error instanceof WelstoryAuthError)) {
         this.authLog.warn('login request failed', {
           durationMs: Date.now() - startedAt,
@@ -178,6 +192,8 @@ export class AuthManager {
       return this.token
     }
 
+    this.throwIfAuthUnavailable()
+
     this.authLog.info(this.token ? 'refreshing expiring token' : 'requesting initial token')
 
     const op = this.token ? this.doRefresh() : this.doLogin()
@@ -189,6 +205,7 @@ export class AuthManager {
   }
 
   async forceLogin(): Promise<string> {
+    this.throwIfAuthUnavailable()
     this.authLog.info('forcing new login')
     this.token = null
     this.tokenExp = null

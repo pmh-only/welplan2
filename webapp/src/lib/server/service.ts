@@ -775,6 +775,28 @@ export class CafeteriaService {
         mealTimeId,
         error
       })
+      if (redisCached) {
+        const normalized = this.normalizeMenus(redisCached.data)
+        syncLog.info('stale menu redis cache returned after fetch failure', {
+          restaurantId,
+          date,
+          mealTimeId,
+          menuCount: normalized.menus.length
+        })
+        return normalized.menus
+      }
+      if (cached) {
+        const menus = JSON.parse(cached.data) as Menu[]
+        const normalized = this.normalizeMenus(menus)
+        await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt })
+        syncLog.info('stale menu cache returned after fetch failure', {
+          restaurantId,
+          date,
+          mealTimeId,
+          menuCount: normalized.menus.length
+        })
+        return normalized.menus
+      }
       throw error
     }
   }
