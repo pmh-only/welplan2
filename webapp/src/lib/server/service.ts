@@ -82,7 +82,17 @@ export type NoticeSettings = {
   updatedAt?: number
 }
 
-export type ServiceOptions = { allowRemoteFetch?: boolean }
+export type MenuDataUpdatedEvent = {
+  kind: 'menus' | 'menuDetail' | 'menuNutrientDetail'
+  restaurant: Restaurant
+  date: string
+  mealTimeId: string
+}
+
+export type ServiceOptions = {
+  allowRemoteFetch?: boolean
+  onMenuDataUpdated?: (event: MenuDataUpdatedEvent) => void | Promise<void>
+}
 
 export class CafeteriaService {
   private welstory: WelstoryPlusClient | null = null
@@ -90,9 +100,11 @@ export class CafeteriaService {
   private cacheLoaded = false
   private cachePromise: Promise<void> | null = null
   private readonly allowRemoteFetch: boolean
+  private readonly onMenuDataUpdated?: ServiceOptions['onMenuDataUpdated']
 
   constructor(options: ServiceOptions = {}) {
     this.allowRemoteFetch = options.allowRemoteFetch === true
+    this.onMenuDataUpdated = options.onMenuDataUpdated
   }
 
   private normalizeSearchText(value: string): string {
@@ -289,6 +301,22 @@ export class CafeteriaService {
 
   private isFreshCache(cachedAt: number): boolean {
     return this.now() - cachedAt < this.menuCacheTtlMs()
+  }
+
+  private async notifyMenuDataUpdated(event: MenuDataUpdatedEvent): Promise<void> {
+    if (!this.onMenuDataUpdated) return
+
+    try {
+      await this.onMenuDataUpdated(event)
+    } catch (error) {
+      syncLog.warn('menu data update notification failed', {
+        kind: event.kind,
+        restaurantId: event.restaurant.id,
+        date: event.date,
+        mealTimeId: event.mealTimeId,
+        error
+      })
+    }
   }
 
   private menuCacheKey(restaurantId: string, date: string, mealTimeId: string): string {
@@ -747,15 +775,20 @@ export class CafeteriaService {
 
       if (menus.length > 0) {
         const now = this.now()
+        const data = JSON.stringify(menus)
+        const dataChanged = cached?.data !== data
         await db
           .insert(menusCache)
-          .values({ key, data: JSON.stringify(menus), cachedAt: now })
+          .values({ key, data, cachedAt: now })
           .onConflictDoUpdate({
             target: menusCache.key,
-            set: { data: JSON.stringify(menus), cachedAt: now }
+            set: { data, cachedAt: now }
           })
           .execute()
         await setRedisJson(redisKeys.menus(key), { data: menus, cachedAt: now }, this.menuCacheTtlMs())
+        if (dataChanged) {
+          await this.notifyMenuDataUpdated({ kind: 'menus', restaurant, date, mealTimeId })
+        }
       }
 
       syncLog.info(menus.length > 0 ? 'menus cached' : 'menus not cached because empty', {
@@ -897,15 +930,20 @@ export class CafeteriaService {
     try {
       const detail = await client.getMenuDetail(restaurant, date, mealTimeId, hallNo, courseType)
       const now = this.now()
+      const data = JSON.stringify(detail)
+      const dataChanged = cached?.data !== data
       await db
         .insert(menuDetailCache)
-        .values({ key, data: JSON.stringify(detail), cachedAt: now })
+        .values({ key, data, cachedAt: now })
         .onConflictDoUpdate({
           target: menuDetailCache.key,
-          set: { data: JSON.stringify(detail), cachedAt: now }
+          set: { data, cachedAt: now }
         })
         .execute()
       await setRedisJson(redisKeys.menuDetail(key), { data: detail, cachedAt: now }, this.menuCacheTtlMs())
+      if (dataChanged) {
+        await this.notifyMenuDataUpdated({ kind: 'menuDetail', restaurant, date, mealTimeId })
+      }
       syncLog.info('menu detail cached', {
         restaurantId,
         vendor: restaurant.vendor,
@@ -1034,15 +1072,20 @@ export class CafeteriaService {
         courseType
       )
       const now = this.now()
+      const data = JSON.stringify(detail)
+      const dataChanged = cached?.data !== data
       await db
         .insert(menuNutrientDetailCache)
-        .values({ key, data: JSON.stringify(detail), cachedAt: now })
+        .values({ key, data, cachedAt: now })
         .onConflictDoUpdate({
           target: menuNutrientDetailCache.key,
-          set: { data: JSON.stringify(detail), cachedAt: now }
+          set: { data, cachedAt: now }
         })
         .execute()
       await setRedisJson(redisKeys.menuNutrientDetail(key), { data: detail, cachedAt: now }, this.menuCacheTtlMs())
+      if (dataChanged) {
+        await this.notifyMenuDataUpdated({ kind: 'menuNutrientDetail', restaurant, date, mealTimeId })
+      }
       syncLog.info('menu nutrient detail cached', {
         restaurantId,
         vendor: restaurant.vendor,

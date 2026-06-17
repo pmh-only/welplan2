@@ -1,4 +1,4 @@
-import type { Restaurant } from '$lib/types'
+import type { Restaurant } from './types.js'
 
 const FALLBACK_SLUG = 'restaurant'
 

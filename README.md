@@ -73,6 +73,9 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `ADMIN_OIDC_RESPONSE_MODE`     | No                       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks.        |
 | `TWA_PACKAGE_NAME`             | For Android TWA          | none           | Android package name allowed to claim this web origin through Digital Asset Links.                                 |
 | `TWA_SHA256_CERT_FINGERPRINTS` | For Android TWA          | none           | Comma or whitespace separated SHA-256 signing certificate fingerprints served from `/.well-known/assetlinks.json`. |
+| `INDEXNOW_KEY`                 | No                       | none           | Public IndexNow key. When configured, the web app serves `/{INDEXNOW_KEY}.txt` and the worker can submit updates.  |
+| `INDEXNOW_ORIGIN`              | No                       | `ORIGIN`       | Public site origin used by worker IndexNow submissions, e.g. `https://welplan.pmh.codes`.                          |
+| `INDEXNOW_ENDPOINT`            | No                       | IndexNow API   | IndexNow submission endpoint. Defaults to `https://api.indexnow.org/indexnow`.                                     |
 
 ### Worker Environment Variables
 
@@ -81,6 +84,7 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `WORKER_ACTIVE_PREFETCH_INTERVAL_MS` | No       | `600000`   | Poll interval for active user-selected restaurants.              |
 | `WORKER_FULL_SCAN_INTERVAL_MS`       | No       | `21600000` | Poll interval for full cache scan across all cached restaurants. |
 | `WORKER_ACTIVE_PREFETCH_DAYS`        | No       | `2`        | Days from today for active prefetch.                             |
+| `INDEXNOW_DEBOUNCE_MS`               | No       | `5000`     | Delay used to batch worker IndexNow submissions after menu data changes. |
 
 PlanEAT Choice requests do not currently require credentials.
 

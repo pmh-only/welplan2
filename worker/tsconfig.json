@@ -10,6 +10,7 @@
   },
   "files": [
     "src/index.ts",
+    "src/indexnow.ts",
     "src/poller.ts",
     "src/menu-availability.ts",
     "src/defaults.ts",
@@ -17,11 +18,13 @@
     "../webapp/src/lib/server/service.ts",
     "../webapp/src/lib/server/env.ts",
     "../webapp/src/lib/server/log.ts",
+    "../webapp/src/lib/server/indexnow.ts",
     "../webapp/src/lib/server/menu-page.ts",
     "../webapp/src/lib/server/image-cache.ts",
     "../webapp/src/lib/server/redis-cache.ts",
     "../webapp/src/lib/server/db/index.ts",
     "../webapp/src/lib/server/db/schema.ts",
+    "../webapp/src/lib/restaurant-routes.ts",
     "../webapp/src/lib/types.ts",
     "../webapp/src/lib/utils.ts"
   ],
