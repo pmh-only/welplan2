@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "codes.pmh.welplan.twa",
+      "sha256_cert_fingerprints": [
+        "A5:5C:25:6C:90:77:C7:63:BE:50:29:CB:B1:8B:94:F9:DE:D7:B2:AE:22:A2:1C:D2:84:CD:8D:CC:15:72:7A:AE"
+      ]
+    }
+  }
+]
