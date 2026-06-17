@@ -4,6 +4,18 @@
 
 The repository contains a SvelteKit web app, shared TypeScript models, and vendor-specific clients used to fetch menu, nutrition, and restaurant data.
 
+## Demo
+
+**https://welplan.pmh.codes**
+
+<img width="517" height="697" alt="image" src="https://github.com/user-attachments/assets/ad033c46-c772-4092-8a63-ae8ca5a3ced8" />
+<img width="591" height="740" alt="image" src="https://github.com/user-attachments/assets/a8c456cc-b9ed-40d7-8742-c315db660be6" />
+
+<img width="939" height="571" alt="image" src="https://github.com/user-attachments/assets/849e8c37-8dee-4ffa-b1ee-c591dd4b1d21" />
+<img width="1193" height="464" alt="image" src="https://github.com/user-attachments/assets/846cf0a9-011d-4334-bb17-5dde71bd4ce9" />
+
+
+
 ## Features
 
 - Aggregates restaurant and meal-time data from Welstory Plus and PlanEAT Choice.
