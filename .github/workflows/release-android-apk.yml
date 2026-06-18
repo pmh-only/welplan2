@@ -1,4 +1,4 @@
-name: Release Android APK
+name: Release Android APK and AAB
 
 on:
   workflow_dispatch:
@@ -7,6 +7,26 @@ on:
         description: Release tag. Defaults to android-<run-number>.
         required: false
         type: string
+      upload_to_play:
+        description: Upload the signed AAB to Google Play.
+        required: true
+        default: true
+        type: boolean
+      play_tracks:
+        description: Google Play track(s), comma-separated.
+        required: true
+        default: internal
+        type: string
+      play_status:
+        description: Google Play release status.
+        required: true
+        default: draft
+        type: choice
+        options:
+          - draft
+          - completed
+          - inProgress
+          - halted
 
 concurrency:
   group: release-android-apk
@@ -17,7 +37,7 @@ permissions:
 
 jobs:
   release:
-    name: Build and release APK
+    name: Build and release Android artifacts
     runs-on: ubuntu-latest
 
     steps:
@@ -61,6 +81,16 @@ jobs:
           mkdir -p "$HOME/.bubblewrap"
           printf '{"jdkPath":"%s","androidSdkPath":"%s"}\n' "$JAVA_HOME" "$ANDROID_HOME" > "$HOME/.bubblewrap/config.json"
 
+      - name: Check Google Play credentials
+        if: ${{ inputs.upload_to_play }}
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Set the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repository secret."
+            exit 1
+          fi
+
       - name: Decrypt signing keystore
         env:
           KEYSTORE_GPG_PASSPHRASE: ${{ secrets.KEYSTORE_GPG_PASSPHRASE }}
@@ -74,7 +104,7 @@ jobs:
             --output pwabuild/android.keystore \
             --decrypt pwabuild/android.keystore.gpg
 
-      - name: Build signed APK
+      - name: Build signed Android artifacts
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: '123456'
           BUBBLEWRAP_KEY_PASSWORD: '123456'
@@ -94,21 +124,46 @@ jobs:
           fi
           SAFE_TAG="${TAG//\//-}"
           APK_NAME="welplan-${SAFE_TAG}.apk"
+          AAB_NAME="welplan-${SAFE_TAG}.aab"
           cp pwabuild/app-release-signed.apk "$APK_NAME"
+          cp pwabuild/app-release-bundle.aab "$AAB_NAME"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "safe_tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "aab_name=$AAB_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-${{ steps.release.outputs.safe_tag }}
+          path: |
+            ${{ steps.release.outputs.apk_name }}
+            ${{ steps.release.outputs.aab_name }}
+          if-no-files-found: error
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           APK_NAME: ${{ steps.release.outputs.apk_name }}
+          AAB_NAME: ${{ steps.release.outputs.aab_name }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "$APK_NAME" --clobber
+            gh release upload "$RELEASE_TAG" "$APK_NAME" "$AAB_NAME" --clobber
           else
-            gh release create "$RELEASE_TAG" "$APK_NAME" \
+            gh release create "$RELEASE_TAG" "$APK_NAME" "$AAB_NAME" \
               --target "$GITHUB_SHA" \
-              --title "Android APK $RELEASE_TAG" \
-              --notes "Signed APK built from $GITHUB_SHA."
+              --title "Android $RELEASE_TAG" \
+              --notes "Signed APK and AAB built from $GITHUB_SHA. The workflow can upload the AAB to Google Play when enabled."
           fi
+
+      - name: Upload AAB to Google Play
+        if: ${{ inputs.upload_to_play }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: codes.pmh.welplan.twa
+          releaseFiles: ${{ steps.release.outputs.aab_name }}
+          tracks: ${{ inputs.play_tracks }}
+          status: ${{ inputs.play_status }}
+          releaseName: ${{ steps.release.outputs.tag }}

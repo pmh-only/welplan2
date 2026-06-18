@@ -282,6 +282,22 @@ Google Play release checklist:
 
 ## CI/CD
 
+### Android release
+
+`.github/workflows/release-android-apk.yml` builds signed Android release artifacts from
+`pwabuild/`, uploads the APK/AAB as workflow artifacts, attaches both files to a GitHub Release,
+and can upload the signed AAB to Google Play through `r0adkll/upload-google-play@v1`.
+
+Required repository secrets:
+
+- `KEYSTORE_GPG_PASSPHRASE` decrypts `pwabuild/android.keystore.gpg`.
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` contains the Google Play service account JSON used by the
+  upload action.
+
+The manual workflow dispatch defaults to `play_tracks=internal` and `play_status=draft` so the Play
+Console release can be reviewed before rollout. Set `upload_to_play=false` to build only the GitHub
+artifacts/release.
+
 ### Docker image
 
 `.github/workflows/docker-webapp.yml` builds amd64 and arm64 images and publishes them to:
