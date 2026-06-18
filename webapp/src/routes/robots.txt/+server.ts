@@ -33,7 +33,8 @@ export const GET: RequestHandler = ({ url }) => {
     '',
     `Content-Signal: ${CONTENT_SIGNAL}`,
     `Sitemap: ${url.origin}/sitemap.xml`,
-    `LLMs: ${url.origin}/llms.txt`
+    `LLMs: ${url.origin}/llms.txt`,
+    '#DaumWebMasterTool:9d02dc282ff7f8bc36a7b30369793ae3578d4ec0702ccdd0ca1b5414ce008597:LIrpZAQGS3+EKpQKpgrqqw=='
   ].join('\n')
 
   return new Response(body, {
