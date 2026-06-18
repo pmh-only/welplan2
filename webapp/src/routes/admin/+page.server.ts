@@ -60,7 +60,8 @@ export const actions: Actions = {
       enabled: formData.get('enabled') === 'on',
       title: stringFormValue(formData, 'title'),
       summary: stringFormValue(formData, 'summary'),
-      detail: stringFormValue(formData, 'detail')
+      detail: stringFormValue(formData, 'detail'),
+      contentHtml: stringFormValue(formData, 'contentHtml')
     }
 
     const savedNotice = await service.setNoticeSettings(notice)

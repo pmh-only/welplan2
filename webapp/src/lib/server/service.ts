@@ -35,7 +35,8 @@ const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
   enabled: false,
   title: '',
   summary: '',
-  detail: ''
+  detail: '',
+  contentHtml: ''
 }
 
 type CachedCountRow = { count: number | string | bigint }
@@ -79,6 +80,7 @@ export type NoticeSettings = {
   title: string
   summary: string
   detail: string
+  contentHtml: string
   updatedAt?: number
 }
 
@@ -1290,12 +1292,14 @@ export class CafeteriaService {
     const title = typeof value.title === 'string' ? value.title.trim().slice(0, 80) : ''
     const summary = typeof value.summary === 'string' ? value.summary.trim().slice(0, 180) : ''
     const detail = typeof value.detail === 'string' ? value.detail.trim().slice(0, 5000) : ''
+    const contentHtml = typeof value.contentHtml === 'string' ? value.contentHtml.trim().slice(0, 2_000_000) : ''
 
     return {
-      enabled: value.enabled === true && (summary.length > 0 || detail.length > 0),
+      enabled: value.enabled === true && (summary.length > 0 || detail.length > 0 || contentHtml.length > 0),
       title,
       summary,
       detail,
+      contentHtml,
       updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : undefined
     }
   }

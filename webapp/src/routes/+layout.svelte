@@ -43,6 +43,7 @@
     title: string
     summary: string
     detail: string
+    contentHtml: string
     updatedAt?: number
   }
 
@@ -120,6 +121,7 @@
     if (segment === 'takeout') return '테이크아웃'
     if (segment === 'docs') return '문서'
     if (segment === 'api') return 'API'
+    if (segment === 'notice') return '공지사항'
     if (segment === 'privacy') return '개인정보 처리방침'
     if (segment === 'data-deletion') return '데이터 삭제 요청'
     if (/^\d{8}$/.test(segment)) return formatKoreanDate(segment)
@@ -297,6 +299,16 @@
       }
     }
 
+    if (pathname.startsWith('/notice')) {
+      return {
+        ...baseMeta,
+        title: '공지사항 | Welplan',
+        ogTitle: 'Welplan 공지사항',
+        description: 'Welplan 서비스 공지사항과 업데이트 안내입니다.',
+        keywords: mergeKeywords('Welplan 공지사항', '웰플랜 공지', DEFAULT_KEYWORDS)
+      }
+    }
+
     if (pathname.startsWith('/privacy')) {
       return {
         ...baseMeta,
@@ -396,7 +408,6 @@
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
-  let noticeOpen = $state(false)
   let firstVisitDialogOpen = $state(false)
   let dialogRestaurants = $state<Restaurant[]>([])
   let restaurantQuery = $state('')
@@ -666,7 +677,7 @@
   const showGlobalChrome = $derived(!isRestaurantDetailPage)
   const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
   const notice = $derived(data.notice)
-  const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0))
+  const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -721,7 +732,7 @@
 <div class="app">
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
-      <button type="button" class="notice-bar" aria-expanded={noticeOpen} onclick={() => { noticeOpen = !noticeOpen; trackEvent('Notice Toggled', { expanded: noticeOpen ? 1 : 0 }) }}>
+      <a class="notice-bar" href="/notice" onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar' })}>
         <span class="notice-bar-badge">
           <Megaphone class="notice-icon" aria-hidden="true" />
           공지
@@ -730,18 +741,10 @@
           {#if notice.title}
             <strong>{notice.title}</strong>
           {/if}
-          {notice.summary || notice.detail}
+          {notice.summary || notice.detail || '공지사항을 확인해 주세요'}
         </span>
         <span class="notice-bar-action">자세히</span>
-      </button>
-      {#if noticeOpen}
-        <div class="notice-detail">
-          {#if notice.title}
-            <h2>{notice.title}</h2>
-          {/if}
-          <p>{notice.detail || notice.summary}</p>
-        </div>
-      {/if}
+      </a>
     </section>
   {/if}
 
@@ -949,6 +952,7 @@
     font-size: 13px;
     font-weight: 600;
     text-align: center;
+    text-decoration: none;
     cursor: pointer;
   }
 
@@ -991,27 +995,6 @@
     font-weight: 800;
     text-decoration: underline;
     text-underline-offset: 3px;
-  }
-
-  .notice-detail {
-    max-width: 920px;
-    margin: 0 auto;
-    padding: 16px 20px 18px;
-    color: #f8fafc;
-    background: #111827;
-    white-space: pre-wrap;
-  }
-
-  .notice-detail h2 {
-    margin: 0 0 8px;
-    font-size: 1rem;
-    letter-spacing: -0.02em;
-  }
-
-  .notice-detail p {
-    margin: 0;
-    color: #dbeafe;
-    line-height: 1.65;
   }
 
   .first-visit-backdrop {

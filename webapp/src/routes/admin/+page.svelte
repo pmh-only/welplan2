@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
+
   type CacheStatus = Record<string, number | boolean>
   type CachePage = {
     table: string
@@ -27,6 +29,7 @@
     title: string
     summary: string
     detail: string
+    contentHtml: string
     updatedAt?: number
   }
 
@@ -45,6 +48,71 @@
   const notice = $derived(form?.notice ?? data.notice)
   const statusEntries = $derived(Object.entries(status))
   const displayName = $derived(data.user?.name ?? data.user?.email ?? data.user?.id ?? 'admin')
+  let editorElement: HTMLDivElement
+  let imageInputElement: HTMLInputElement
+  let noticeContentHtml = $state('')
+  let appliedNoticeKey = $state('')
+
+  onMount(() => {
+    syncNoticeEditor()
+  })
+
+  $effect(() => {
+    syncNoticeEditor()
+  })
+
+  function syncNoticeEditor(): void {
+    const nextHtml = notice.contentHtml || (notice.detail ? notice.detail.replace(/\n/g, '<br>') : '')
+    const nextKey = `${notice.updatedAt ?? 0}:${nextHtml}`
+    if (!editorElement || appliedNoticeKey === nextKey) return
+    appliedNoticeKey = nextKey
+    noticeContentHtml = nextHtml
+    editorElement.innerHTML = nextHtml
+  }
+
+  function updateEditorState(): void {
+    noticeContentHtml = editorElement?.innerHTML ?? ''
+  }
+
+  function runEditorCommand(command: string, value?: string): void {
+    editorElement?.focus()
+    document.execCommand(command, false, value)
+    updateEditorState()
+  }
+
+  function createLink(): void {
+    const url = window.prompt('링크 URL을 입력하세요')?.trim()
+    if (!url) return
+    runEditorCommand('createLink', url)
+  }
+
+  function triggerImageUpload(): void {
+    imageInputElement?.click()
+  }
+
+  function insertImage(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      window.alert('이미지 파일만 업로드할 수 있습니다')
+      input.value = ''
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        runEditorCommand('insertImage', reader.result)
+      }
+      input.value = ''
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function prepareNoticeSubmit(): void {
+    updateEditorState()
+  }
 
   function tableLabel(table: string): string {
     switch (table) {
@@ -108,7 +176,7 @@
         </div>
       </div>
 
-      <form method="POST" action="?/updateNotice" class="notice-form">
+      <form method="POST" action="?/updateNotice" class="notice-form" onsubmit={prepareNoticeSubmit}>
         <label class="toggle-row">
           <input type="checkbox" name="enabled" checked={notice.enabled} />
           <span>공지 바 표시</span>
@@ -125,9 +193,35 @@
         </label>
 
         <label class="field-row" for="notice-detail-input">
-          <span>상세 공지</span>
-          <textarea id="notice-detail-input" name="detail" rows="6" maxlength="5000" placeholder="사용자가 공지 바를 클릭하면 표시될 상세 내용">{notice.detail}</textarea>
+          <span>텍스트 대체 내용</span>
+          <textarea id="notice-detail-input" name="detail" rows="4" maxlength="5000" placeholder="HTML을 표시할 수 없는 환경을 위한 텍스트 내용">{notice.detail}</textarea>
         </label>
+
+        <div class="field-row">
+          <span>공지 페이지 내용</span>
+          <div class="editor-toolbar" aria-label="공지 편집 도구">
+            <button type="button" onclick={() => runEditorCommand('formatBlock', 'h2')}>제목</button>
+            <button type="button" onclick={() => runEditorCommand('bold')}>굵게</button>
+            <button type="button" onclick={() => runEditorCommand('italic')}>기울임</button>
+            <button type="button" onclick={() => runEditorCommand('insertUnorderedList')}>목록</button>
+            <button type="button" onclick={() => runEditorCommand('formatBlock', 'blockquote')}>인용</button>
+            <button type="button" onclick={createLink}>링크</button>
+            <button type="button" onclick={triggerImageUpload}>이미지</button>
+          </div>
+          <div
+            class="wysiwyg-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-multiline="true"
+            aria-label="공지 페이지 HTML 내용"
+            bind:this={editorElement}
+            oninput={updateEditorState}
+            onblur={updateEditorState}
+          ></div>
+          <input bind:this={imageInputElement} class="image-input" type="file" accept="image/*" onchange={insertImage} />
+          <textarea class="content-html-input" name="contentHtml" bind:value={noticeContentHtml} aria-hidden="true"></textarea>
+          <span class="editor-help">이미지는 본문에 base64 데이터 URL로 삽입되어 DB에 함께 저장됩니다.</span>
+        </div>
 
         <div class="form-actions">
           {#if notice.updatedAt}
@@ -468,6 +562,76 @@
   .field-row textarea:focus {
     border-color: #0f766e;
     outline: 3px solid rgba(15, 118, 110, 0.14);
+  }
+
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    background: #f8fafc;
+  }
+
+  .editor-toolbar button {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .editor-toolbar button:hover {
+    border-color: #0f766e;
+    color: #0f766e;
+  }
+
+  .wysiwyg-editor {
+    min-height: 260px;
+    padding: 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    background: #fff;
+    color: #0f172a;
+    font-weight: 500;
+    line-height: 1.7;
+    overflow: auto;
+  }
+
+  .wysiwyg-editor:focus {
+    border-color: #0f766e;
+    outline: 3px solid rgba(15, 118, 110, 0.14);
+  }
+
+  .wysiwyg-editor:empty::before {
+    content: '공지 페이지에 표시할 내용을 입력하세요. 이미지는 툴바의 이미지 버튼으로 삽입할 수 있습니다.';
+    color: #94a3b8;
+  }
+
+  .wysiwyg-editor :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+  }
+
+  .image-input,
+  .content-html-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .editor-help {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .form-actions {
