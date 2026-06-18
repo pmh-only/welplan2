@@ -121,6 +121,7 @@
     if (segment === 'docs') return '문서'
     if (segment === 'api') return 'API'
     if (segment === 'privacy') return '개인정보 처리방침'
+    if (segment === 'data-deletion') return '데이터 삭제 요청'
     if (/^\d{8}$/.test(segment)) return formatKoreanDate(segment)
     if (restaurant && segment === restaurant.vendor) return vendorName(restaurant.vendor)
     if (restaurant && segment === restaurant.id) return restaurant.name
@@ -303,6 +304,16 @@
         ogTitle: 'Welplan 개인정보 처리방침',
         description: 'Welplan 웹사이트와 Android 앱의 개인정보 처리방침입니다. 식당 선택 저장, 쿠키, 로컬 저장소, 문의 처리 방식을 안내합니다.',
         keywords: mergeKeywords('Welplan 개인정보 처리방침', '개인정보 처리방침', '구내식당 메뉴 앱 개인정보', DEFAULT_KEYWORDS)
+      }
+    }
+
+    if (pathname.startsWith('/data-deletion')) {
+      return {
+        ...baseMeta,
+        title: '데이터 삭제 요청 | Welplan',
+        ogTitle: 'Welplan 데이터 삭제 요청 안내',
+        description: 'Welplan 사용자가 이메일로 데이터 삭제를 요청하는 방법을 안내합니다.',
+        keywords: mergeKeywords('Welplan 데이터 삭제', '데이터 삭제 요청', '앱 데이터 삭제 요청', '개인정보 삭제 요청', DEFAULT_KEYWORDS)
       }
     }
 
@@ -883,7 +894,7 @@
       <p>
         삼성웰스토리, 신세계푸드 및 각 사의 브랜드명, 식당명에 포함된 회사명·브랜드명 등 모든 상표는 해당 권리자에게 귀속됩니다.
         Welplan은 해당 상표권자 및 관련 회사와 제휴, 후원, 승인 또는 공식 관계가 없는 독립적인 사이트 및 애플리케이션입니다.
-        <a href="/privacy">개인정보 처리방침</a>을 확인할 수 있으며, 문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
+        <a href="/privacy">개인정보 처리방침</a>과 <a href="/data-deletion">데이터 삭제 요청 안내</a>를 확인할 수 있으며, 문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
       </p>
     </footer>
   </main>
