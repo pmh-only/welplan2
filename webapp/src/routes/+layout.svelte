@@ -674,10 +674,12 @@
   })
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
-  const showGlobalChrome = $derived(!isRestaurantDetailPage)
+  const hideGlobalNav = $derived(page.url.searchParams.has('nonav'))
+  const showGlobalChrome = $derived(!isRestaurantDetailPage && !hideGlobalNav)
   const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
+  const noticeHref = $derived(isRestaurantDetailPage ? '/notice?nonav' : '/notice')
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -732,7 +734,7 @@
 <div class="app">
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
-      <a class="notice-bar" href="/notice" onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar' })}>
+      <a class="notice-bar" href={noticeHref} onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar', nonav: isRestaurantDetailPage ? 1 : 0 })}>
         <span class="notice-bar-badge">
           <Megaphone class="notice-icon" aria-hidden="true" />
           공지
@@ -890,7 +892,7 @@
     </div>
   {/if}
 
-  <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage} aria-busy={showLoading}>
+  <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage || hideGlobalNav} aria-busy={showLoading}>
     {@render children()}
 
     <footer class="legal-notice" aria-label="상표, 개인정보 및 문의 안내">

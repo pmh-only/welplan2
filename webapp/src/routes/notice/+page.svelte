@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { browser } from '$app/environment'
+
   type NoticeSettings = {
     enabled: boolean
     title: string
@@ -15,6 +17,15 @@
     if (!value) return ''
     return new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
   }
+
+  function closeNotice(): void {
+    if (browser && window.history.length > 1) {
+      window.history.back()
+      return
+    }
+
+    window.location.href = '/'
+  }
 </script>
 
 <svelte:head>
@@ -22,6 +33,10 @@
 </svelte:head>
 
 <article class="notice-page" aria-labelledby="notice-title">
+  <div class="notice-actions">
+    <button type="button" class="close-button" onclick={closeNotice} aria-label="공지 닫기">닫기</button>
+  </div>
+
   <header class="notice-hero">
     <p class="eyebrow">Notice</p>
     <h1 id="notice-title">{notice.title || '공지사항'}</h1>
@@ -45,7 +60,29 @@
 <style>
   .notice-page {
     display: grid;
-    gap: 18px;
+    gap: 14px;
+  }
+
+  .notice-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .close-button {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .close-button:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
   }
 
   .notice-hero,
