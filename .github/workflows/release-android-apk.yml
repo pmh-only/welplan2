@@ -108,6 +108,8 @@ jobs:
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: '123456'
           BUBBLEWRAP_KEY_PASSWORD: '123456'
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: ${{ github.run_number }}
         run: |
           pnpm --dir pwabuild exec bubblewrap build \
             --signingKeyPath ./android.keystore \
