@@ -20,8 +20,8 @@
     "path": "/home/pmh/workspace/welplan2/pwabuild/android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1",
-  "appVersionCode": 1,
+  "appVersionName": "2",
+  "appVersionCode": 2,
   "shortcuts": [
     {
       "name": "메뉴 갤러리",
@@ -71,5 +71,5 @@
     "standalone",
     "browser"
   ],
-  "appVersion": "1"
+  "appVersion": "2"
 }
