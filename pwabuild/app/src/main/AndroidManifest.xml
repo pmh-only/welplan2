@@ -14,13 +14,7 @@
      limitations under the License.
 -->
 
-<!-- The "package" attribute is rewritten by the Gradle build with the value of applicationId.
-     It is still required here, as it is used to derive paths, for instance when referring
-     to an Activity by ".MyActivity" instead of the full name. If more Activities are added to the
-     application, the package attribute will need to reflect the correct path in order to use
-     the abbreviated format. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="codes.pmh.welplan.twa">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     
         <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -83,35 +77,11 @@
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
                 android:value="@string/launchUrl" />
 
-            <meta-data
-                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
-                android:resource="@color/colorPrimary" />
-
             
                 <meta-data
                     android:name="android.support.customtabs.trusted.LAUNCH_HANDLER_CLIENT_MODE"
                     android:value="@string/launchHandlerClientMode" />
             
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
-                android:resource="@color/colorPrimaryDark" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
-                android:resource="@color/navigationColor" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR_DARK"
-                android:resource="@color/navigationColorDark" />
-
-            <meta-data
-                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR"
-                android:resource="@color/navigationDividerColor" />
-
-            <meta-data
-                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR_DARK"
-                android:resource="@color/navigationDividerColorDark" />
 
             <meta-data android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
                 android:resource="@drawable/splash"/>
@@ -134,12 +104,6 @@
 
             
 
-            <meta-data android:name="android.support.customtabs.trusted.SCREEN_ORIENTATION"
-                android:value="@string/orientation"/>
-
-            
-
-            
                 <meta-data
                     android:name="android.support.customtabs.trusted.DISPLAY_OVERRIDE"
                     android:resource="@array/display_override" />

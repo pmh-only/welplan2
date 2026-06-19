@@ -60,7 +60,6 @@
   "isMetaQuest": false,
   "fullScopeUrl": "https://welplan.pmh.codes/",
   "minSdkVersion": 21,
-  "orientation": "portrait",
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],

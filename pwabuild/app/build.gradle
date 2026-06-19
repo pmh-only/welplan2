@@ -47,7 +47,6 @@ def twaManifest = [
     // 'customtabs' and 'webview'.
     fallbackType: 'customtabs',
     enableSiteSettingsShortcut: 'true',
-    orientation: 'portrait',
 ]
 
 android {
@@ -148,7 +147,6 @@ android {
         resValue "string", "fallbackType", twaManifest.fallbackType
 
         resValue "bool", "enableSiteSettingsShortcut", twaManifest.enableSiteSettingsShortcut
-        resValue "string", "orientation", twaManifest.orientation
 
         
     }
@@ -209,6 +207,7 @@ repositories {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'androidx.core:core:1.16.0'
     
         implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
     
