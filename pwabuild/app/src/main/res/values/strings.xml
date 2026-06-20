@@ -15,6 +15,16 @@
      limitations under the License.
 -->
 <resources>
+  <string name="widget_title">오늘의 메뉴</string>
+  <string name="widget_description">오늘의 구내식당 메뉴를 홈 화면에서 확인합니다.</string>
+  <string name="widget_refresh">새로고침</string>
+  <string name="widget_loading">메뉴를 불러오는 중</string>
+  <string name="widget_loading_detail">잠시만 기다려 주세요.</string>
+  <string name="widget_open_hint">누르면 Welplan에서 자세히 보기</string>
+  <string name="widget_updated">%1$s 업데이트</string>
+  <string name="widget_cached_after_error">최근 저장된 메뉴</string>
+  <string name="widget_error">메뉴를 불러오지 못했습니다</string>
+  <string name="widget_error_detail">새로고침하거나 Welplan을 열어 다시 확인해 주세요.</string>
   
 
   <!--

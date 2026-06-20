@@ -51,6 +51,10 @@ def twaManifest = [
 
 def androidVersionCode = (System.getenv('ANDROID_VERSION_CODE') ?: '2').toInteger()
 def androidVersionName = System.getenv('ANDROID_VERSION_NAME') ?: '2'
+def releaseKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH') ?: "${rootProject.projectDir}/android.keystore"
+def releaseKeystorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: System.getenv('BUBBLEWRAP_KEYSTORE_PASSWORD') ?: '123456'
+def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: 'android'
+def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: System.getenv('BUBBLEWRAP_KEY_PASSWORD') ?: releaseKeystorePassword
 
 android {
     compileSdkVersion 36
@@ -153,8 +157,17 @@ android {
 
         
     }
+    signingConfigs {
+        release {
+            storeFile file(releaseKeystorePath)
+            storePassword releaseKeystorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled true
         }
     }

@@ -15,4 +15,11 @@
 -->
 <resources>
     <color name="shortcut_background">#F5F5F5</color>
+    <color name="widget_background">#FFFFFF</color>
+    <color name="widget_border">#E2E8F0</color>
+    <color name="widget_text_primary">#0F172A</color>
+    <color name="widget_text_secondary">#475569</color>
+    <color name="widget_text_tertiary">#94A3B8</color>
+    <color name="widget_accent">#059669</color>
+    <color name="widget_accent_soft">#D1FAE5</color>
 </resources>

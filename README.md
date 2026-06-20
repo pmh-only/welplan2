@@ -270,7 +270,7 @@ Generate the Android wrapper with Bubblewrap:
 pnpm dlx @bubblewrap/cli init --manifest=https://welplan.example.com/manifest.webmanifest
 ```
 
-During Bubblewrap setup, use the same package name as `TWA_PACKAGE_NAME`, set the start URL to `/`, and use the production HTTPS origin. Build a signed Android App Bundle from the generated Android project and upload the `.aab` to Google Play Console.
+During Bubblewrap setup, use the same package name as `TWA_PACKAGE_NAME`, set the start URL to `/`, and use the production HTTPS origin. After native files such as Android widgets are added under `pwabuild/app/`, build releases from the checked-in Gradle project with `./gradlew assembleRelease bundleRelease` instead of `bubblewrap build` so custom native layers are preserved.
 
 Google Play release checklist:
 
