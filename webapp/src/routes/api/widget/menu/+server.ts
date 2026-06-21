@@ -9,6 +9,8 @@ const MAX_WIDGET_MENUS = 6
 
 type WidgetMenuItem = {
   name: string
+  restaurantId?: string
+  restaurantName?: string
   calories?: number
 }
 
@@ -31,6 +33,44 @@ function widgetMenus(menus: Menu[]): WidgetMenuItem[] {
     name: menuName(menu),
     calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
   }))
+}
+
+function requestedRestaurantIds(url: URL): string[] {
+  return [...new Set(
+    url.searchParams
+      .getAll('restaurantId')
+      .flatMap((value) => value.split(','))
+      .map((value) => value.trim())
+      .filter(Boolean)
+  )]
+}
+
+function dedupeRestaurants(restaurants: Restaurant[]): Restaurant[] {
+  const seen = new Set<string>()
+  return restaurants.filter((restaurant) => {
+    if (seen.has(restaurant.id)) return false
+    seen.add(restaurant.id)
+    return true
+  })
+}
+
+async function selectableRestaurants(
+  menuService: ReturnType<typeof createService>,
+  ids: string[]
+): Promise<Restaurant[]> {
+  const defaults = await menuService.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
+  if (ids.length === 0) return defaults
+
+  const searchedRestaurants = await menuService.searchRestaurants('').catch(() => [])
+  const known = dedupeRestaurants([
+    ...defaults,
+    ...searchedRestaurants
+  ])
+  const byId = new Map(known.map((restaurant) => [restaurant.id, restaurant]))
+  return ids.flatMap((id) => {
+    const restaurant = byId.get(id)
+    return restaurant ? [restaurant] : []
+  })
 }
 
 async function snapshotForRestaurant(
@@ -70,29 +110,60 @@ async function snapshotForRestaurant(
 
 export const GET: RequestHandler = async ({ url }) => {
   const date = isValidDate(url.searchParams.get('date')) ? url.searchParams.get('date')! : todayStr()
-  const requestedRestaurantId = url.searchParams.get('restaurantId')
+  const dateLabel = formatKoreanDate(date)
+  const restaurantIds = requestedRestaurantIds(url)
   const requestedMealTimeId = url.searchParams.get('mealTimeId')
 
   const menuService = createService({ allowRemoteFetch: true })
-  const restaurants = await menuService.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
-  const candidates = requestedRestaurantId
-    ? restaurants.filter((restaurant) => restaurant.id === requestedRestaurantId)
-    : restaurants
+  const restaurants = await selectableRestaurants(menuService, restaurantIds)
+  const snapshots: WidgetMenuSnapshot[] = []
 
-  for (const restaurant of candidates.length > 0 ? candidates : restaurants) {
+  for (const restaurant of restaurants) {
     const snapshot = await snapshotForRestaurant(menuService, restaurant, date, requestedMealTimeId)
-    if (!snapshot) continue
+    if (snapshot) snapshots.push(snapshot)
+  }
 
-    const openPath = `/takein/${date}/${snapshot.mealTime.id}?${new URLSearchParams({ restaurant: snapshot.restaurant.id })}`
+  const visibleSnapshots = snapshots.filter((snapshot) => snapshot.menus.length > 0)
+  const displaySnapshots = visibleSnapshots.length > 0 ? visibleSnapshots : snapshots
+
+  if (displaySnapshots.length > 0) {
+    const menus: WidgetMenuItem[] = []
+    let index = 0
+    while (menus.length < MAX_WIDGET_MENUS) {
+      let added = false
+      for (const snapshot of displaySnapshots) {
+        const menu = snapshot.menus[index]
+        if (!menu) continue
+        menus.push({
+          name: menuName(menu),
+          restaurantId: snapshot.restaurant.id,
+          restaurantName: snapshot.restaurant.name,
+          calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
+        })
+        added = true
+        if (menus.length >= MAX_WIDGET_MENUS) break
+      }
+      if (!added) break
+      index++
+    }
+
+    const primarySnapshot = displaySnapshots[0]
+    const multipleRestaurants = displaySnapshots.length > 1
+    const mealTimeNames = [...new Set(displaySnapshots.map((snapshot) => snapshot.mealTime.name))]
+    const openPath = `/takein/${date}/${primarySnapshot.mealTime.id}?${new URLSearchParams({ restaurant: primarySnapshot.restaurant.id })}`
     return Response.json(
       {
+        title: multipleRestaurants ? `${displaySnapshots.length}개 식당 메뉴` : primarySnapshot.restaurant.name,
+        subtitle: `${dateLabel} ${mealTimeNames.join(', ')}`,
         date,
-        dateLabel: formatKoreanDate(date),
+        dateLabel,
         updatedAt: new Date().toISOString(),
-        restaurant: snapshot.restaurant,
-        mealTime: snapshot.mealTime,
-        menuCount: snapshot.menus.length,
-        menus: widgetMenus(snapshot.menus),
+        restaurant: primarySnapshot.restaurant,
+        restaurants: displaySnapshots.map((snapshot) => snapshot.restaurant),
+        mealTime: primarySnapshot.mealTime,
+        mealTimes: displaySnapshots.map((snapshot) => snapshot.mealTime),
+        menuCount: displaySnapshots.reduce((count, snapshot) => count + snapshot.menus.length, 0),
+        menus: multipleRestaurants ? menus : widgetMenus(primarySnapshot.menus),
         openUrl: new URL(openPath, url.origin).toString()
       },
       {
@@ -105,8 +176,10 @@ export const GET: RequestHandler = async ({ url }) => {
 
   return Response.json(
     {
+      title: '오늘의 메뉴',
+      subtitle: dateLabel,
       date,
-      dateLabel: formatKoreanDate(date),
+      dateLabel,
       updatedAt: new Date().toISOString(),
       restaurant: null,
       mealTime: null,
