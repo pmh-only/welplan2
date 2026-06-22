@@ -100,7 +100,7 @@ jobs:
       - name: Compute release metadata
         id: release
         run: |
-          TAG="v1.${GITHUB_RUN_ID}"
+          TAG="v1.${GITHUB_RUN_NUMBER}"
           SAFE_TAG="${TAG//\//-}"
           APK_NAME="welplan-${SAFE_TAG}.apk"
           AAB_NAME="welplan-${SAFE_TAG}.aab"

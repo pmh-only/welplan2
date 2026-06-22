@@ -286,9 +286,9 @@ Google Play release checklist:
 
 `.github/workflows/release-android-apk.yml` builds signed Android release artifacts from
 `pwabuild/` when files under that directory change, or when run manually. It uploads the APK/AAB
-as workflow artifacts, attaches both files to a GitHub Release tagged `v1.<run_id>`, uses the latest
+as workflow artifacts, attaches both files to a GitHub Release tagged `v1.<run_number>`, uses the latest
 commit subject as the GitHub release description, and can upload the signed AAB to Google Play
-through `r0adkll/upload-google-play@v1` with the same `v1.<run_id>` release name.
+through `r0adkll/upload-google-play@v1` with the same `v1.<run_number>` release name.
 
 Required repository secrets:
 
