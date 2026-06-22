@@ -134,7 +134,6 @@ public class RestaurantMenuWidgetConfigureActivity extends Activity {
         adapter = new RestaurantAdapter(this);
         ListView listView = new ListView(this);
         listView.setAdapter(adapter);
-        listView.setOnItemClickListener((parent, view, position, id) -> toggleRestaurant(results.get(position)));
         root.addView(listView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
 
         LinearLayout actions = new LinearLayout(this);
@@ -311,10 +310,14 @@ public class RestaurantMenuWidgetConfigureActivity extends Activity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(4), dp(10), dp(4), dp(10));
+            row.setClickable(true);
+            row.setFocusable(false);
+            row.setOnClickListener(view -> toggleRestaurant(restaurant));
 
             CheckBox checkBox = new CheckBox(context);
             checkBox.setChecked(selected.containsKey(restaurant.id));
-            checkBox.setClickable(false);
+            checkBox.setFocusable(false);
+            checkBox.setOnClickListener(view -> toggleRestaurant(restaurant));
             row.addView(checkBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
             LinearLayout text = new LinearLayout(context);
