@@ -5,8 +5,8 @@ import { mealTimesForRestaurant } from '$lib/server/menu-page'
 import type { MealTime, Menu, Restaurant } from '$lib/types'
 import { autoSelectMealTime, formatKoreanDate, todayStr } from '$lib/utils'
 
-const MAX_WIDGET_ROWS = 6
-const MAX_MENUS_PER_RESTAURANT = 3
+const MAX_WIDGET_RESTAURANTS = 4
+const MAX_MENUS_PER_RESTAURANT = 4
 
 type WidgetMenuItem = {
   name: string
@@ -30,24 +30,23 @@ function menuName(menu: Menu): string {
 }
 
 function widgetMenus(menus: Menu[]): WidgetMenuItem[] {
-  return menus.slice(0, MAX_WIDGET_ROWS).map((menu) => ({
+  return menus.slice(0, MAX_MENUS_PER_RESTAURANT).map((menu) => ({
     name: menuName(menu),
     calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
   }))
 }
 
 function groupedWidgetMenus(snapshots: WidgetMenuSnapshot[]): WidgetMenuItem[] {
-  return snapshots.slice(0, MAX_WIDGET_ROWS).map((snapshot) => {
-    const names = snapshot.menus
+  return snapshots.slice(0, MAX_WIDGET_RESTAURANTS).flatMap((snapshot) =>
+    snapshot.menus
       .slice(0, MAX_MENUS_PER_RESTAURANT)
-      .map(menuName)
-
-    return {
-      name: names.length > 0 ? names.join(' / ') : '표시할 메뉴가 없습니다.',
-      restaurantId: snapshot.restaurant.id,
-      restaurantName: snapshot.restaurant.name
-    }
-  })
+      .map((menu) => ({
+        name: menuName(menu),
+        restaurantId: snapshot.restaurant.id,
+        restaurantName: snapshot.restaurant.name,
+        calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
+      }))
+  )
 }
 
 function requestedRestaurantIds(url: URL): string[] {

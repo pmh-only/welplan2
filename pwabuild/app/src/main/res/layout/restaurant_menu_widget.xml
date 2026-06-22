@@ -57,10 +57,10 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:lineSpacingExtra="2dp"
-        android:maxLines="6"
+        android:maxLines="16"
         android:text="@string/widget_loading_detail"
         android:textColor="@color/widget_text_primary"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/widget_status"

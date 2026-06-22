@@ -25,8 +25,10 @@ import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -263,8 +265,18 @@ public class RestaurantMenuWidgetProvider extends AppWidgetProvider {
             subtitle = dateLabel.isEmpty() ? mealTimeName : dateLabel + " " + mealTimeName;
         }
 
-        List<String> menuLines = new ArrayList<>();
         JSONArray menus = json.optJSONArray("menus");
+        String menuText = multipleRestaurants
+                ? groupedMenuText(restaurants, menus)
+                : menuListText(menus);
+
+        if (menuText.isEmpty()) menuText = "표시할 메뉴가 없습니다.";
+        String openUrl = json.optString("openUrl", DEFAULT_OPEN_URL);
+        return new WidgetMenu(title, subtitle, menuText, openUrl);
+    }
+
+    private static String menuListText(JSONArray menus) {
+        List<String> menuLines = new ArrayList<>();
 
         if (menus != null) {
             for (int i = 0; i < menus.length(); i++) {
@@ -272,19 +284,61 @@ public class RestaurantMenuWidgetProvider extends AppWidgetProvider {
                 if (menu == null) continue;
                 String name = menu.optString("name", "").trim();
                 if (name.isEmpty()) continue;
-                String restaurantName = menu.optString("restaurantName", "").trim();
-                String label = multipleRestaurants && !restaurantName.isEmpty() ? restaurantName + ": " + name : name;
-                if (menu.has("calories")) {
-                    menuLines.add("- " + label + " · " + menu.optInt("calories") + "kcal");
-                } else {
-                    menuLines.add("- " + label);
-                }
+                menuLines.add("* " + menuLine(name, menu));
             }
         }
 
-        String menuText = menuLines.isEmpty() ? "표시할 메뉴가 없습니다." : joinValuesWithLineBreaks(menuLines);
-        String openUrl = json.optString("openUrl", DEFAULT_OPEN_URL);
-        return new WidgetMenu(title, subtitle, menuText, openUrl);
+        return joinValuesWithLineBreaks(menuLines);
+    }
+
+    private static String groupedMenuText(JSONArray restaurants, JSONArray menus) {
+        Map<String, String> labels = new LinkedHashMap<>();
+        Map<String, List<String>> grouped = new LinkedHashMap<>();
+
+        if (restaurants != null) {
+            for (int i = 0; i < restaurants.length(); i++) {
+                JSONObject restaurant = restaurants.optJSONObject(i);
+                if (restaurant == null) continue;
+                String id = restaurant.optString("id", "").trim();
+                String name = restaurant.optString("name", "").trim();
+                if (id.isEmpty() || name.isEmpty()) continue;
+                labels.put(id, name);
+                grouped.put(id, new ArrayList<>());
+            }
+        }
+
+        if (menus != null) {
+            for (int i = 0; i < menus.length(); i++) {
+                JSONObject menu = menus.optJSONObject(i);
+                if (menu == null) continue;
+                String name = menu.optString("name", "").trim();
+                if (name.isEmpty()) continue;
+
+                String restaurantId = menu.optString("restaurantId", "").trim();
+                String restaurantName = menu.optString("restaurantName", "").trim();
+                String key = restaurantId.isEmpty() ? restaurantName : restaurantId;
+                if (key.isEmpty()) key = "restaurant";
+                if (!labels.containsKey(key)) labels.put(key, restaurantName.isEmpty() ? key : restaurantName);
+                if (!grouped.containsKey(key)) grouped.put(key, new ArrayList<>());
+                grouped.get(key).add("* " + menuLine(name, menu));
+            }
+        }
+
+        List<String> sections = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
+            if (entry.getValue().isEmpty()) continue;
+            List<String> lines = new ArrayList<>();
+            lines.add(labels.get(entry.getKey()));
+            lines.addAll(entry.getValue());
+            sections.add(joinValuesWithLineBreaks(lines));
+        }
+
+        return joinSections(sections);
+    }
+
+    private static String menuLine(String name, JSONObject menu) {
+        if (!menu.has("calories")) return name;
+        return name + " (" + menu.optInt("calories") + " kcal)";
     }
 
     private static String currentTime() {
@@ -346,6 +400,15 @@ public class RestaurantMenuWidgetProvider extends AppWidgetProvider {
         for (int i = 0; i < values.size(); i++) {
             if (i > 0) builder.append('\n');
             builder.append(values.get(i));
+        }
+        return builder.toString();
+    }
+
+    private static String joinSections(List<String> sections) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < sections.size(); i++) {
+            if (i > 0) builder.append("\n\n");
+            builder.append(sections.get(i));
         }
         return builder.toString();
     }
