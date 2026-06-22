@@ -285,8 +285,10 @@ Google Play release checklist:
 ### Android release
 
 `.github/workflows/release-android-apk.yml` builds signed Android release artifacts from
-`pwabuild/`, uploads the APK/AAB as workflow artifacts, attaches both files to a GitHub Release,
-and can upload the signed AAB to Google Play through `r0adkll/upload-google-play@v1`.
+`pwabuild/` when files under that directory change, or when run manually. It uploads the APK/AAB
+as workflow artifacts, attaches both files to a GitHub Release tagged `v1.<run_id>`, uses the latest
+commit subject as the GitHub release description, and can upload the signed AAB to Google Play
+through `r0adkll/upload-google-play@v1` with the same `v1.<run_id>` release name.
 
 Required repository secrets:
 
@@ -294,8 +296,8 @@ Required repository secrets:
 - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` contains the Google Play service account JSON used by the
   upload action.
 
-The manual workflow dispatch defaults to `play_tracks=internal` and `play_status=draft` so the Play
-Console release can be reviewed before rollout. Set `upload_to_play=false` to build only the GitHub
+The workflow defaults to `play_tracks=internal` and `play_status=draft` so the Play Console release
+can be reviewed before rollout. For manual runs, set `upload_to_play=false` to build only the GitHub
 artifacts/release.
 
 ### Docker image

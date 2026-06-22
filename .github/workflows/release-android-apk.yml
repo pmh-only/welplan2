@@ -1,12 +1,14 @@
 name: Release Android APK and AAB
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pwabuild/**'
+      - '.github/workflows/release-android-apk.yml'
   workflow_dispatch:
     inputs:
-      tag:
-        description: Release tag. Defaults to android-<run-number>.
-        required: false
-        type: string
       upload_to_play:
         description: Upload the signed AAB to Google Play.
         required: true
@@ -62,7 +64,7 @@ jobs:
           fi
 
       - name: Check Google Play credentials
-        if: ${{ inputs.upload_to_play }}
+        if: ${{ github.event_name == 'push' || inputs.upload_to_play }}
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
@@ -97,13 +99,8 @@ jobs:
 
       - name: Compute release metadata
         id: release
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          TAG="$INPUT_TAG"
-          if [ -z "$TAG" ]; then
-            TAG="android-${GITHUB_RUN_NUMBER}"
-          fi
+          TAG="v1.${GITHUB_RUN_ID}"
           SAFE_TAG="${TAG//\//-}"
           APK_NAME="welplan-${SAFE_TAG}.apk"
           AAB_NAME="welplan-${SAFE_TAG}.aab"
@@ -113,6 +110,11 @@ jobs:
           echo "safe_tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
           echo "aab_name=$AAB_NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo "release_notes<<EOF"
+            git log -1 --pretty=%s
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
@@ -129,23 +131,25 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           APK_NAME: ${{ steps.release.outputs.apk_name }}
           AAB_NAME: ${{ steps.release.outputs.aab_name }}
+          RELEASE_NOTES: ${{ steps.release.outputs.release_notes }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$APK_NAME" "$AAB_NAME" --clobber
+            gh release edit "$RELEASE_TAG" --notes "$RELEASE_NOTES"
           else
             gh release create "$RELEASE_TAG" "$APK_NAME" "$AAB_NAME" \
               --target "$GITHUB_SHA" \
               --title "Android $RELEASE_TAG" \
-              --notes "Signed APK and AAB built from $GITHUB_SHA. The workflow can upload the AAB to Google Play when enabled."
+              --notes "$RELEASE_NOTES"
           fi
 
       - name: Upload AAB to Google Play
-        if: ${{ inputs.upload_to_play }}
+        if: ${{ github.event_name == 'push' || inputs.upload_to_play }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: codes.pmh.welplan.twa
           releaseFiles: ${{ steps.release.outputs.aab_name }}
-          tracks: ${{ inputs.play_tracks }}
-          status: ${{ inputs.play_status }}
+          tracks: ${{ inputs.play_tracks || 'internal' }}
+          status: ${{ inputs.play_status || 'draft' }}
           releaseName: ${{ steps.release.outputs.tag }}
