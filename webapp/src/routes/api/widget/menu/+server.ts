@@ -5,7 +5,8 @@ import { mealTimesForRestaurant } from '$lib/server/menu-page'
 import type { MealTime, Menu, Restaurant } from '$lib/types'
 import { autoSelectMealTime, formatKoreanDate, todayStr } from '$lib/utils'
 
-const MAX_WIDGET_MENUS = 6
+const MAX_WIDGET_ROWS = 6
+const MAX_MENUS_PER_RESTAURANT = 3
 
 type WidgetMenuItem = {
   name: string
@@ -29,10 +30,24 @@ function menuName(menu: Menu): string {
 }
 
 function widgetMenus(menus: Menu[]): WidgetMenuItem[] {
-  return menus.slice(0, MAX_WIDGET_MENUS).map((menu) => ({
+  return menus.slice(0, MAX_WIDGET_ROWS).map((menu) => ({
     name: menuName(menu),
     calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
   }))
+}
+
+function groupedWidgetMenus(snapshots: WidgetMenuSnapshot[]): WidgetMenuItem[] {
+  return snapshots.slice(0, MAX_WIDGET_ROWS).map((snapshot) => {
+    const names = snapshot.menus
+      .slice(0, MAX_MENUS_PER_RESTAURANT)
+      .map(menuName)
+
+    return {
+      name: names.length > 0 ? names.join(' / ') : '표시할 메뉴가 없습니다.',
+      restaurantId: snapshot.restaurant.id,
+      restaurantName: snapshot.restaurant.name
+    }
+  })
 }
 
 function requestedRestaurantIds(url: URL): string[] {
@@ -127,26 +142,6 @@ export const GET: RequestHandler = async ({ url }) => {
   const displaySnapshots = visibleSnapshots.length > 0 ? visibleSnapshots : snapshots
 
   if (displaySnapshots.length > 0) {
-    const menus: WidgetMenuItem[] = []
-    let index = 0
-    while (menus.length < MAX_WIDGET_MENUS) {
-      let added = false
-      for (const snapshot of displaySnapshots) {
-        const menu = snapshot.menus[index]
-        if (!menu) continue
-        menus.push({
-          name: menuName(menu),
-          restaurantId: snapshot.restaurant.id,
-          restaurantName: snapshot.restaurant.name,
-          calories: menu.nutrition?.calories == null ? undefined : Math.round(menu.nutrition.calories)
-        })
-        added = true
-        if (menus.length >= MAX_WIDGET_MENUS) break
-      }
-      if (!added) break
-      index++
-    }
-
     const primarySnapshot = displaySnapshots[0]
     const multipleRestaurants = displaySnapshots.length > 1
     const mealTimeNames = [...new Set(displaySnapshots.map((snapshot) => snapshot.mealTime.name))]
@@ -163,7 +158,7 @@ export const GET: RequestHandler = async ({ url }) => {
         mealTime: primarySnapshot.mealTime,
         mealTimes: displaySnapshots.map((snapshot) => snapshot.mealTime),
         menuCount: displaySnapshots.reduce((count, snapshot) => count + snapshot.menus.length, 0),
-        menus: multipleRestaurants ? menus : widgetMenus(primarySnapshot.menus),
+        menus: multipleRestaurants ? groupedWidgetMenus(displaySnapshots) : widgetMenus(primarySnapshot.menus),
         openUrl: new URL(openPath, url.origin).toString()
       },
       {
