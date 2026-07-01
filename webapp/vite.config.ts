@@ -272,6 +272,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/_app/immutable/'),
