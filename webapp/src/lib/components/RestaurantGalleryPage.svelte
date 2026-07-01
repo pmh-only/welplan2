@@ -887,7 +887,7 @@
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
-    background: var(--surface);
+    background: #fff;
   }
 
   .image-wrap img {
@@ -914,6 +914,7 @@
     color: #fff;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
     pointer-events: none;
+    z-index: 3;
   }
 
   :global(.zoom-indicator-icon) {
@@ -932,7 +933,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--surface);
+    background: #fff;
   }
 
   .no-image-placeholder svg {
@@ -1169,12 +1170,12 @@
     width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
-    background: var(--surface);
+    background: #fff;
   }
 
   .lightbox-image-frame {
     position: relative;
-    background: var(--surface);
+    background: #fff;
   }
 
   .lightbox-open-link {
@@ -1194,6 +1195,7 @@
     text-decoration: none;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
     backdrop-filter: blur(8px);
+    z-index: 3;
   }
 
   .lightbox-open-link:hover {

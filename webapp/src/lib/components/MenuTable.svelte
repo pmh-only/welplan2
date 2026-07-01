@@ -1071,8 +1071,8 @@
   .menu-row .col-img { padding: 6px 8px; }
 
   .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; display: block; }
-  .thumb-placeholder { border: 1px solid var(--border); background: var(--surface); }
-  .thumb-btn { display: block; padding: 0; border: 0; background: transparent; border-radius: 6px; }
+  .thumb-placeholder { border: 1px solid var(--border); background: #fff; }
+  .thumb-btn { display: block; padding: 0; border: 0; background: #fff; border-radius: 6px; }
   .rest-tag { font-size: 11px; color: var(--text-dim); }
   .rest-tag-mobile { display: none; margin-bottom: 4px; }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
@@ -1414,7 +1414,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--surface);
+    background: #fff;
     color: var(--text-dim);
     font-size: 13px;
     box-shadow: none;
@@ -1437,6 +1437,7 @@
     text-decoration: none;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
     backdrop-filter: blur(8px);
+    z-index: 3;
   }
   .lightbox-open-link:hover { background: rgba(15, 23, 42, 0.9); }
   .lightbox-close {

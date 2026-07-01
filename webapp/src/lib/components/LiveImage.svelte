@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte'
+
   let {
     src,
     alt,
@@ -20,6 +22,9 @@
   let baseSrc = $state(src)
   let pendingSrc = $state<string | null>(null)
   let overlaySrc = $state<string | null>(null)
+  let baseLoaded = $state(false)
+  let overlayLoaded = $state(false)
+  let baseImage = $state<HTMLImageElement | null>(null)
   const isThumb = $derived(imageClass.includes('thumb'))
   const isLightbox = $derived(imageClass.includes('lightbox-img'))
 
@@ -36,13 +41,28 @@
     if (overlaySrc) {
       baseSrc = overlaySrc
       overlaySrc = null
+      overlayLoaded = false
     }
     pendingSrc = src
   })
 
+  $effect(() => {
+    const _baseSrc = baseSrc
+    baseLoaded = false
+
+    tick().then(() => {
+      if (baseImage?.complete && baseImage.naturalWidth > 0) baseLoaded = true
+    })
+  })
+
+  function handleBaseLoad () {
+    baseLoaded = true
+  }
+
   function handlePendingLoad () {
     if (!pendingSrc) return
     overlaySrc = pendingSrc
+    overlayLoaded = false
     pendingSrc = null
   }
 
@@ -56,16 +76,18 @@
     if (!overlaySrc) return
     onerror?.(overlaySrc)
     overlaySrc = null
+    overlayLoaded = false
   }
 </script>
 
-<span class="live-image-stack" class:fill class:thumb={isThumb} class:lightbox={isLightbox}>
-  <img class={imageClass} src={baseSrc} {alt} {loading} decoding="async" {fetchpriority} onerror={() => onerror?.(baseSrc)} />
+<span class="live-image-stack" class:fill class:thumb={isThumb} class:lightbox={isLightbox} class:loaded={baseLoaded || overlayLoaded}>
+  <span class="live-image-placeholder" aria-hidden="true"></span>
+  <img bind:this={baseImage} class={`${imageClass} live-image-base`} class:loaded={baseLoaded} src={baseSrc} {alt} {loading} decoding="async" {fetchpriority} onload={handleBaseLoad} onerror={() => onerror?.(baseSrc)} />
   {#if pendingSrc}
     <img class={`${imageClass} live-image-pending`} src={pendingSrc} alt="" aria-hidden="true" decoding="async" onload={handlePendingLoad} onerror={handlePendingError} />
   {/if}
   {#if overlaySrc}
-    <img class={`${imageClass} live-image-overlay`} src={overlaySrc} alt="" aria-hidden="true" decoding="async" onerror={handleOverlayError} />
+    <img class={`${imageClass} live-image-overlay`} class:loaded={overlayLoaded} src={overlaySrc} alt="" aria-hidden="true" decoding="async" onload={() => { overlayLoaded = true }} onerror={handleOverlayError} />
   {/if}
 </span>
 
@@ -73,16 +95,34 @@
   .live-image-stack {
     position: relative;
     display: block;
+    overflow: hidden;
+    background: #fff;
   }
 
   .live-image-stack img {
     display: block;
   }
 
+  .live-image-placeholder {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.9), transparent 28%),
+      linear-gradient(135deg, #fff 0%, #f8fafc 48%, #fff 100%);
+    filter: blur(10px);
+    transform: scale(1.08);
+    opacity: 1;
+    transition: opacity 0.22s ease;
+  }
+
+  .live-image-stack.loaded .live-image-placeholder {
+    opacity: 0;
+  }
+
   .live-image-stack.fill {
     position: absolute;
     inset: 0;
-    overflow: hidden;
   }
 
   .live-image-stack.fill img {
@@ -106,7 +146,8 @@
 
   .live-image-stack.lightbox {
     width: 100%;
-    background: var(--surface);
+    aspect-ratio: 1;
+    background: #fff;
   }
 
   .live-image-stack.lightbox img {
@@ -120,9 +161,26 @@
     pointer-events: none;
   }
 
+  .live-image-base,
+  .live-image-overlay {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .live-image-base.loaded,
+  .live-image-overlay.loaded {
+    opacity: 1;
+  }
+
+  .live-image-base,
   .live-image-overlay,
   .live-image-pending {
     position: absolute;
     inset: 0;
+    z-index: 1;
+  }
+
+  .live-image-overlay {
+    z-index: 2;
   }
 </style>
