@@ -3,7 +3,7 @@
   import { browser } from '$app/environment'
   import '../app.css'
   import type { Snippet } from 'svelte'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
@@ -408,8 +408,8 @@
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
-  let firstVisitDialogOpen = $state(false)
-  let dialogRestaurants = $state<Restaurant[]>([])
+  let firstVisitDialogOpen = $state(untrack(() => data.isFirstVisit))
+  let dialogRestaurants = $state<Restaurant[]>(untrack(() => data.isFirstVisit ? [] : data.restaurants ?? []))
   let restaurantQuery = $state('')
   let allDialogRestaurants = $state<Restaurant[]>([])
   let restaurantSearchResults = $state<Restaurant[]>([])
@@ -423,7 +423,7 @@
   }
 
   $effect(() => {
-    if (!firstVisitDialogOpen) dialogRestaurants = data.restaurants ?? []
+    if (!firstVisitDialogOpen && !data.isFirstVisit) dialogRestaurants = data.restaurants ?? []
   })
 
   $effect(() => {
@@ -558,14 +558,14 @@
   })
 
   onMount(() => {
-    const restoredRestaurants = data.restaurants?.length ? [] : restoreRestaurantCookieFromStorage()
+    const restoredRestaurants = data.isFirstVisit ? restoreRestaurantCookieFromStorage() : []
     if (restoredRestaurants.length > 0) {
       dialogRestaurants = restoredRestaurants
       firstVisitDialogOpen = false
       invalidateAll()
     } else {
       firstVisitDialogOpen = data.isFirstVisit
-      dialogRestaurants = data.restaurants ?? []
+      dialogRestaurants = data.isFirstVisit ? [] : data.restaurants ?? []
     }
     if (firstVisitDialogOpen) loadAllDialogRestaurants()
 
@@ -725,6 +725,14 @@
   <link rel="describedby" type="text/plain" href="/llms.txt" title="LLM usage guide" />
   {#if isRestaurantDetailPage}
     <link rel="alternate" type="text/markdown" href={canonicalUrl} />
+  {/if}
+  {#if showFirstVisitDialog}
+    <style id="first-visit-ssr-scroll-lock">
+      html,
+      body {
+        overflow: hidden;
+      }
+    </style>
   {/if}
   {#each jsonLd as item}
     {@html jsonLdScript(item)}

@@ -1,4 +1,5 @@
 import type { Cookies } from '@sveltejs/kit'
+import { FIRST_VISIT_RESTAURANTS } from '$lib/defaults'
 import { decodeRestaurantCookie, RESTAURANT_COOKIE } from '$lib/restaurant-cookie'
 import { service } from '$lib/server/service'
 import type { Restaurant } from '$lib/types'
@@ -57,7 +58,7 @@ async function hasAnyGalleryMenuPictures(restaurants: Restaurant[]): Promise<boo
 export async function loadLayoutData(cookies: Cookies) {
   const raw = cookies.get(RESTAURANT_COOKIE)
   const isFirstVisit = raw == null
-  let restaurants = decodeRestaurantCookie(raw)
+  let restaurants = isFirstVisit ? FIRST_VISIT_RESTAURANTS : decodeRestaurantCookie(raw)
 
   restaurants = dedupeRestaurants(await service.hydrateRestaurants(restaurants).catch(() => restaurants))
 

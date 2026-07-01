@@ -19,3 +19,39 @@ export const DEFAULT_RESTAURANTS: Restaurant[] = [
     orgTreeId: '0:0:10'
   } as unknown as Restaurant
 ]
+
+export const FIRST_VISIT_RESTAURANTS: Restaurant[] = [
+  { id: 'REST000006', name: 'R5 5F', vendor: 'welstory', path: SUWON_PATH },
+  { id: 'REST000007', name: 'R5 B1F', vendor: 'welstory', path: SUWON_PATH },
+  { id: 'REST000008', name: 'R5 B2F', vendor: 'welstory', path: SUWON_PATH },
+  {
+    id: 'CAF37',
+    name: 'R5 5F',
+    vendor: 'shinsegae',
+    path: SUWON_PATH,
+    busiCd: 'RH3_K_001',
+    compCd: 'K_KR_017',
+    storCd: 'CAF37',
+    orgTreeId: '0:0:7'
+  } as unknown as Restaurant,
+  {
+    id: 'CAF36',
+    name: 'R5 B1F',
+    vendor: 'shinsegae',
+    path: SUWON_PATH,
+    busiCd: 'RH3_K_001',
+    compCd: 'K_KR_017',
+    storCd: 'CAF36',
+    orgTreeId: '0:0:6'
+  } as unknown as Restaurant,
+  {
+    id: 'CAF35',
+    name: 'R5 B2F',
+    vendor: 'shinsegae',
+    path: SUWON_PATH,
+    busiCd: 'RH3_K_001',
+    compCd: 'K_KR_017',
+    storCd: 'CAF35',
+    orgTreeId: '0:0:5'
+  } as unknown as Restaurant
+]
