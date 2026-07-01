@@ -33,9 +33,20 @@
   let takeOutFilterDrinks = $state(true)
   let takeOutSearch = $state('')
   let menuSort = $state('calories-asc')
+  let imageRefreshKey = $state('')
+  let liveRefreshKey = ''
 
   const pageLabel = $derived(kind === 'takeout' ? '테이크 아웃' : '테이크 인')
   const isAllMealTime = $derived(kind === 'takein' && data.time === ALL_MEAL_TIME_ID)
+
+  function liveRefreshUrl(): string {
+    return `/api/menu/live?${new URLSearchParams({ kind, date: data.date, time: data.time })}`
+  }
+
+  function hasUsableLiveData(liveData: MenuPageData | null): liveData is MenuPageData {
+    if (!liveData || liveData.restaurants.length === 0) return false
+    return liveData.menus.length > 0 || data.menus.length === 0
+  }
 
   function isOptionalComponent(component: MenuComponent): boolean {
     return component.name.includes('추가찬') || component.name.includes('택1')
@@ -178,6 +189,29 @@
   $effect(() => {
     if (!browser || kind !== 'takeout' || !selectedTakeoutRestaurantId) return
     localStorage.setItem(LS_TAKEOUT_RESTAURANT, selectedTakeoutRestaurantId)
+  })
+
+  $effect(() => {
+    if (!browser || data.restaurants.length === 0) return
+
+    const key = `${kind}:${data.date}:${data.time}`
+    if (liveRefreshKey === key) return
+    liveRefreshKey = key
+
+    const controller = new AbortController()
+    fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((liveData: MenuPageData | null) => {
+        if (hasUsableLiveData(liveData)) {
+          data = liveData
+          imageRefreshKey = String(Date.now())
+        }
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      })
+
+    return () => controller.abort()
   })
 
   const visibleMenus = $derived(
@@ -403,6 +437,7 @@
       mobileKcalOnly={kind === 'takein'}
       sortKey={menuSortKey()}
       sortDirection={menuSortDirection()}
+      {imageRefreshKey}
     />
   </div>
 {/if}

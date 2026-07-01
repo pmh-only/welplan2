@@ -75,13 +75,16 @@ export async function cacheRemoteImage(
   key: string,
   upstreamUrl: string,
   headers: HeadersInit,
-  supportsWebP: boolean
+  supportsWebP: boolean,
+  forceRefresh = false
 ): Promise<CachedImage | undefined> {
-  const memoryCached = getCachedImage(key)
-  if (memoryCached) return memoryCached
+  if (!forceRefresh) {
+    const memoryCached = getCachedImage(key)
+    if (memoryCached) return memoryCached
 
-  const persisted = await getPersistedCachedImage(key)
-  if (persisted) return persisted
+    const persisted = await getPersistedCachedImage(key)
+    if (persisted) return persisted
+  }
 
   const res = await fetch(upstreamUrl, { headers })
   if (!res.ok) return undefined

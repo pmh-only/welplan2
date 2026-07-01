@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
@@ -44,6 +45,8 @@
   let detail = $state<MenuComponent[]>([])
   let loadingDetail = $state(false)
   let brokenImageSrcs = $state<string[]>([])
+  let imageRefreshKey = $state('')
+  let liveRefreshKey = ''
   let expandedMealTimeIds = $state<string[]>(
     untrack(() =>
       (data as typeof data & { time: string }).time === ALL_MEAL_TIME_ID
@@ -79,7 +82,7 @@
   }
 
   function hasMenuImage (menu: Menu): boolean {
-    return Boolean(proxyImg(menu.imageUrl))
+    return Boolean(proxyImg(menu.imageUrl, imageRefreshKey))
   }
 
   function isImageAvailable (src: string | undefined): src is string {
@@ -87,7 +90,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl)
+    const src = proxyImg(menu.imageUrl, imageRefreshKey)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -97,7 +100,7 @@
   }
 
   function markMenuImageBroken (menu: Menu) {
-    markImageBroken(proxyImg(menu.imageUrl))
+    markImageBroken(proxyImg(menu.imageUrl, imageRefreshKey))
   }
 
   async function openZoom (menu: GalleryMenu) {
@@ -133,10 +136,42 @@
   const selectedTime = $derived((data as typeof data & { time: string }).time)
   const isAllMealTime = $derived(selectedTime === ALL_MEAL_TIME_ID)
 
+  function liveRefreshUrl(): string {
+    return `/api/menu/live?${new URLSearchParams({ kind: 'gallery', date: selectedDate, time: selectedTime })}`
+  }
+
+  function hasUsableLiveData(liveData: PageData | null): liveData is PageData {
+    if (!liveData || liveData.restaurants.length === 0) return false
+    return liveData.menus.length > 0 || data.menus.length === 0
+  }
+
   $effect(() => {
     const _date = selectedDate
     const _time = selectedTime
     expandedMealTimeIds = isAllMealTime ? defaultExpandedMealTimeIds() : []
+  })
+
+  $effect(() => {
+    if (!browser || data.restaurants.length === 0) return
+
+    const key = `gallery:${selectedDate}:${selectedTime}`
+    if (liveRefreshKey === key) return
+    liveRefreshKey = key
+
+    const controller = new AbortController()
+    fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((liveData: PageData | null) => {
+        if (hasUsableLiveData(liveData)) {
+          data = liveData
+          imageRefreshKey = String(Date.now())
+        }
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      })
+
+    return () => controller.abort()
   })
 
   function navigate (date: string, time: string, source: string) {
@@ -239,7 +274,7 @@
 
 <svelte:head>
   {#each (data.menus as Menu[]).filter((m) => m.imageUrl && !m.isTakeOut).slice(0, 1) as menu}
-    <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
+    <link rel="preload" as="image" href={proxyImg(menu.imageUrl, imageRefreshKey)} fetchpriority="high" />
   {/each}
 </svelte:head>
 
@@ -319,8 +354,8 @@
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
-                      {#if isImageAvailable(proxyImg(menu.imageUrl))}
-                        <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                      {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
+                        <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                         <span class="zoom-indicator" aria-hidden="true">
                           <ZoomIn class="zoom-indicator-icon" />
                         </span>
@@ -361,8 +396,8 @@
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
-                {#if isImageAvailable(proxyImg(menu.imageUrl))}
-                  <img class="gallery-img" src={proxyImg(menu.imageUrl)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
+                  <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                   <span class="zoom-indicator" aria-hidden="true">
                     <ZoomIn class="zoom-indicator-icon" />
                   </span>
@@ -414,10 +449,10 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey))}
           <div class="lightbox-image-frame">
-            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
               더 크게 보기
             </a>
           </div>

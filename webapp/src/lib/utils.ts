@@ -86,13 +86,14 @@ export function autoSelectMealTime(times: MealTime[]): string | null {
   return times[0].id
 }
 
-export function proxyImg(url: string | undefined): string | undefined {
+export function proxyImg(url: string | undefined, refreshKey = ''): string | undefined {
   if (!url) return undefined
+  const suffix = refreshKey ? `?v=${encodeURIComponent(refreshKey)}` : ''
   if (url.includes('samsungwelstory.com')) {
-    return url.replace('http://samsungwelstory.com/', '/img/welstory/')
+    return `${url.replace('http://samsungwelstory.com/', '/img/welstory/')}${suffix}`
   }
   if (url.includes('planeatchoice.net')) {
-    return url.replace(/https?:\/\/[^/]*planeatchoice\.net\//, '/img/planeat/')
+    return `${url.replace(/https?:\/\/[^/]*planeatchoice\.net\//, '/img/planeat/')}${suffix}`
   }
   return url
 }

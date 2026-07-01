@@ -20,7 +20,8 @@
     hideMenuDescriptions = false,
     mobileKcalOnly = false,
     sortKey = null,
-    sortDirection = 'asc'
+    sortDirection = 'asc',
+    imageRefreshKey = ''
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -36,6 +37,7 @@
     mobileKcalOnly?: boolean
     sortKey?: SortKey | null
     sortDirection?: 'asc' | 'desc'
+    imageRefreshKey?: string
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -109,7 +111,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl)
+    const src = proxyImg(menu.imageUrl, imageRefreshKey)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -119,7 +121,7 @@
   }
 
   function markMenuImageBroken (menu: Menu) {
-    markImageBroken(proxyImg(menu.imageUrl))
+    markImageBroken(proxyImg(menu.imageUrl, imageRefreshKey))
   }
 
   function openMenuLightbox (menu: Menu, e: MouseEvent) {
@@ -452,11 +454,11 @@
             {/if}
             {#if hasAnyImage}
               <td class="col-img" data-label="이미지">
-                {#if isImageAvailable(proxyImg(menu.imageUrl))}
+                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
                   <button type="button" class="thumb-btn" onclick={(e) => openMenuLightbox(menu, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl)} alt={menu.name} loading="lazy" onerror={() => markMenuImageBroken(menu)} />
+                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading="lazy" onerror={() => markMenuImageBroken(menu)} />
                   </button>
-                {:else if proxyImg(menu.imageUrl)}
+                {:else if proxyImg(menu.imageUrl, imageRefreshKey)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
                 {/if}
               </td>

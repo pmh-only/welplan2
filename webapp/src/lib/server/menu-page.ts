@@ -11,6 +11,10 @@ type ParentData = {
 
 type ParentLoad = () => Promise<ParentData>
 
+type MenuRouteOptions = {
+  service?: CafeteriaService
+}
+
 export type GalleryRouteData = {
   menus: Menu[]
   date: string
@@ -99,14 +103,15 @@ function tagMenusWithDisplayMealTime(
   return menus.map((menu) => ({ ...menu, mealTimeId }))
 }
 
-export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string) {
+export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string, options: MenuRouteOptions = {}) {
+  const cafeteriaService = options.service ?? service
   const { restaurants, mealTimes } = await parent()
   const menus = await Promise.all(
     restaurants.map(async (restaurant) => {
-      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, time)
+      const targetMealTimes = await selectedRestaurantMealTimes(restaurant, mealTimes, time, cafeteriaService)
       return Promise.all(
         targetMealTimes.map((mealTime) =>
-          service
+          cafeteriaService
             .getMenus(restaurant.id, date, mealTime.id)
             .then((menus) => tagMenusWithDisplayMealTime(menus, mealTimes, restaurant, mealTime))
             .catch(() => [])
@@ -353,9 +358,10 @@ function flattenTakeOutMenuItems(menu: Menu, detail: MenuComponent[]): Menu[] {
   }))
 }
 
-export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string, time: string) {
-  const data = await loadMenusForRoute(parent, date, time)
-  const menus = await flattenTakeOutMenus(data.menus, date)
+export async function loadTakeOutMenusForRoute(parent: ParentLoad, date: string, time: string, options: MenuRouteOptions = {}) {
+  const cafeteriaService = options.service ?? service
+  const data = await loadMenusForRoute(parent, date, time, { service: cafeteriaService })
+  const menus = await flattenTakeOutMenus(data.menus, date, cafeteriaService)
 
   return { ...data, menus }
 }
@@ -387,8 +393,9 @@ async function flattenTakeOutMenus(
   ).then((results) => results.flat())
 }
 
-export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, time: string) {
-  const data = await loadMenusForRoute(parent, date, time)
+export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, time: string, options: MenuRouteOptions = {}) {
+  const cafeteriaService = options.service ?? service
+  const data = await loadMenusForRoute(parent, date, time, { service: cafeteriaService })
 
   const menus = await Promise.all(
     data.menus.map(async (menu) => {
@@ -397,7 +404,7 @@ export async function loadTakeInMenusForRoute(parent: ParentLoad, date: string, 
       }
 
       try {
-        const detail = await service.getMenuNutrientDetail(
+        const detail = await cafeteriaService.getMenuNutrientDetail(
           menu.restaurantId,
           date,
           menu.mealTimeId,
