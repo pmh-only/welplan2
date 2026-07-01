@@ -2,6 +2,7 @@
   import { goto, invalidateAll } from '$app/navigation'
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
+  import LiveImage from '$lib/components/LiveImage.svelte'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import { readRestaurantSelectionFromClient, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
@@ -123,10 +124,6 @@
   function markImageBroken (src: string | undefined) {
     if (!src || brokenImageSrcs.includes(src)) return
     brokenImageSrcs = [...brokenImageSrcs, src]
-  }
-
-  function markMenuImageBroken (menu: Menu) {
-    markImageBroken(proxyImg(menu.imageUrl))
   }
 
   function formatMetric (value: number | undefined, unit = ''): string {
@@ -391,7 +388,7 @@
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
                     {#if isImageAvailable(proxyImg(menu.imageUrl))}
-                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                      <LiveImage fill src={proxyImg(menu.imageUrl)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                       <span class="zoom-indicator" aria-hidden="true">
                         <ZoomIn class="zoom-indicator-icon" />
                       </span>
@@ -473,7 +470,7 @@
       <div class="lightbox-left">
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
           <div class="lightbox-image-frame">
-            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} decoding="async" onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)!} alt={zoomedMenu.name} onerror={markImageBroken} />
             <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
               더 크게 보기
             </a>

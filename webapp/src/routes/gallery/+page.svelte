@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   import { afterNavigate, goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
+  import LiveImage from '$lib/components/LiveImage.svelte'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
@@ -96,10 +97,6 @@
   function markImageBroken (src: string | undefined) {
     if (!src || brokenImageSrcs.includes(src)) return
     brokenImageSrcs = [...brokenImageSrcs, src]
-  }
-
-  function markMenuImageBroken (menu: Menu) {
-    markImageBroken(proxyImg(menu.imageUrl, imageRefreshKey))
   }
 
   async function openZoom (menu: GalleryMenu) {
@@ -354,7 +351,7 @@
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
                       {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                        <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                        <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                         <span class="zoom-indicator" aria-hidden="true">
                           <ZoomIn class="zoom-indicator-icon" />
                         </span>
@@ -396,7 +393,7 @@
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
                 {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                  <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                  <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                   <span class="zoom-indicator" aria-hidden="true">
                     <ZoomIn class="zoom-indicator-icon" />
                   </span>
@@ -450,7 +447,7 @@
       <div class="lightbox-left">
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey))}
           <div class="lightbox-image-frame">
-            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} alt={zoomedMenu.name} decoding="async" onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)!} alt={zoomedMenu.name} onerror={markImageBroken} />
             <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
               더 크게 보기
             </a>

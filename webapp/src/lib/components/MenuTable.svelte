@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   import { takeOutConditionValue } from '@pmh-only/welplan2-model'
   import { trackEvent } from '$lib/analytics'
+  import LiveImage from '$lib/components/LiveImage.svelte'
   import { autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { BarChart3, ChevronDown, ChevronRight, Coins, Minus, Plus, TriangleAlert, X } from '@lucide/svelte'
@@ -118,10 +119,6 @@
   function markImageBroken (src: string | undefined | null) {
     if (!src || brokenImageSrcs.includes(src)) return
     brokenImageSrcs = [...brokenImageSrcs, src]
-  }
-
-  function markMenuImageBroken (menu: Menu) {
-    markImageBroken(proxyImg(menu.imageUrl, imageRefreshKey))
   }
 
   function openMenuLightbox (menu: Menu, e: MouseEvent) {
@@ -456,7 +453,7 @@
               <td class="col-img" data-label="이미지">
                 {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
                   <button type="button" class="thumb-btn" onclick={(e) => openMenuLightbox(menu, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading="lazy" decoding="async" onerror={() => markMenuImageBroken(menu)} />
+                    <LiveImage imageClass="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading="lazy" onerror={markImageBroken} />
                   </button>
                 {:else if proxyImg(menu.imageUrl, imageRefreshKey)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
@@ -793,7 +790,7 @@
     </button>
     <div class="lightbox-frame" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       {#if isImageAvailable(lightboxSrc)}
-        <img class="lightbox-img" src={lightboxSrc} alt={lightboxAlt} onerror={() => markImageBroken(lightboxSrc)} />
+        <LiveImage imageClass="lightbox-img" src={lightboxSrc} alt={lightboxAlt} onerror={markImageBroken} />
         <a class="lightbox-open-link" href={lightboxSrc} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
           더 크게 보기
         </a>
