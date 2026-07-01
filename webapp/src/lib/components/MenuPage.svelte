@@ -1,6 +1,6 @@
 <script lang="ts">
   import { browser } from '$app/environment'
-  import { goto } from '$app/navigation'
+  import { afterNavigate, goto } from '$app/navigation'
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
@@ -46,6 +46,25 @@
   function hasUsableLiveData(liveData: MenuPageData | null): liveData is MenuPageData {
     if (!liveData || liveData.restaurants.length === 0) return false
     return liveData.menus.length > 0 || data.menus.length === 0
+  }
+
+  async function refreshLiveData(): Promise<void> {
+    if (data.restaurants.length === 0) return
+
+    const key = `${kind}:${data.date}:${data.time}`
+    if (liveRefreshKey === key) return
+    liveRefreshKey = key
+
+    try {
+      const response = await fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin' })
+      const liveData: MenuPageData | null = response.ok ? await response.json() : null
+      if (hasUsableLiveData(liveData)) {
+        data = liveData
+        imageRefreshKey = String(Date.now())
+      }
+    } catch {
+      // Keep SSR cached data visible when live refresh fails.
+    }
   }
 
   function isOptionalComponent(component: MenuComponent): boolean {
@@ -191,27 +210,8 @@
     localStorage.setItem(LS_TAKEOUT_RESTAURANT, selectedTakeoutRestaurantId)
   })
 
-  $effect(() => {
-    if (!browser || data.restaurants.length === 0) return
-
-    const key = `${kind}:${data.date}:${data.time}`
-    if (liveRefreshKey === key) return
-    liveRefreshKey = key
-
-    const controller = new AbortController()
-    fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin', signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then((liveData: MenuPageData | null) => {
-        if (hasUsableLiveData(liveData)) {
-          data = liveData
-          imageRefreshKey = String(Date.now())
-        }
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-      })
-
-    return () => controller.abort()
+  afterNavigate(() => {
+    void refreshLiveData()
   })
 
   const visibleMenus = $derived(

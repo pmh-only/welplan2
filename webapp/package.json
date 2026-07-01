@@ -20,6 +20,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@fontsource/noto-sans-kr": "^5.2.9",
     "@lucide/svelte": "^1.17.0",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",

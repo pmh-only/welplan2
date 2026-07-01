@@ -391,7 +391,7 @@
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
                     {#if isImageAvailable(proxyImg(menu.imageUrl))}
-                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                      <img src={proxyImg(menu.imageUrl)} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={index === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                       <span class="zoom-indicator" aria-hidden="true">
                         <ZoomIn class="zoom-indicator-icon" />
                       </span>
@@ -473,7 +473,7 @@
       <div class="lightbox-left">
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
           <div class="lightbox-image-frame">
-            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)} alt={zoomedMenu.name} decoding="async" onerror={() => markMenuImageBroken(zoomedMenu)} />
             <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
               더 크게 보기
             </a>

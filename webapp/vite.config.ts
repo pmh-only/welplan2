@@ -314,31 +314,6 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/css/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'google-fonts-stylesheets',
-              expiration: {
-                maxEntries: 8,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-static',
-              cacheableResponse: {
-                statuses: [0, 200]
-              },
-              expiration: {
-                maxEntries: 24,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              }
-            }
-          },
-          {
             urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/img/'),
             handler: 'StaleWhileRevalidate',
             options: {

@@ -5,6 +5,7 @@ import { imageCache } from './db/schema.js'
 import { getRedisJson, setRedisJson } from './redis-cache.js'
 
 const MAX_ENTRIES = 300
+const MAX_OPTIMIZED_IMAGE_DIMENSION = 1280
 
 type CachedImage = { data: ArrayBuffer; contentType: string }
 type PersistedCachedImage = { data: string; contentType: string }
@@ -92,7 +93,16 @@ export async function cacheRemoteImage(
   const body = await res.arrayBuffer()
   const contentType = res.headers.get('Content-Type') ?? 'image/jpeg'
   if (supportsWebP && contentType.startsWith('image/') && !contentType.includes('svg')) {
-    const webpBuffer = await sharp(new Uint8Array(body)).webp({ quality: 82 }).toBuffer()
+    const webpBuffer = await sharp(new Uint8Array(body))
+      .rotate()
+      .resize({
+        width: MAX_OPTIMIZED_IMAGE_DIMENSION,
+        height: MAX_OPTIMIZED_IMAGE_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: 82 })
+      .toBuffer()
     const webpData = webpBuffer.buffer.slice(
       webpBuffer.byteOffset,
       webpBuffer.byteOffset + webpBuffer.byteLength

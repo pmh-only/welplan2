@@ -456,7 +456,7 @@
               <td class="col-img" data-label="이미지">
                 {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
                   <button type="button" class="thumb-btn" onclick={(e) => openMenuLightbox(menu, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading="lazy" onerror={() => markMenuImageBroken(menu)} />
+                    <img class="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading="lazy" decoding="async" onerror={() => markMenuImageBroken(menu)} />
                   </button>
                 {:else if proxyImg(menu.imageUrl, imageRefreshKey)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>

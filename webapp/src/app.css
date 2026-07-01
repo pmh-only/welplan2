@@ -17,14 +17,14 @@
   --accent-dim: #4a90d9;
   --text: #0f172a;
   --text-muted: #475569;
-  --text-dim: #94a3b8;
+  --text-dim: #5b677a;
   --green: #10b981;
   --green-dim: #d1fae5;
   --carb: #3b82f6;
   --protein: #f97316;
   --fat: #ef4444;
-  --font-sans: 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif;
-  --font-serif: 'Noto Serif KR', serif;
+  --font-sans: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', sans-serif;
+  --font-serif: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Serif KR', serif;
   --radius: 10px;
   --radius-sm: 6px;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);

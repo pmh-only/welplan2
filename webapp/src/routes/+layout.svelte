@@ -1,6 +1,10 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
   import { browser } from '$app/environment'
+  import '@fontsource/noto-sans-kr/400.css'
+  import '@fontsource/noto-sans-kr/500.css'
+  import '@fontsource/noto-sans-kr/600.css'
+  import '@fontsource/noto-sans-kr/700.css'
   import '../app.css'
   import type { Snippet } from 'svelte'
   import { onMount, untrack } from 'svelte'

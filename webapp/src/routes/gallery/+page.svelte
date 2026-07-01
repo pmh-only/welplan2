@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { browser } from '$app/environment'
-  import { goto } from '$app/navigation'
+  import { afterNavigate, goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
@@ -145,33 +144,33 @@
     return liveData.menus.length > 0 || data.menus.length === 0
   }
 
+  async function refreshLiveData(): Promise<void> {
+    if (data.restaurants.length === 0) return
+
+    const key = `gallery:${selectedDate}:${selectedTime}`
+    if (liveRefreshKey === key) return
+    liveRefreshKey = key
+
+    try {
+      const response = await fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin' })
+      const liveData: PageData | null = response.ok ? await response.json() : null
+      if (hasUsableLiveData(liveData)) {
+        data = liveData
+        imageRefreshKey = String(Date.now())
+      }
+    } catch {
+      // Keep SSR cached data visible when live refresh fails.
+    }
+  }
+
   $effect(() => {
     const _date = selectedDate
     const _time = selectedTime
     expandedMealTimeIds = isAllMealTime ? defaultExpandedMealTimeIds() : []
   })
 
-  $effect(() => {
-    if (!browser || data.restaurants.length === 0) return
-
-    const key = `gallery:${selectedDate}:${selectedTime}`
-    if (liveRefreshKey === key) return
-    liveRefreshKey = key
-
-    const controller = new AbortController()
-    fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin', signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then((liveData: PageData | null) => {
-        if (hasUsableLiveData(liveData)) {
-          data = liveData
-          imageRefreshKey = String(Date.now())
-        }
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-      })
-
-    return () => controller.abort()
+  afterNavigate(() => {
+    void refreshLiveData()
   })
 
   function navigate (date: string, time: string, source: string) {
@@ -355,7 +354,7 @@
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
                       {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                        <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                        <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                         <span class="zoom-indicator" aria-hidden="true">
                           <ZoomIn class="zoom-indicator-icon" />
                         </span>
@@ -397,7 +396,7 @@
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
                 {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                  <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
+                  <img class="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" fetchpriority={i === 0 ? 'high' : 'auto'} onerror={() => markMenuImageBroken(menu)} />
                   <span class="zoom-indicator" aria-hidden="true">
                     <ZoomIn class="zoom-indicator-icon" />
                   </span>
@@ -451,7 +450,7 @@
       <div class="lightbox-left">
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey))}
           <div class="lightbox-image-frame">
-            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} alt={zoomedMenu.name} onerror={() => markMenuImageBroken(zoomedMenu)} />
+            <img class="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} alt={zoomedMenu.name} decoding="async" onerror={() => markMenuImageBroken(zoomedMenu)} />
             <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
               더 크게 보기
             </a>
