@@ -11,6 +11,7 @@
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
+  import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { Camera, Check, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
@@ -52,9 +53,11 @@
   }
 
   type PageStructuredData = {
+    restaurants?: Restaurant[]
     menus?: Menu[]
     mealTimes?: MealTime[]
     date?: string
+    time?: string
     detailPath?: string
     notice?: NoticeSettings
   }
@@ -66,6 +69,28 @@
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const CONTACT_EMAIL = 'pmh_only@pmh.codes'
+  const MAX_JSON_LD_MENUS = 80
+  const MAX_JSON_LD_RESTAURANTS = 30
+  const MAX_JSON_LD_COMPONENTS = 12
+  const APP_FEATURES = [
+    '웰스토리 식단 조회',
+    '삼성웰스토리 식단표 조회',
+    '신세계푸드 메뉴 조회',
+    '날짜별 사내 식당 메뉴 조회',
+    '메뉴 사진 갤러리',
+    '칼로리 및 영양정보 조회',
+    '테이크인·테이크아웃 메뉴 분류',
+    'RSS 메뉴 피드',
+    'OpenAPI 및 Markdown 메뉴 응답'
+  ]
+  const SITE_NAVIGATION_LINKS = [
+    { path: '/', name: '메뉴 갤러리' },
+    { path: '/takein', name: '테이크 인 메뉴' },
+    { path: '/takeout', name: '테이크 아웃 메뉴' },
+    { path: '/restaurants', name: '식당 선택' },
+    { path: '/docs/api', name: 'API 문서' },
+    { path: '/notice', name: '공지사항' }
+  ]
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
     '웰스토리 식단표',
@@ -144,6 +169,109 @@
   function siteAlternateNames (origin: string): string[] {
     const hostname = new URL(origin).hostname.toLowerCase()
     return [...new Set([...SITE_ALTERNATE_NAMES, hostname].filter(Boolean))]
+  }
+
+  function compactDateToIso (date: string | undefined): string | undefined {
+    if (!date || !/^\d{8}$/.test(date)) return undefined
+    return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
+  }
+
+  function fragmentPart (value: string): string {
+    return encodeURIComponent(value)
+      .replace(/[^a-zA-Z0-9-]/g, '')
+      .slice(0, 96) || 'item'
+  }
+
+  function jsonLdNodeId (canonicalUrl: string, prefix: string, value: string): string {
+    return `${canonicalUrl}#${prefix}-${fragmentPart(value)}`
+  }
+
+  function restaurantEntityUrl (restaurant: Restaurant, origin: string): string {
+    return new URL(restaurantDetailPath(restaurant), origin).toString()
+  }
+
+  function restaurantJsonLdId (restaurant: Restaurant, origin: string): string {
+    return `${restaurantEntityUrl(restaurant, origin)}#restaurant`
+  }
+
+  function restaurantDatedUrl (restaurant: Restaurant, date: string | undefined, origin: string): string {
+    return new URL(date && /^\d{8}$/.test(date) ? restaurantDatedPath(restaurant, date) : restaurantDetailPath(restaurant), origin).toString()
+  }
+
+  function uniqueRestaurants (restaurants: Restaurant[] | undefined): Restaurant[] {
+    const seen = new Set<string>()
+    return (restaurants ?? []).filter((restaurant) => {
+      const key = `${restaurant.vendor}:${restaurant.id}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+
+  function restaurantAdditionalProperties (restaurant: Restaurant): JsonLdValue[] | undefined {
+    const path = restaurant.path?.filter(Boolean)
+    if (!path || path.length === 0) return undefined
+
+    return path.slice(0, 8).map((part, index) => ({
+      '@type': 'PropertyValue',
+      name: index === 0 ? '위치' : '위치 경로',
+      value: part
+    }))
+  }
+
+  function restaurantSummaryJsonLd (restaurant: Restaurant, origin: string): JsonLdValue {
+    const vendorLabel = vendorName(restaurant.vendor)
+    return {
+      '@type': 'Restaurant',
+      '@id': restaurantJsonLdId(restaurant, origin),
+      name: restaurant.name,
+      identifier: `${restaurant.vendor}:${restaurant.id}`,
+      url: restaurantEntityUrl(restaurant, origin),
+      description: `${vendorLabel} ${restaurant.name} 식단표와 메뉴 정보를 Welplan에서 조회할 수 있습니다.`,
+      servesCuisine: ['Korean'],
+      branchOf: {
+        '@type': 'Organization',
+        name: vendorLabel
+      },
+      additionalProperty: restaurantAdditionalProperties(restaurant)
+    }
+  }
+
+  function selectedRestaurantsJsonLd (restaurants: Restaurant[] | undefined, origin: string, canonicalUrl: string): JsonLdValue[] {
+    const visibleRestaurants = uniqueRestaurants(restaurants).slice(0, MAX_JSON_LD_RESTAURANTS)
+    if (visibleRestaurants.length === 0) return []
+
+    return [
+      {
+        '@type': 'ItemList',
+        '@id': `${canonicalUrl}#selected-restaurants`,
+        name: 'Welplan 선택 식당 목록',
+        numberOfItems: visibleRestaurants.length,
+        itemListElement: visibleRestaurants.map((restaurant, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          item: { '@id': restaurantJsonLdId(restaurant, origin) }
+        }))
+      },
+      ...visibleRestaurants.map((restaurant) => restaurantSummaryJsonLd(restaurant, origin))
+    ]
+  }
+
+  function siteNavigationJsonLd (origin: string): JsonLdValue {
+    return {
+      '@type': 'ItemList',
+      '@id': `${origin}/#site-navigation`,
+      name: 'Welplan 주요 페이지',
+      itemListElement: SITE_NAVIGATION_LINKS.map((link, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'SiteNavigationElement',
+          name: link.name,
+          url: new URL(link.path, origin).toString()
+        }
+      }))
+    }
   }
 
   function jsonLdScript (value: JsonLdValue): string {
@@ -267,33 +395,106 @@
     return components.length > 0 ? components.join(', ') : undefined
   }
 
-  function menuJsonLd (menus: Menu[], mealTimes: MealTime[], canonicalUrl: string, origin: string, date?: string): JsonLdValue | undefined {
-    const visibleMenus = menus.slice(0, 60)
+  function menuComponentProperties (menu: Menu): JsonLdValue[] | undefined {
+    const properties = menu.components
+      .map((component) => component.name.trim()
+        ? {
+            '@type': 'PropertyValue',
+            name: component.isMain === true ? '주요 구성' : '구성',
+            value: component.name.trim()
+          }
+        : undefined)
+      .filter((item): item is JsonLdValue => item !== undefined)
+      .slice(0, MAX_JSON_LD_COMPONENTS)
+
+    return properties.length > 0 ? properties : undefined
+  }
+
+  function menuItemJsonLdId (menu: Menu, canonicalUrl: string): string {
+    return jsonLdNodeId(canonicalUrl, 'menu-item', `${menu.restaurantId}:${menu.mealTimeId}:${menu.id}:${menu.name}`)
+  }
+
+  function menuItemJsonLd (
+    menu: Menu,
+    canonicalUrl: string,
+    origin: string,
+    restaurantsByKey: Map<string, Restaurant>,
+    sectionId: string
+  ): JsonLdValue {
+    const restaurant = restaurantsByKey.get(`${menu.vendor}:${menu.restaurantId}`)
+    const name = [menu.parentName, menu.name].filter(Boolean).join(' - ')
+
+    return {
+      '@type': 'MenuItem',
+      '@id': menuItemJsonLdId(menu, canonicalUrl),
+      identifier: menu.id,
+      name,
+      description: menuDescription(menu),
+      image: menuImageUrl(menu, origin),
+      nutrition: nutritionJsonLd(menu),
+      category: menu.isTakeOut ? '테이크아웃' : '테이크인',
+      additionalProperty: menuComponentProperties(menu),
+      isPartOf: { '@id': sectionId },
+      provider: restaurant ? { '@id': restaurantJsonLdId(restaurant, origin) } : undefined
+    }
+  }
+
+  function menuItemListJsonLd (menus: Menu[], canonicalUrl: string): JsonLdValue | undefined {
+    const visibleMenus = menus.slice(0, MAX_JSON_LD_MENUS)
+    if (visibleMenus.length === 0) return undefined
+
+    return {
+      '@type': 'ItemList',
+      '@id': `${canonicalUrl}#menu-items`,
+      name: '식단 메뉴 항목 목록',
+      numberOfItems: menus.length,
+      itemListOrder: 'https://schema.org/ItemListOrderAscending',
+      itemListElement: visibleMenus.map((menu, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: { '@id': menuItemJsonLdId(menu, canonicalUrl) }
+      }))
+    }
+  }
+
+  function menuJsonLd (
+    menus: Menu[],
+    mealTimes: MealTime[],
+    canonicalUrl: string,
+    origin: string,
+    date?: string,
+    restaurants: Restaurant[] = [],
+    restaurant?: Restaurant
+  ): JsonLdValue | undefined {
+    const visibleMenus = menus.slice(0, MAX_JSON_LD_MENUS)
     if (visibleMenus.length === 0) return undefined
 
     const visibleMealTimes = mealTimes.length > 0
       ? mealTimes
       : [...new Set(visibleMenus.map((menu) => menu.mealTimeId))].map(fallbackMealTime)
+    const restaurantsByKey = new Map(uniqueRestaurants([restaurant, ...restaurants].filter((item): item is Restaurant => item !== undefined)).map((item) => [`${item.vendor}:${item.id}`, item]))
+    const menuDate = compactDateToIso(date)
 
     return {
       '@type': 'Menu',
       '@id': `${canonicalUrl}#menu`,
       name: date && /^\d{8}$/.test(date) ? `${formatKoreanDate(date)} 식단표` : '식단표',
+      url: canonicalUrl,
+      inLanguage: 'ko-KR',
+      datePublished: menuDate,
+      temporalCoverage: menuDate,
+      provider: restaurant ? { '@id': restaurantJsonLdId(restaurant, origin) } : undefined,
       hasMenuSection: visibleMealTimes
         .map((mealTime) => {
           const sectionMenus = visibleMenus.filter((menu) => menu.mealTimeId === mealTime.id)
           if (sectionMenus.length === 0) return undefined
+          const sectionId = jsonLdNodeId(canonicalUrl, 'menu-section', mealTime.id)
 
           return {
             '@type': 'MenuSection',
+            '@id': sectionId,
             name: mealTime.name,
-            hasMenuItem: sectionMenus.map((menu) => ({
-              '@type': 'MenuItem',
-              name: menu.name,
-              description: menuDescription(menu),
-              image: menuImageUrl(menu, origin),
-              nutrition: nutritionJsonLd(menu)
-            }))
+            hasMenuItem: sectionMenus.map((menu) => menuItemJsonLd(menu, canonicalUrl, origin, restaurantsByKey, sectionId))
           }
         })
         .filter(Boolean)
@@ -302,6 +503,87 @@
 
   function dateModifiedFromPageData (pageData?: PageStructuredData): string | undefined {
     return pageData?.notice?.updatedAt ? new Date(pageData.notice.updatedAt).toISOString() : undefined
+  }
+
+  function apiDocumentationJsonLd (pathname: string, origin: string, canonicalUrl: string, routeMeta: RouteMeta, organizationId: string): JsonLdValue[] {
+    if (!pathname.startsWith('/docs/api')) return []
+
+    const apiId = `${origin}/#menu-api`
+    const articleId = `${canonicalUrl}#api-docs`
+
+    return [
+      {
+        '@type': 'TechArticle',
+        '@id': articleId,
+        headline: routeMeta.title,
+        name: routeMeta.ogTitle,
+        description: routeMeta.description,
+        url: canonicalUrl,
+        inLanguage: 'ko-KR',
+        about: [
+          { '@type': 'Thing', name: '웰스토리 API' },
+          { '@type': 'Thing', name: '웰스토리 식단 조회 API' },
+          { '@type': 'Thing', name: '신세계푸드 메뉴 조회' },
+          { '@type': 'Thing', name: 'OpenAPI' }
+        ],
+        author: { '@id': organizationId },
+        publisher: { '@id': organizationId },
+        mainEntityOfPage: { '@id': `${canonicalUrl}#webpage` }
+      },
+      {
+        '@type': 'WebAPI',
+        '@id': apiId,
+        name: 'Welplan Menu API',
+        description: '웰스토리·신세계푸드 식당 검색, 날짜별 메뉴 조회, RSS 피드를 제공하는 Welplan API입니다.',
+        documentation: canonicalUrl,
+        provider: { '@id': organizationId },
+        termsOfService: new URL('/privacy', origin).toString(),
+        entryPoint: [
+          {
+            '@type': 'EntryPoint',
+            name: '식당 검색 API',
+            httpMethod: 'GET',
+            urlTemplate: `${origin}/proxy/search?q={query}`,
+            contentType: 'application/json'
+          },
+          {
+            '@type': 'EntryPoint',
+            name: '식당 날짜별 메뉴 페이지',
+            httpMethod: 'GET',
+            urlTemplate: `${origin}/restaurants/{vendor}/{id}/{slug}/{date}`,
+            contentType: ['text/html', 'text/markdown']
+          },
+          {
+            '@type': 'EntryPoint',
+            name: '전체 메뉴 RSS',
+            httpMethod: 'GET',
+            urlTemplate: `${origin}/rss.xml`,
+            contentType: 'application/rss+xml'
+          }
+        ]
+      }
+    ]
+  }
+
+  function noticeArticleJsonLd (pathname: string, canonicalUrl: string, routeMeta: RouteMeta, organizationId: string, pageData?: PageStructuredData): JsonLdValue | undefined {
+    if (!pathname.startsWith('/notice')) return undefined
+
+    const notice = pageData?.notice
+    const updatedAt = notice?.updatedAt ? new Date(notice.updatedAt).toISOString() : undefined
+
+    return {
+      '@type': 'Article',
+      '@id': `${canonicalUrl}#notice`,
+      headline: notice?.title || 'Welplan 공지사항',
+      description: notice?.summary || routeMeta.description,
+      articleBody: notice?.detail || undefined,
+      datePublished: updatedAt,
+      dateModified: updatedAt,
+      inLanguage: 'ko-KR',
+      author: { '@id': organizationId },
+      publisher: { '@id': organizationId },
+      mainEntityOfPage: { '@id': `${canonicalUrl}#webpage` }
+    }
   }
 
   function jsonLdForPage (
@@ -318,12 +600,25 @@
     const webappId = `${origin}/#webapp`
     const homeUrl = `${origin}/`
     const defaultImageUrl = new URL('/og-image.webp', origin).toString()
-    const appScreenshotUrl = new URL('/pwa-screenshot-home-desktop.png', origin).toString()
+    const rssFeedUrl = new URL('/rss.xml', origin).toString()
+    const appScreenshotUrls = [
+      '/pwa-screenshot-home-desktop.png',
+      '/pwa-screenshot-home-mobile.png',
+      '/pwa-screenshot-takein-desktop.png',
+      '/pwa-screenshot-takeout-desktop.png',
+      '/pwa-screenshot-api-desktop.png'
+    ].map((path) => new URL(path, origin).toString())
     const pageImageUrl = firstMenuImageUrl(typedData?.menus, origin) ?? defaultImageUrl
     const breadcrumb = breadcrumbJsonLd(pathname, origin, canonicalUrl, restaurant, typedData)
     const dateModified = dateModifiedFromPageData(typedData)
+    const menu = typedData?.menus?.length
+      ? menuJsonLd(typedData.menus, typedData.mealTimes ?? [], canonicalUrl, origin, typedData.date, typedData.restaurants ?? [], restaurant)
+      : undefined
+    const menuItemList = typedData?.menus?.length ? menuItemListJsonLd(typedData.menus, canonicalUrl) : undefined
+    const noticeArticle = noticeArticleJsonLd(pathname, canonicalUrl, routeMeta, organizationId, typedData)
+    const apiDocs = apiDocumentationJsonLd(pathname, origin, canonicalUrl, routeMeta, organizationId)
     const webPage: JsonLdValue = {
-      '@type': 'WebPage',
+      '@type': menu ? ['WebPage', 'CollectionPage'] : 'WebPage',
       '@id': `${canonicalUrl}#webpage`,
       url: canonicalUrl,
       name: routeMeta.title,
@@ -337,6 +632,7 @@
         url: pageImageUrl
       },
       breadcrumb: breadcrumb ? { '@id': `${canonicalUrl}#breadcrumb` } : undefined,
+      temporalCoverage: compactDateToIso(typedData?.date),
       dateModified
     }
     const graph: JsonLdValue[] = [
@@ -354,11 +650,20 @@
         },
         description: SITE_DESCRIPTION,
         email: CONTACT_EMAIL,
+        areaServed: {
+          '@type': 'Country',
+          name: 'South Korea'
+        },
+        knowsAbout: APP_FEATURES,
+        brand: {
+          '@type': 'Brand',
+          name: SITE_NAME
+        },
         contactPoint: {
           '@type': 'ContactPoint',
           contactType: 'customer support',
           email: CONTACT_EMAIL,
-          availableLanguage: ['ko']
+          availableLanguage: ['ko-KR', 'ko']
         },
         sameAs: [GITHUB_URL]
       },
@@ -370,7 +675,16 @@
         url: homeUrl,
         description: SITE_DESCRIPTION,
         inLanguage: 'ko-KR',
-        publisher: { '@id': organizationId }
+        publisher: { '@id': organizationId },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${origin}/proxy/search?q={search_term_string}`,
+            contentType: 'application/json'
+          },
+          'query-input': 'required name=search_term_string'
+        }
       },
       {
         '@type': 'WebApplication',
@@ -380,11 +694,18 @@
         url: homeUrl,
         description: SITE_DESCRIPTION,
         applicationCategory: 'FoodAndDrinkApplication',
+        applicationSubCategory: 'CafeteriaMenuApplication',
         operatingSystem: 'Any',
         inLanguage: 'ko-KR',
         isAccessibleForFree: true,
         image: defaultImageUrl,
-        screenshot: appScreenshotUrl,
+        screenshot: appScreenshotUrls.map((url) => ({
+          '@type': 'ImageObject',
+          url
+        })),
+        featureList: APP_FEATURES,
+        browserRequirements: 'Requires JavaScript and a modern web browser.',
+        softwareHelp: new URL('/docs/api', origin).toString(),
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -392,23 +713,54 @@
         },
         publisher: { '@id': organizationId }
       },
+      {
+        '@type': 'SoftwareSourceCode',
+        '@id': `${origin}/#source-code`,
+        name: 'Welplan source code',
+        codeRepository: GITHUB_URL,
+        programmingLanguage: ['TypeScript', 'Svelte'],
+        runtimePlatform: 'Node.js',
+        targetProduct: { '@id': webappId },
+        publisher: { '@id': organizationId }
+      },
+      {
+        '@type': 'DataFeed',
+        '@id': `${rssFeedUrl}#feed`,
+        name: 'Welplan 메뉴 RSS 피드',
+        description: '선택한 식당의 웰스토리·신세계푸드 메뉴 업데이트를 제공하는 RSS 피드입니다.',
+        url: rssFeedUrl,
+        encodingFormat: 'application/rss+xml',
+        inLanguage: 'ko-KR',
+        provider: { '@id': organizationId }
+      },
+      siteNavigationJsonLd(origin),
       webPage
     ]
 
     if (breadcrumb) graph.push(breadcrumb)
 
+    if (!restaurant && menu && typedData) {
+      graph.push(...selectedRestaurantsJsonLd(typedData.restaurants, origin, canonicalUrl))
+      webPage.mainEntity = { '@id': `${canonicalUrl}#menu` }
+      graph.push(menu)
+      if (menuItemList) graph.push(menuItemList)
+    }
+
     if (restaurant && typedData) {
       const vendorLabel = vendorName(restaurant.vendor)
-      const restaurantId = `${canonicalUrl}#restaurant`
-      const menu = menuJsonLd(typedData.menus ?? [], typedData.mealTimes ?? [], canonicalUrl, origin, typedData.date)
+      const restaurantId = restaurantJsonLdId(restaurant, origin)
+      const restaurantUrl = restaurantEntityUrl(restaurant, origin)
+      const datedMenuUrl = restaurantDatedUrl(restaurant, typedData.date, origin)
       const image = firstMenuImageUrl(typedData.menus, origin)
       webPage.mainEntity = { '@id': restaurantId }
+      webPage.about = { '@id': restaurantId }
 
       graph.push({
         '@type': 'Restaurant',
         '@id': restaurantId,
         name: restaurant.name,
-        url: canonicalUrl,
+        identifier: `${restaurant.vendor}:${restaurant.id}`,
+        url: restaurantUrl,
         description: routeMeta.description,
         servesCuisine: ['Korean'],
         branchOf: {
@@ -417,10 +769,28 @@
         },
         hasMenu: menu ? { '@id': `${canonicalUrl}#menu` } : undefined,
         image,
+        additionalProperty: restaurantAdditionalProperties(restaurant),
+        subjectOf: { '@id': `${canonicalUrl}#webpage` },
+        potentialAction: {
+          '@type': 'ViewAction',
+          name: '날짜별 식단표 보기',
+          target: datedMenuUrl
+        },
         mainEntityOfPage: { '@id': `${canonicalUrl}#webpage` }
       })
 
       if (menu) graph.push(menu)
+      if (menuItemList) graph.push(menuItemList)
+    }
+
+    if (noticeArticle) {
+      webPage.mainEntity = { '@id': `${canonicalUrl}#notice` }
+      graph.push(noticeArticle)
+    }
+
+    if (apiDocs.length > 0) {
+      webPage.mainEntity = { '@id': `${canonicalUrl}#api-docs` }
+      graph.push(...apiDocs)
     }
 
     return [{ '@context': 'https://schema.org', '@graph': graph }]
