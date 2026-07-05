@@ -21,7 +21,7 @@
     WEB_MCP_TOOLS
   } from '$lib/agent'
   import type { MealTime, Menu, Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate, restaurantPathTags } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate, proxyImg, restaurantPathTags } from '$lib/utils'
 
   type RouteMeta = {
     title: string
@@ -51,11 +51,21 @@
     updatedAt?: number
   }
 
+  type PageStructuredData = {
+    menus?: Menu[]
+    mealTimes?: MealTime[]
+    date?: string
+    detailPath?: string
+    notice?: NoticeSettings
+  }
+
   const INDEXABLE_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
   const NOINDEX_ROBOTS = 'noindex, follow'
   const SITE_NAME = 'Welplan'
+  const SITE_ALTERNATE_NAMES = ['웰플랜']
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
+  const CONTACT_EMAIL = 'pmh_only@pmh.codes'
   const DEFAULT_KEYWORDS = [
     '웰스토리 식단 조회',
     '웰스토리 식단표',
@@ -114,6 +124,28 @@
     return restaurantPathTags(restaurant)
   }
 
+  function pageStructuredData (value: unknown): PageStructuredData | undefined {
+    return value && typeof value === 'object' ? value as PageStructuredData : undefined
+  }
+
+  function absoluteUrl (value: string | undefined, origin: string): string | undefined {
+    return value ? new URL(value, origin).toString() : undefined
+  }
+
+  function menuImageUrl (menu: Menu, origin: string): string | undefined {
+    return absoluteUrl(proxyImg(menu.imageUrl), origin)
+  }
+
+  function firstMenuImageUrl (menus: Menu[] | undefined, origin: string): string | undefined {
+    const menu = menus?.find((item) => item.imageUrl)
+    return menu ? menuImageUrl(menu, origin) : undefined
+  }
+
+  function siteAlternateNames (origin: string): string[] {
+    const hostname = new URL(origin).hostname.toLowerCase()
+    return [...new Set([...SITE_ALTERNATE_NAMES, hostname].filter(Boolean))]
+  }
+
   function jsonLdScript (value: JsonLdValue): string {
     return `<script type="application/ld+json">${JSON.stringify(value).replace(/</g, '\\u003c')}</scr` + 'ipt>'
   }
@@ -135,9 +167,55 @@
     return decodeURIComponent(segment).replace(/-/g, ' ')
   }
 
-  function breadcrumbJsonLd (pathname: string, origin: string, restaurant?: Restaurant): JsonLdValue | undefined {
+  function breadcrumbJsonLd (
+    pathname: string,
+    origin: string,
+    canonicalUrl: string,
+    restaurant?: Restaurant,
+    pageData?: PageStructuredData
+  ): JsonLdValue | undefined {
     const segments = pathname.split('/').filter(Boolean)
     if (segments.length === 0) return undefined
+
+    const breadcrumbId = `${canonicalUrl}#breadcrumb`
+
+    if (restaurant && pathname.startsWith('/restaurants/')) {
+      const itemListElement = [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: SITE_NAME,
+          item: `${origin}/`
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: '식당',
+          item: new URL('/restaurants', origin).toString()
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: restaurant.name,
+          item: new URL(pageData?.detailPath ?? pathname, origin).toString()
+        }
+      ]
+
+      if (pageData?.date && /^\d{8}$/.test(pageData.date)) {
+        itemListElement.push({
+          '@type': 'ListItem',
+          position: 4,
+          name: formatKoreanDate(pageData.date),
+          item: canonicalUrl
+        })
+      }
+
+      return {
+        '@type': 'BreadcrumbList',
+        '@id': breadcrumbId,
+        itemListElement
+      }
+    }
 
     const itemListElement = [
       {
@@ -148,29 +226,60 @@
       },
       ...segments.map((segment, index) => {
         const itemPath = `/${segments.slice(0, index + 1).join('/')}`
+        const isLast = index === segments.length - 1
         return {
           '@type': 'ListItem',
           position: index + 2,
           name: breadcrumbName(segment, pathname, restaurant),
-          item: new URL(itemPath, origin).toString()
+          item: isLast ? canonicalUrl : new URL(itemPath, origin).toString()
         }
       })
     ]
 
     return {
-      '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
+      '@id': breadcrumbId,
       itemListElement
     }
   }
 
-  function menuJsonLd (menus: Menu[], mealTimes: MealTime[]): JsonLdValue | undefined {
+  function nutritionJsonLd (menu: Menu): JsonLdValue | undefined {
+    const nutrition = menu.nutrition
+    if (nutrition?.calories == null) return undefined
+
+    return {
+      '@type': 'NutritionInformation',
+      calories: `${Math.round(nutrition.calories)} calories`,
+      carbohydrateContent: nutrition.carbohydrates == null ? undefined : `${Math.round(nutrition.carbohydrates)} g`,
+      sugarContent: nutrition.sugar == null ? undefined : `${Math.round(nutrition.sugar)} g`,
+      fiberContent: nutrition.fiber == null ? undefined : `${Math.round(nutrition.fiber)} g`,
+      fatContent: nutrition.fat == null ? undefined : `${Math.round(nutrition.fat)} g`,
+      proteinContent: nutrition.protein == null ? undefined : `${Math.round(nutrition.protein)} g`,
+      sodiumContent: nutrition.sodium == null ? undefined : `${Math.round(nutrition.sodium)} mg`,
+      cholesterolContent: nutrition.cholesterol == null ? undefined : `${Math.round(nutrition.cholesterol)} mg`,
+      saturatedFatContent: nutrition.saturatedFat == null ? undefined : `${Math.round(nutrition.saturatedFat)} g`,
+      transFatContent: nutrition.transFat == null ? undefined : `${Math.round(nutrition.transFat)} g`
+    }
+  }
+
+  function menuDescription (menu: Menu): string | undefined {
+    const components = menu.components.map((component) => component.name).filter(Boolean)
+    return components.length > 0 ? components.join(', ') : undefined
+  }
+
+  function menuJsonLd (menus: Menu[], mealTimes: MealTime[], canonicalUrl: string, origin: string, date?: string): JsonLdValue | undefined {
     const visibleMenus = menus.slice(0, 60)
     if (visibleMenus.length === 0) return undefined
 
+    const visibleMealTimes = mealTimes.length > 0
+      ? mealTimes
+      : [...new Set(visibleMenus.map((menu) => menu.mealTimeId))].map(fallbackMealTime)
+
     return {
       '@type': 'Menu',
-      hasMenuSection: mealTimes
+      '@id': `${canonicalUrl}#menu`,
+      name: date && /^\d{8}$/.test(date) ? `${formatKoreanDate(date)} 식단표` : '식단표',
+      hasMenuSection: visibleMealTimes
         .map((mealTime) => {
           const sectionMenus = visibleMenus.filter((menu) => menu.mealTimeId === mealTime.id)
           if (sectionMenus.length === 0) return undefined
@@ -181,18 +290,18 @@
             hasMenuItem: sectionMenus.map((menu) => ({
               '@type': 'MenuItem',
               name: menu.name,
-              image: menu.imageUrl,
-              nutrition: menu.nutrition?.calories == null
-                ? undefined
-                : {
-                    '@type': 'NutritionInformation',
-                    calories: `${Math.round(menu.nutrition.calories)} calories`
-                  }
+              description: menuDescription(menu),
+              image: menuImageUrl(menu, origin),
+              nutrition: nutritionJsonLd(menu)
             }))
           }
         })
         .filter(Boolean)
     }
+  }
+
+  function dateModifiedFromPageData (pageData?: PageStructuredData): string | undefined {
+    return pageData?.notice?.updatedAt ? new Date(pageData.notice.updatedAt).toISOString() : undefined
   }
 
   function jsonLdForPage (
@@ -203,44 +312,79 @@
     restaurant?: Restaurant,
     pageData?: unknown
   ): JsonLdValue[] {
+    const typedData = pageStructuredData(pageData)
     const organizationId = `${origin}/#organization`
     const websiteId = `${origin}/#website`
+    const webappId = `${origin}/#webapp`
+    const homeUrl = `${origin}/`
+    const defaultImageUrl = new URL('/og-image.webp', origin).toString()
+    const appScreenshotUrl = new URL('/pwa-screenshot-home-desktop.png', origin).toString()
+    const pageImageUrl = firstMenuImageUrl(typedData?.menus, origin) ?? defaultImageUrl
+    const breadcrumb = breadcrumbJsonLd(pathname, origin, canonicalUrl, restaurant, typedData)
+    const dateModified = dateModifiedFromPageData(typedData)
+    const webPage: JsonLdValue = {
+      '@type': 'WebPage',
+      '@id': `${canonicalUrl}#webpage`,
+      url: canonicalUrl,
+      name: routeMeta.title,
+      description: routeMeta.description,
+      inLanguage: 'ko-KR',
+      isPartOf: { '@id': websiteId },
+      publisher: { '@id': organizationId },
+      image: pageImageUrl,
+      primaryImageOfPage: {
+        '@type': 'ImageObject',
+        url: pageImageUrl
+      },
+      breadcrumb: breadcrumb ? { '@id': `${canonicalUrl}#breadcrumb` } : undefined,
+      dateModified
+    }
     const graph: JsonLdValue[] = [
       {
         '@type': 'Organization',
         '@id': organizationId,
         name: SITE_NAME,
-        url: origin,
-        logo: new URL('/favicon.svg', origin).toString(),
+        alternateName: siteAlternateNames(origin),
+        url: homeUrl,
+        logo: {
+          '@type': 'ImageObject',
+          url: new URL('/manifest-icon-512.png', origin).toString(),
+          width: 512,
+          height: 512
+        },
+        description: SITE_DESCRIPTION,
+        email: CONTACT_EMAIL,
+        contactPoint: {
+          '@type': 'ContactPoint',
+          contactType: 'customer support',
+          email: CONTACT_EMAIL,
+          availableLanguage: ['ko']
+        },
         sameAs: [GITHUB_URL]
       },
       {
         '@type': 'WebSite',
         '@id': websiteId,
         name: SITE_NAME,
-        url: origin,
+        alternateName: siteAlternateNames(origin),
+        url: homeUrl,
         description: SITE_DESCRIPTION,
         inLanguage: 'ko-KR',
-        publisher: { '@id': organizationId },
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: {
-            '@type': 'EntryPoint',
-            urlTemplate: `${origin}/proxy/search?q={search_term_string}`
-          },
-          'query-input': 'required name=search_term_string'
-        }
+        publisher: { '@id': organizationId }
       },
       {
         '@type': 'WebApplication',
-        '@id': `${origin}/#webapp`,
+        '@id': webappId,
         name: SITE_NAME,
-        url: origin,
+        alternateName: siteAlternateNames(origin),
+        url: homeUrl,
         description: SITE_DESCRIPTION,
         applicationCategory: 'FoodAndDrinkApplication',
         operatingSystem: 'Any',
         inLanguage: 'ko-KR',
         isAccessibleForFree: true,
+        image: defaultImageUrl,
+        screenshot: appScreenshotUrl,
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -248,38 +392,35 @@
         },
         publisher: { '@id': organizationId }
       },
-      {
-        '@type': 'WebPage',
-        '@id': `${canonicalUrl}#webpage`,
-        url: canonicalUrl,
-        name: routeMeta.title,
-        description: routeMeta.description,
-        inLanguage: 'ko-KR',
-        isPartOf: { '@id': websiteId }
-      }
+      webPage
     ]
 
-    const breadcrumb = breadcrumbJsonLd(pathname, origin, restaurant)
     if (breadcrumb) graph.push(breadcrumb)
 
-    if (restaurant && pageData && typeof pageData === 'object') {
-      const typedData = pageData as { menus?: Menu[], mealTimes?: MealTime[], date?: string }
+    if (restaurant && typedData) {
       const vendorLabel = vendorName(restaurant.vendor)
-      const menu = menuJsonLd(typedData.menus ?? [], typedData.mealTimes ?? [])
+      const restaurantId = `${canonicalUrl}#restaurant`
+      const menu = menuJsonLd(typedData.menus ?? [], typedData.mealTimes ?? [], canonicalUrl, origin, typedData.date)
+      const image = firstMenuImageUrl(typedData.menus, origin)
+      webPage.mainEntity = { '@id': restaurantId }
+
       graph.push({
         '@type': 'Restaurant',
-        '@id': `${canonicalUrl}#restaurant`,
+        '@id': restaurantId,
         name: restaurant.name,
         url: canonicalUrl,
-        description: `${vendorLabel} ${restaurant.name} 식단표`,
-        servesCuisine: 'Korean',
-        provider: {
+        description: routeMeta.description,
+        servesCuisine: ['Korean'],
+        branchOf: {
           '@type': 'Organization',
           name: vendorLabel
         },
-        hasMenu: menu,
-        image: (typedData.menus ?? []).find((menuItem) => menuItem.imageUrl)?.imageUrl
+        hasMenu: menu ? { '@id': `${canonicalUrl}#menu` } : undefined,
+        image,
+        mainEntityOfPage: { '@id': `${canonicalUrl}#webpage` }
       })
+
+      if (menu) graph.push(menu)
     }
 
     return [{ '@context': 'https://schema.org', '@graph': graph }]
@@ -721,6 +862,7 @@
   <meta name="twitter:image:alt" content={`${routeMeta.ogTitle} 대표 이미지`} />
   <link rel="canonical" href={canonicalUrl} />
   <link rel="alternate" hreflang="ko-KR" href={canonicalUrl} />
+  <link rel="alternate" hreflang="x-default" href={canonicalUrl} />
   <link rel="alternate" type="application/rss+xml" title="Welplan RSS" href={rssUrl} />
   <link rel="api-catalog" href={API_CATALOG_PATH} />
   <link rel="service-doc" href={API_DOC_PATH} />

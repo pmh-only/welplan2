@@ -2,6 +2,14 @@ import { service } from '$lib/server/service'
 import { restaurantDetailPath } from '$lib/restaurant-routes'
 import type { RequestHandler } from './$types'
 
+const STATIC_ENTRIES = [
+  { path: '/', changefreq: 'daily' as const, priority: '1.0' },
+  { path: '/docs/api', changefreq: 'weekly' as const, priority: '0.7' },
+  { path: '/notice', changefreq: 'weekly' as const, priority: '0.4' },
+  { path: '/privacy', changefreq: 'yearly' as const, priority: '0.3' },
+  { path: '/data-deletion', changefreq: 'yearly' as const, priority: '0.3' }
+]
+
 function xmlEscape(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -12,7 +20,7 @@ function xmlEscape(value: string): string {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-  const entries = await service.getRestaurants()
+  const restaurantEntries = await service.getRestaurants()
     .then((restaurants) => restaurants
       .map((restaurant) => ({
         path: restaurantDetailPath(restaurant),
@@ -21,6 +29,7 @@ export const GET: RequestHandler = async ({ url }) => {
       }))
       .sort((a, b) => a.path.localeCompare(b.path, 'ko')))
     .catch(() => [])
+  const entries = [...STATIC_ENTRIES, ...restaurantEntries]
 
   const lastmod = new Date().toISOString()
   const body = `<?xml version="1.0" encoding="UTF-8"?>
