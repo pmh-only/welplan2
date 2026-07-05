@@ -16,7 +16,7 @@ const NUTRITION_KEYS: (keyof NutritionInfo)[] = [
   'calcium'
 ]
 
-export const FALLBACK_MEAL_TIME_NAMES: Record<string, string> = {
+const FALLBACK_MEAL_TIME_NAMES: Record<string, string> = {
   1: '아침',
   2: '점심',
   3: '저녁',

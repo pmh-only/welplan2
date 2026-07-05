@@ -12,18 +12,18 @@ type PersistedCachedImage = { data: string; contentType: string }
 
 const cache = new Map<string, CachedImage>()
 
-export function getCachedImage(url: string): CachedImage | undefined {
+function getCachedImage(url: string): CachedImage | undefined {
   return cache.get(url)
 }
 
-export function setCachedImage(url: string, data: ArrayBuffer, contentType: string): void {
+function setCachedImage(url: string, data: ArrayBuffer, contentType: string): void {
   if (cache.size >= MAX_ENTRIES) {
     cache.delete(cache.keys().next().value!)
   }
   cache.set(url, { data, contentType })
 }
 
-export async function getPersistedCachedImage(key: string): Promise<CachedImage | undefined> {
+async function getPersistedCachedImage(key: string): Promise<CachedImage | undefined> {
   await ensureDbInitialized()
   const redisCached = await getRedisJson<PersistedCachedImage>(`image:${key}`)
   if (redisCached) {
@@ -44,7 +44,7 @@ export async function getPersistedCachedImage(key: string): Promise<CachedImage 
   return { data, contentType: row.contentType }
 }
 
-export async function setPersistedCachedImage(
+async function setPersistedCachedImage(
   key: string,
   data: ArrayBuffer,
   contentType: string

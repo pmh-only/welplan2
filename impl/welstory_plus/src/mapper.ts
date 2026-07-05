@@ -10,7 +10,7 @@ import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only
 import type { WpDish, WpMealTime, WpMenuDetail, WpMenuNutrient, WpRestaurant } from './types.js'
 
 // Nutrition values from the API are strings and may contain commas (e.g. "1,475")
-export function parseNum(val: string | null | undefined): number | undefined {
+function parseNum(val: string | null | undefined): number | undefined {
   if (!val) return undefined
   const n = parseFloat(val.replace(/,/g, ''))
   return isNaN(n) ? undefined : n
@@ -160,18 +160,4 @@ export function mapMenuNutrients(details: WpMenuNutrient[]): MenuComponent[] {
       calcium: parseNum(d.totCalcium)
     }
   }))
-}
-
-// Extracts course-level nutrition from a detail response (all items share the same tot* values)
-export function mapCourseNutritionFromDetail(details: WpMenuDetail[]): NutritionInfo {
-  const first = details[0]
-  return {
-    calories: parseNum(first.totKcal),
-    carbohydrates: parseNum(first.totCho),
-    protein: parseNum(first.totProtein),
-    fat: parseNum(first.totFat),
-    sodium: parseNum(first.totNa),
-    sugar: parseNum(first.totSugar),
-    calcium: parseNum(first.totCalcium)
-  }
 }

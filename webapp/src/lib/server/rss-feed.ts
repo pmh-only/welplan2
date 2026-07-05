@@ -21,7 +21,7 @@ export type RssFeed = {
   items: RssFeedItem[]
 }
 
-export function xmlEscape(value: string): string {
+function xmlEscape(value: string): string {
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -115,7 +115,7 @@ export async function buildCachedDateRangeFeedItems(
   return sortFeedItems(items)
 }
 
-export function sortFeedItems(items: RssFeedItem[]): RssFeedItem[] {
+function sortFeedItems(items: RssFeedItem[]): RssFeedItem[] {
   return [...items].sort(
     (a, b) =>
       b.date.localeCompare(a.date) ||

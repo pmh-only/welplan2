@@ -5,7 +5,7 @@ import {
   restaurantDetailPath
 } from '../restaurant-routes.js'
 
-export const DEFAULT_INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
+const DEFAULT_INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 
 const INDEXNOW_KEY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/
 

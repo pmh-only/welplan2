@@ -87,19 +87,6 @@ export async function setRedisJson(key: string, value: unknown, ttlMs?: number):
   }
 }
 
-export async function deleteRedisKeys(keys: string[]): Promise<void> {
-  if (keys.length === 0) return
-
-  const redis = await getClient()
-  if (!redis) return
-
-  try {
-    await redis.del(keys.map(namespaced))
-  } catch (error) {
-    redisLog.warn('redis cache delete failed', { keyCount: keys.length, error })
-  }
-}
-
 export async function deleteRedisPrefix(prefix: string): Promise<void> {
   const redis = await getClient()
   if (!redis) return

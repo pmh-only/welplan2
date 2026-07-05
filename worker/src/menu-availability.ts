@@ -2,9 +2,9 @@ import type { Restaurant } from '@pmh-only/welplan2-model'
 import { shiftDate, todayStr } from './utils.js'
 import type { CafeteriaService } from '../../webapp/src/lib/server/service.js'
 
-export const MENU_SCAN_DAYS = 7
+const MENU_SCAN_DAYS = 7
 
-export type RestaurantMealScanResult = {
+type RestaurantMealScanResult = {
   restaurant: Restaurant
   datesWithMenus: string[]
   mealTimeCount: number

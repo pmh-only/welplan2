@@ -27,7 +27,7 @@ export type RestaurantGalleryDateData = {
   mealTimeMenus: GalleryMealTimeResult[]
 }
 
-export type GalleryMealTimeResult = MealTime & {
+type GalleryMealTimeResult = MealTime & {
   menuCount: number
   failed: boolean
   errorMessage?: string
@@ -103,7 +103,7 @@ function tagMenusWithDisplayMealTime(
   return menus.map((menu) => ({ ...menu, mealTimeId }))
 }
 
-export async function loadMenusForRoute(parent: ParentLoad, date: string, time: string, options: MenuRouteOptions = {}) {
+async function loadMenusForRoute(parent: ParentLoad, date: string, time: string, options: MenuRouteOptions = {}) {
   const cafeteriaService = options.service ?? service
   const { restaurants, mealTimes } = await parent()
   const menus = await Promise.all(
@@ -162,27 +162,6 @@ export async function computeGalleryMenusForRestaurants(
   ).then((results) => results.flat())
 
   const menus = await enrichGalleryMenus(rawMenus, date, cafeteriaService)
-
-  return { menus, date, time: mealTimeId }
-}
-
-export async function loadGalleryMenusForRestaurant(
-  restaurant: Restaurant,
-  mealTimes: MealTime[],
-  url: URL
-) {
-  const date = url.searchParams.get('date') ?? todayStr()
-  const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
-  if (!mealTimeId) return { menus: [], date, time: '' }
-  const targetMealTimes = selectedMealTimes(mealTimes, mealTimeId)
-  if (!targetMealTimes.length) return { menus: [], date, time: mealTimeId }
-
-  const rawMenus = await Promise.all(
-    targetMealTimes.map((mealTime) =>
-      service.getMenus(restaurant.id, date, mealTime.id).catch(() => [])
-    )
-  ).then((results) => results.flat())
-  const menus = await enrichGalleryMenus(rawMenus, date)
 
   return { menus, date, time: mealTimeId }
 }

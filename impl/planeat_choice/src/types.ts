@@ -9,7 +9,7 @@ export interface PcTreeNode {
   children?: PcTreeNode[]
 }
 
-export interface PcTreeNodeData {
+interface PcTreeNodeData {
   busiCd: string
   compCd?: string
   storCd?: string

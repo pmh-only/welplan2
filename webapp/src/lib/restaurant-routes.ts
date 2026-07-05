@@ -2,7 +2,7 @@ import type { Restaurant } from './types.js'
 
 const FALLBACK_SLUG = 'restaurant'
 
-export function restaurantSlug(restaurant: Restaurant): string {
+function restaurantSlug(restaurant: Restaurant): string {
   const slug = restaurant.name
     .normalize('NFKC')
     .trim()
@@ -13,7 +13,7 @@ export function restaurantSlug(restaurant: Restaurant): string {
   return slug || FALLBACK_SLUG
 }
 
-export function encodeRestaurantId(id: string): string {
+function encodeRestaurantId(id: string): string {
   return encodeURIComponent(id)
 }
 

@@ -1,8 +1,8 @@
 import type { Restaurant } from './types'
 
 export const RESTAURANT_COOKIE = 'welplan_restaurants'
-export const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
-export const RESTAURANT_STORAGE_KEY = 'welplan_restaurants'
+const RESTAURANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+const RESTAURANT_STORAGE_KEY = 'welplan_restaurants'
 
 function compactRestaurant(restaurant: Restaurant): Restaurant {
   return {
@@ -28,7 +28,7 @@ function parseRestaurants(value: string): Restaurant[] {
   })
 }
 
-export function encodeRestaurantCookie(restaurants: Restaurant[]): string {
+function encodeRestaurantCookie(restaurants: Restaurant[]): string {
   return encodeURIComponent(JSON.stringify(restaurants.map(compactRestaurant)))
 }
 
@@ -46,7 +46,7 @@ export function decodeRestaurantCookie(raw: string | undefined): Restaurant[] {
   return []
 }
 
-export function restaurantCookieString(restaurants: Restaurant[]): string {
+function restaurantCookieString(restaurants: Restaurant[]): string {
   return `${RESTAURANT_COOKIE}=${encodeRestaurantCookie(restaurants)}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
 }
 

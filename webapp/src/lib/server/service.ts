@@ -51,7 +51,7 @@ export type CacheTableName =
   | 'precomputedPages'
   | 'images'
 
-export type CachePageRow = {
+type CachePageRow = {
   key: string
   cachedAt: number
   contentType?: string

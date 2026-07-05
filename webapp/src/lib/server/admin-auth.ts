@@ -103,7 +103,7 @@ export function adminOidcConfigured(): boolean {
   )
 }
 
-export function adminRedirectUri(origin: string): string {
+function adminRedirectUri(origin: string): string {
   return process.env.ADMIN_OIDC_REDIRECT_URI?.trim() || `${origin}/admin/callback`
 }
 
