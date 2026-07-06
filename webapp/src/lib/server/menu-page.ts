@@ -2,7 +2,7 @@ import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
 import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
-import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, restaurantPathTexts, todayStr } from '../utils.js'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, restaurantPathTags, todayStr } from '../utils.js'
 
 type ParentData = {
   restaurants: Restaurant[]
@@ -429,8 +429,8 @@ export function buildRestaurantPageDescription(
   restaurant: Restaurant,
   vendorLabel: string
 ): string {
-  const pathText = restaurantPathTexts(restaurant).join(', ')
-  const locationText = pathText ? ` ${pathText} 위치와 관련된 식당 검색에서도 찾을 수 있습니다.` : ''
+  const pathText = restaurantPathTags(restaurant)
+  const locationText = pathText ? ` ${pathText}` : ''
 
   if (restaurant.vendor === 'welstory') {
     return `${vendorLabel} ${restaurant.name} 식단표를 Welplan에서 조회하세요.${locationText} 웰스토리 식단 조회, 메뉴 사진, 날짜별 식단표, 칼로리와 영양정보를 한눈에 확인할 수 있습니다.`

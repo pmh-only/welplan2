@@ -3,7 +3,7 @@ import { restaurantDatedRssPath } from '$lib/restaurant-routes'
 import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
 import { service } from '$lib/server/service'
 import { buildRestaurantDateFeedItems, isValidFeedDate, rssResponse } from '$lib/server/rss-feed'
-import { formatKoreanDate } from '$lib/utils'
+import { formatKoreanDate, restaurantPathTags } from '$lib/utils'
 import type { RequestHandler } from './$types'
 
 export const prerender = false
@@ -25,11 +25,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
   const mealTimes = await service.getMealTimes(restaurant.id).catch(() => [])
   const items = await buildRestaurantDateFeedItems(url.origin, restaurant, params.date, mealTimes)
+  const pathText = restaurantPathTags(restaurant)
+  const locationText = pathText ? ` ${pathText}` : ''
 
   return rssResponse({
     title: `${restaurant.name} ${formatKoreanDate(params.date)} 메뉴 RSS`,
     link: `${url.origin}${canonicalPath}`,
-    description: `${restaurant.name} 메뉴를 날짜와 식사 시간 기준으로 제공하는 RSS 피드입니다.`,
+    description: `${restaurant.name} 메뉴를 날짜와 식사 시간 기준으로 제공하는 RSS 피드입니다.${locationText}`,
     items
   })
 }

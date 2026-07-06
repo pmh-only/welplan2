@@ -56,11 +56,15 @@ export function restaurantPathTexts(restaurant: Restaurant): string[] {
   return uniqueStrings(paths)
 }
 
-export function restaurantPathTags(restaurant: Restaurant): string {
+export function restaurantPathItems(restaurant: Restaurant): string[] {
   const parts = [restaurant.path, ...(restaurant.additionalPaths ?? [])]
     .flatMap((path) => path ?? [])
 
-  return uniqueStrings(parts).map((part) => `#${part}`).join(' ')
+  return uniqueStrings(parts)
+}
+
+export function restaurantPathTags(restaurant: Restaurant): string {
+  return restaurantPathItems(restaurant).map((part) => `#${part}`).join(' ')
 }
 
 function pad(n: number): string {
