@@ -22,6 +22,10 @@ import { desc, eq, sql } from 'drizzle-orm'
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 6 * 60 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
+const RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY = 'restaurantAdditionalPaths'
+const MAX_ADDITIONAL_PATHS = 20
+const MAX_ADDITIONAL_PATH_PARTS = 12
+const MAX_ADDITIONAL_PATH_PART_LENGTH = 80
 const redisKeys = {
   restaurants: 'restaurants:all',
   restaurant: (id: string) => `restaurant:${id}`,
@@ -41,6 +45,7 @@ const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
 
 type CachedCountRow = { count: number | string | bigint }
 type RedisCacheEntry<T> = { data: T; cachedAt: number }
+type RestaurantAdditionalPathsSettings = Record<string, string[][]>
 
 export type CacheTableName =
   | 'restaurants'
@@ -234,10 +239,10 @@ export class CafeteriaService {
   private async readRestaurants(): Promise<Restaurant[]> {
     await ensureDbInitialized()
     const redisCached = await getRedisJson<Restaurant[]>(redisKeys.restaurants)
-    if (redisCached) return redisCached
+    if (redisCached) return this.applyAdditionalPathsToRestaurants(redisCached)
 
     const rows = await db.select().from(restaurantsTable).execute()
-    const restaurants = rows
+    const parsedRestaurants = rows
       .map((row) => {
         try {
           return JSON.parse(row.data) as Restaurant
@@ -255,6 +260,7 @@ export class CafeteriaService {
               typeof restaurant.vendor === 'string'
           )
       )
+    const restaurants = await this.applyAdditionalPathsToRestaurants(parsedRestaurants)
     await Promise.all([
       setRedisJson(redisKeys.restaurants, restaurants),
       ...restaurants.map((restaurant) => setRedisJson(redisKeys.restaurant(restaurant.id), restaurant))
@@ -294,6 +300,81 @@ export class CafeteriaService {
 
   private now(): number {
     return Date.now()
+  }
+
+  private restaurantAdditionalPathsKey(restaurant: Pick<Restaurant, 'id' | 'vendor'>): string {
+    return `${restaurant.vendor}:${restaurant.id}`
+  }
+
+  private normalizeAdditionalPaths(value: unknown): string[][] {
+    if (!Array.isArray(value)) return []
+
+    const normalizedPaths: string[][] = []
+    const seen = new Set<string>()
+    for (const path of value) {
+      if (!Array.isArray(path)) continue
+
+      const parts = path
+        .map((part) => typeof part === 'string' ? part.normalize('NFKC').trim().slice(0, MAX_ADDITIONAL_PATH_PART_LENGTH) : '')
+        .filter(Boolean)
+        .slice(0, MAX_ADDITIONAL_PATH_PARTS)
+      if (parts.length === 0) continue
+
+      const key = parts.join('\u0000')
+      if (seen.has(key)) continue
+      seen.add(key)
+      normalizedPaths.push(parts)
+      if (normalizedPaths.length >= MAX_ADDITIONAL_PATHS) break
+    }
+
+    return normalizedPaths
+  }
+
+  private async readRestaurantAdditionalPathsSettings(): Promise<RestaurantAdditionalPathsSettings> {
+    await ensureDbInitialized()
+    const row = await this.readOne(
+      db.select().from(appSettings).where(eq(appSettings.key, RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY))
+    )
+    if (!row) return {}
+
+    try {
+      const parsed = JSON.parse(row.data) as Record<string, unknown>
+      return Object.fromEntries(
+        Object.entries(parsed)
+          .map(([key, value]) => [key, this.normalizeAdditionalPaths(value)] as const)
+          .filter(([, paths]) => paths.length > 0)
+      )
+    } catch {
+      return {}
+    }
+  }
+
+  private async writeRestaurantAdditionalPathsSettings(settings: RestaurantAdditionalPathsSettings): Promise<void> {
+    await ensureDbInitialized()
+    const now = this.now()
+    await db
+      .insert(appSettings)
+      .values({ key: RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY, data: JSON.stringify(settings), updatedAt: now })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { data: JSON.stringify(settings), updatedAt: now }
+      })
+      .execute()
+  }
+
+  private applyAdditionalPaths(
+    restaurant: Restaurant,
+    settings: RestaurantAdditionalPathsSettings
+  ): Restaurant {
+    const baseRestaurant = { ...restaurant }
+    delete baseRestaurant.additionalPaths
+    const paths = this.normalizeAdditionalPaths(settings[this.restaurantAdditionalPathsKey(restaurant)])
+    return paths.length > 0 ? { ...baseRestaurant, additionalPaths: paths } : baseRestaurant
+  }
+
+  private async applyAdditionalPathsToRestaurants(restaurants: Restaurant[]): Promise<Restaurant[]> {
+    const settings = await this.readRestaurantAdditionalPathsSettings()
+    return restaurants.map((restaurant) => this.applyAdditionalPaths(restaurant, settings))
   }
 
   private menuCacheTtlMs(): number {
@@ -350,6 +431,7 @@ export class CafeteriaService {
     await ensureDbInitialized()
     const startedAt = this.now()
     syncLog.info('restaurant sync started')
+    const additionalPathSettings = await this.readRestaurantAdditionalPathsSettings()
 
     const [welstorySelectedResult, welstorySearchResult, planeatResult] = await Promise.allSettled([
       Promise.resolve().then(() => this.getWelstoryClient().getRestaurants()),
@@ -387,7 +469,7 @@ export class CafeteriaService {
     }
 
     for (const r of welstoryRestaurants.values()) {
-      toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
+      toInsert.push({ id: r.id, data: JSON.stringify(this.applyAdditionalPaths(r, additionalPathSettings)), cachedAt: this.now() })
     }
 
     if (planeatResult.status === 'fulfilled') {
@@ -396,7 +478,7 @@ export class CafeteriaService {
         restaurantCount: planeatResult.value.length
       })
       for (const r of planeatResult.value) {
-        toInsert.push({ id: r.id, data: JSON.stringify(r), cachedAt: this.now() })
+        toInsert.push({ id: r.id, data: JSON.stringify(this.applyAdditionalPaths(r, additionalPathSettings)), cachedAt: this.now() })
       }
     } else {
       syncLog.warn('vendor restaurant sync failed', {
@@ -460,7 +542,7 @@ export class CafeteriaService {
   private async resolveRestaurant(id: string): Promise<Restaurant> {
     await ensureDbInitialized()
     const redisCached = await getRedisJson<Restaurant>(redisKeys.restaurant(id))
-    if (redisCached) return redisCached
+    if (redisCached) return this.applyAdditionalPaths(redisCached, await this.readRestaurantAdditionalPathsSettings())
 
     let row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
@@ -472,7 +554,10 @@ export class CafeteriaService {
       throw new Error(`Restaurant '${id}' not found`)
     }
     try {
-      const restaurant = JSON.parse(row.data) as Restaurant
+      const restaurant = this.applyAdditionalPaths(
+        JSON.parse(row.data) as Restaurant,
+        await this.readRestaurantAdditionalPathsSettings()
+      )
       await setRedisJson(redisKeys.restaurant(id), restaurant)
       return restaurant
     } catch {
@@ -483,7 +568,7 @@ export class CafeteriaService {
   async getRestaurant(id: string): Promise<Restaurant | null> {
     await this.ensureCache()
     const redisCached = await getRedisJson<Restaurant>(redisKeys.restaurant(id))
-    if (redisCached) return redisCached
+    if (redisCached) return this.applyAdditionalPaths(redisCached, await this.readRestaurantAdditionalPathsSettings())
 
     const row = await this.readOne(db.select().from(restaurantsTable).where(eq(restaurantsTable.id, id)))
     if (!row) {
@@ -491,7 +576,10 @@ export class CafeteriaService {
       return null
     }
     try {
-      const restaurant = JSON.parse(row.data) as Restaurant
+      const restaurant = this.applyAdditionalPaths(
+        JSON.parse(row.data) as Restaurant,
+        await this.readRestaurantAdditionalPathsSettings()
+      )
       await setRedisJson(redisKeys.restaurant(id), restaurant)
       return restaurant
     } catch {
@@ -1388,13 +1476,17 @@ export class CafeteriaService {
     const existing = await this.readOne(
       db.select().from(restaurantsTable).where(eq(restaurantsTable.id, restaurant.id))
     )
-    const mergedRestaurant = existing
-      ? {
-          ...(JSON.parse(existing.data) as Restaurant),
-          ...restaurant,
-          path: restaurant.path ?? (JSON.parse(existing.data) as Restaurant).path
-        }
-      : restaurant
+    const existingRestaurant = existing ? JSON.parse(existing.data) as Restaurant : null
+    const additionalPathSettings = await this.readRestaurantAdditionalPathsSettings()
+    let mergedRestaurant = this.applyAdditionalPaths(restaurant, additionalPathSettings)
+
+    if (existingRestaurant) {
+      mergedRestaurant = this.applyAdditionalPaths({
+        ...existingRestaurant,
+        ...restaurant,
+        path: restaurant.path ?? existingRestaurant.path
+      }, additionalPathSettings)
+    }
 
     await db
       .insert(restaurantsTable)
@@ -1419,6 +1511,57 @@ export class CafeteriaService {
       vendor: mergedRestaurant.vendor,
       restaurantName: mergedRestaurant.name
     })
+  }
+
+  async setRestaurantAdditionalPaths(
+    restaurantTarget: Pick<Restaurant, 'id' | 'vendor'>,
+    additionalPaths: string[][]
+  ): Promise<Restaurant> {
+    await ensureDbInitialized()
+    const row = await this.readOne(
+      db.select().from(restaurantsTable).where(eq(restaurantsTable.id, restaurantTarget.id))
+    )
+    if (!row) throw new Error(`Restaurant '${restaurantTarget.id}' not found`)
+
+    const restaurant = JSON.parse(row.data) as Restaurant
+    if (restaurant.vendor !== restaurantTarget.vendor) {
+      throw new Error(`Restaurant '${restaurantTarget.id}' vendor mismatch`)
+    }
+
+    const settings = await this.readRestaurantAdditionalPathsSettings()
+    const settingsKey = this.restaurantAdditionalPathsKey(restaurantTarget)
+    const normalizedPaths = this.normalizeAdditionalPaths(additionalPaths)
+    if (normalizedPaths.length > 0) {
+      settings[settingsKey] = normalizedPaths
+    } else {
+      delete settings[settingsKey]
+    }
+
+    await this.writeRestaurantAdditionalPathsSettings(settings)
+    const updatedRestaurant = this.applyAdditionalPaths(restaurant, settings)
+    const cachedAt = this.now()
+    const data = JSON.stringify(updatedRestaurant)
+    await db
+      .insert(restaurantsTable)
+      .values({ id: updatedRestaurant.id, data, cachedAt })
+      .onConflictDoUpdate({
+        target: restaurantsTable.id,
+        set: { data, cachedAt }
+      })
+      .execute()
+    await Promise.all([
+      deleteRedisPrefix('restaurants:'),
+      deleteRedisPrefix('restaurant:')
+    ])
+
+    syncLog.info('restaurant additional paths updated', {
+      restaurantId: updatedRestaurant.id,
+      vendor: updatedRestaurant.vendor,
+      restaurantName: updatedRestaurant.name,
+      additionalPathCount: normalizedPaths.length
+    })
+
+    return updatedRestaurant
   }
 
   async recordRestaurantSelection(restaurant: Restaurant): Promise<void> {
@@ -1477,8 +1620,12 @@ export class CafeteriaService {
         )
       : []
 
+    const additionalPathSettings = await this.readRestaurantAdditionalPathsSettings()
+    const fromWelstoryWithAdditionalPaths = fromWelstory.map((restaurant) =>
+      this.applyAdditionalPaths(restaurant, additionalPathSettings)
+    )
     const merged = this.sortRestaurantsByGlobalSelectionRecency(
-      this.mergeSearchResults(query, fromCache, fromWelstory),
+      this.mergeSearchResults(query, fromCache, fromWelstoryWithAdditionalPaths),
       selectionRecency
     )
     syncLog.info('restaurant search completed', {

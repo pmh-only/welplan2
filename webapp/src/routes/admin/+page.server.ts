@@ -1,4 +1,5 @@
 import { service, type CacheTableName, type NoticeSettings } from '$lib/server/service'
+import type { Restaurant, Vendor } from '$lib/types'
 import type { Actions, PageServerLoad } from './$types'
 
 const CACHE_TABLES: CacheTableName[] = [
@@ -26,6 +27,46 @@ function stringFormValue(formData: FormData, name: string): string {
   return typeof value === 'string' ? value : ''
 }
 
+function isVendor(value: unknown): value is Vendor {
+  return value === 'welstory' || value === 'shinsegae'
+}
+
+function restaurantFormValue(restaurant: Pick<Restaurant, 'id' | 'vendor'>): string {
+  return JSON.stringify({ vendor: restaurant.vendor, id: restaurant.id })
+}
+
+function parseRestaurantFormValue(value: string): Pick<Restaurant, 'id' | 'vendor'> | null {
+  try {
+    const parsed = JSON.parse(value) as { vendor?: unknown, id?: unknown }
+    if (!isVendor(parsed.vendor) || typeof parsed.id !== 'string' || parsed.id.length === 0) return null
+    return { vendor: parsed.vendor, id: parsed.id }
+  } catch {
+    return null
+  }
+}
+
+function parseAdditionalPathsText(value: string): string[][] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.split('/').map((part) => part.normalize('NFKC').trim()).filter(Boolean))
+    .filter((path) => path.length > 0)
+}
+
+function additionalPathsText(paths: string[][] | undefined): string {
+  return paths?.map((path) => path.join(' / ')).join('\n') ?? ''
+}
+
+function adminRestaurant(restaurant: Restaurant) {
+  return {
+    value: restaurantFormValue(restaurant),
+    id: restaurant.id,
+    name: restaurant.name,
+    vendor: restaurant.vendor,
+    path: restaurant.path ?? [],
+    additionalPaths: restaurant.additionalPaths ?? []
+  }
+}
+
 export const load: PageServerLoad = async ({ locals, url }) => {
   const table = cacheTableFromUrl(url)
   const page = numberParam(url, 'page', 1)
@@ -36,7 +77,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     status: await service.getCacheStatus(),
     cacheTables: CACHE_TABLES,
     cachePage: await service.getCachePage(table, page, pageSize),
-    notice: await service.getNoticeSettings()
+    notice: await service.getNoticeSettings(),
+    additionalPathRestaurants: (await service.getRestaurants())
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id, 'ko'))
+      .map(adminRestaurant)
   }
 }
 
@@ -70,6 +114,33 @@ export const actions: Actions = {
       notice: savedNotice,
       status: await service.getCacheStatus(),
       cachePage: await service.getCachePage('restaurants', 1, 20)
+    }
+  },
+  updateRestaurantAdditionalPaths: async ({ locals, request }) => {
+    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+
+    const formData = await request.formData()
+    const target = parseRestaurantFormValue(stringFormValue(formData, 'restaurant'))
+    if (!target) return { error: '식당을 선택해 주세요' }
+
+    try {
+      const paths = parseAdditionalPathsText(stringFormValue(formData, 'additionalPaths'))
+      const restaurant = await service.setRestaurantAdditionalPaths(target, paths)
+      return {
+        message: paths.length > 0 ? '추가 경로를 저장했습니다' : '추가 경로를 삭제했습니다',
+        restaurantAdditionalPaths: {
+          restaurant: restaurantFormValue(restaurant),
+          additionalPathsText: additionalPathsText(restaurant.additionalPaths)
+        },
+        status: await service.getCacheStatus(),
+        cachePage: await service.getCachePage('restaurants', 1, 20)
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : '추가 경로 저장에 실패했습니다',
+        status: await service.getCacheStatus(),
+        cachePage: await service.getCachePage('restaurants', 1, 20)
+      }
     }
   }
 }

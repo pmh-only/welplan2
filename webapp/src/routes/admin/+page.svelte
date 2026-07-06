@@ -16,6 +16,14 @@
       dataPreview: string
     }[]
   }
+  type AdminRestaurant = {
+    value: string
+    id: string
+    name: string
+    vendor: 'welstory' | 'shinsegae'
+    path: string[]
+    additionalPaths: string[][]
+  }
   type ActionData = {
     message?: string
     error?: string
@@ -23,6 +31,10 @@
     status?: CacheStatus
     cachePage?: CachePage
     notice?: NoticeSettings
+    restaurantAdditionalPaths?: {
+      restaurant: string
+      additionalPathsText: string
+    }
   }
   type NoticeSettings = {
     enabled: boolean
@@ -40,6 +52,7 @@
       cacheTables: string[]
       cachePage: CachePage
       notice: NoticeSettings
+      additionalPathRestaurants: AdminRestaurant[]
     }
     form?: ActionData
   } = $props()
@@ -52,6 +65,14 @@
   let imageInputElement: HTMLInputElement
   let noticeContentHtml = $state('')
   let appliedNoticeKey = $state('')
+  let selectedAdditionalPathRestaurant = $state(initialAdditionalPathRestaurant())
+  let additionalPathsText = $state('')
+  let appliedAdditionalPathKey = $state('')
+
+  const additionalPathRestaurant = $derived(
+    data.additionalPathRestaurants.find((restaurant) => restaurant.value === selectedAdditionalPathRestaurant) ??
+      data.additionalPathRestaurants[0]
+  )
 
   onMount(() => {
     syncNoticeEditor()
@@ -114,6 +135,34 @@
     updateEditorState()
   }
 
+  function initialAdditionalPathRestaurant(): string {
+    return form?.restaurantAdditionalPaths?.restaurant ??
+      data.additionalPathRestaurants.find((restaurant) => restaurant.additionalPaths.length > 0)?.value ??
+      data.additionalPathRestaurants[0]?.value ??
+      ''
+  }
+
+  function formatAdditionalPath(path: string[]): string {
+    return path.join(' / ')
+  }
+
+  function formatAdditionalPaths(paths: string[][]): string {
+    return paths.map(formatAdditionalPath).join('\n')
+  }
+
+  function formatBasePath(restaurant: AdminRestaurant | undefined): string {
+    return restaurant?.path.filter(Boolean).join(' / ') || '기본 경로 없음'
+  }
+
+  function syncAdditionalPathEditor(): void {
+    const nextKey = `${additionalPathRestaurant?.value ?? ''}:${JSON.stringify(additionalPathRestaurant?.additionalPaths ?? [])}:${form?.restaurantAdditionalPaths?.restaurant ?? ''}:${form?.restaurantAdditionalPaths?.additionalPathsText ?? ''}`
+    if (appliedAdditionalPathKey === nextKey) return
+    appliedAdditionalPathKey = nextKey
+    additionalPathsText = form?.restaurantAdditionalPaths?.restaurant === additionalPathRestaurant?.value
+      ? form.restaurantAdditionalPaths.additionalPathsText
+      : formatAdditionalPaths(additionalPathRestaurant?.additionalPaths ?? [])
+  }
+
   function tableLabel(table: string): string {
     switch (table) {
       case 'restaurants': return 'Restaurants'
@@ -135,6 +184,10 @@
   function formatCachedAt(value: number): string {
     return new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
   }
+
+  $effect(() => {
+    syncAdditionalPathEditor()
+  })
 </script>
 
 <svelte:head>
@@ -230,6 +283,62 @@
           <button type="submit" class="primary-button">공지 저장</button>
         </div>
       </form>
+    </section>
+
+    <section class="panel" aria-labelledby="additional-path-title">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Restaurant SEO</p>
+          <h2 id="additional-path-title">식당 추가 경로</h2>
+          <p class="panel-description">검색과 식당별 OG/meta 설명에 반영할 관리자 지정 경로를 추가합니다.</p>
+        </div>
+      </div>
+
+      {#if data.additionalPathRestaurants.length === 0}
+        <p class="empty-state">캐시된 식당이 없습니다. 식당 캐시를 먼저 적재해 주세요.</p>
+      {:else}
+        <form method="POST" action="?/updateRestaurantAdditionalPaths" class="additional-path-form">
+          <label class="field-row" for="additional-path-restaurant">
+            <span>식당</span>
+            <select id="additional-path-restaurant" name="restaurant" bind:value={selectedAdditionalPathRestaurant}>
+              {#each data.additionalPathRestaurants as restaurant}
+                <option value={restaurant.value}>{restaurant.name} · {restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'} · {restaurant.id}</option>
+              {/each}
+            </select>
+          </label>
+
+          <div class="path-summary">
+            <span>기본 경로</span>
+            <strong>{formatBasePath(additionalPathRestaurant)}</strong>
+          </div>
+
+          <label class="field-row" for="additional-paths-input">
+            <span>추가 경로</span>
+            <textarea
+              id="additional-paths-input"
+              name="additionalPaths"
+              rows="6"
+              bind:value={additionalPathsText}
+              placeholder={'수원사업장 / R5 / 임직원식당\n서초사옥 / 지하1층 / 카페테리아'}
+            ></textarea>
+          </label>
+          <span class="editor-help">한 줄에 하나의 경로를 입력하고, 경로 단계는 / 로 구분합니다. 비워서 저장하면 추가 경로가 삭제됩니다.</span>
+
+          {#if additionalPathRestaurant?.additionalPaths.length}
+            <div class="path-preview" aria-label="현재 저장된 추가 경로">
+              <span>현재 추가 경로</span>
+              {#each additionalPathRestaurant.additionalPaths as path}
+                <code>{formatAdditionalPath(path)}</code>
+              {/each}
+            </div>
+          {/if}
+
+          <div class="form-actions">
+            <span>검색어 매칭과 식당 상세 페이지 설명에 즉시 반영됩니다.</span>
+            <button type="submit" class="primary-button">추가 경로 저장</button>
+          </div>
+        </form>
+      {/if}
     </section>
 
     <section class="panel" aria-labelledby="cache-title">
@@ -509,7 +618,8 @@
     font-size: 13px;
   }
 
-  .notice-form {
+  .notice-form,
+  .additional-path-form {
     display: grid;
     gap: 14px;
   }
@@ -537,7 +647,8 @@
   }
 
   .field-row input,
-  .field-row textarea {
+  .field-row textarea,
+  .field-row select {
     width: 100%;
     border: 1px solid #cbd5e1;
     border-radius: 12px;
@@ -552,6 +663,11 @@
     padding: 0 12px;
   }
 
+  .field-row select {
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
   .field-row textarea {
     min-height: 140px;
     padding: 12px;
@@ -559,9 +675,38 @@
   }
 
   .field-row input:focus,
-  .field-row textarea:focus {
+  .field-row textarea:focus,
+  .field-row select:focus {
     border-color: #0f766e;
     outline: 3px solid rgba(15, 118, 110, 0.14);
+  }
+
+  .path-summary,
+  .path-preview {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .path-summary strong {
+    color: #0f172a;
+    font-size: 13px;
+  }
+
+  .path-preview code {
+    width: fit-content;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #ccfbf1;
+    color: #115e59;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
   }
 
   .editor-toolbar {

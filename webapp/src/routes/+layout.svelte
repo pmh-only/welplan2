@@ -22,7 +22,7 @@
     WEB_MCP_TOOLS
   } from '$lib/agent'
   import type { MealTime, Menu, Restaurant } from '$lib/types'
-  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate, proxyImg, restaurantPathTags } from '$lib/utils'
+  import { ALL_MEAL_TIME_ID, fallbackMealTime, formatKoreanDate, proxyImg, restaurantPathTags, restaurantPathTexts } from '$lib/utils'
 
   type RouteMeta = {
     title: string
@@ -209,13 +209,13 @@
   }
 
   function restaurantAdditionalProperties (restaurant: Restaurant): JsonLdValue[] | undefined {
-    const path = restaurant.path?.filter(Boolean)
-    if (!path || path.length === 0) return undefined
+    const paths = restaurantPathTexts(restaurant)
+    if (paths.length === 0) return undefined
 
-    return path.slice(0, 8).map((part, index) => ({
+    return paths.slice(0, 8).map((path, index) => ({
       '@type': 'PropertyValue',
       name: index === 0 ? '위치' : '위치 경로',
-      value: part
+      value: path
     }))
   }
 
@@ -864,13 +864,14 @@
       const restaurantKeywords = restaurant.vendor === 'welstory'
         ? ['웰스토리 식단 조회', '웰스토리 식단표', '삼성웰스토리 식단 조회', '웰스토리 메뉴 조회']
         : ['신세계푸드 식단 조회', '신세계푸드 메뉴 조회', '신세계푸드 식단표']
+      const pathKeywords = restaurantPathTexts(restaurant)
 
       return {
         ...baseMeta,
         title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표 조회 | Welplan`,
         ogTitle: `${restaurant.name} ${vendorLabel} 식단표 조회`,
         description: `${vendorLabel} ${restaurant.name} 식단표. 메뉴 사진과 영양정보를 한눈에.`,
-        keywords: mergeKeywords(restaurant.name, vendorLabel, ...restaurantKeywords, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS)
+        keywords: mergeKeywords(restaurant.name, vendorLabel, ...pathKeywords, ...restaurantKeywords, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS)
       }
     }
 

@@ -33,8 +33,34 @@ export function hasNutritionInfo(nutrition: NutritionInfo | undefined): boolean 
   return nutrition != null && NUTRITION_KEYS.some((key) => (nutrition[key] ?? 0) !== 0)
 }
 
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>()
+  const unique: string[] = []
+
+  for (const value of values) {
+    const normalized = value.normalize('NFKC').trim()
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    unique.push(normalized)
+  }
+
+  return unique
+}
+
+export function restaurantPathTexts(restaurant: Restaurant): string[] {
+  const paths = [restaurant.path, ...(restaurant.additionalPaths ?? [])]
+    .map((path) => path?.map((part) => part.trim()).filter(Boolean) ?? [])
+    .filter((path) => path.length > 0)
+    .map((path) => path.join(' / '))
+
+  return uniqueStrings(paths)
+}
+
 export function restaurantPathTags(restaurant: Restaurant): string {
-  return restaurant.path?.filter(Boolean).map((part) => `#${part}`).join(' ') ?? ''
+  const parts = [restaurant.path, ...(restaurant.additionalPaths ?? [])]
+    .flatMap((path) => path ?? [])
+
+  return uniqueStrings(parts).map((part) => `#${part}`).join(' ')
 }
 
 function pad(n: number): string {

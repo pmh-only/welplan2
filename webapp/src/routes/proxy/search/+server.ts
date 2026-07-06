@@ -23,7 +23,8 @@ function matchesQuery(restaurant: Restaurant, query: string): boolean {
     restaurant.id,
     restaurant.name,
     restaurant.vendor,
-    ...(restaurant.path ?? [])
+    ...(restaurant.path ?? []),
+    ...(restaurant.additionalPaths ?? []).flat()
   ].map((value) => value.toLowerCase().normalize('NFKC'))
 
   return values.some((value) => value.includes(normalizedQuery))
