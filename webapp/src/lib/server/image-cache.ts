@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
+import { welstoryFetch } from '@pmh-only/welplan2-welstory-plus'
 import { db, ensureDbInitialized } from './db/index.js'
 import { imageCache } from './db/schema.js'
 import { getRedisJson, setRedisJson } from './redis-cache.js'
@@ -77,7 +78,8 @@ export async function cacheRemoteImage(
   upstreamUrl: string,
   headers: HeadersInit,
   supportsWebP: boolean,
-  forceRefresh = false
+  forceRefresh = false,
+  fetcher: typeof fetch = fetch
 ): Promise<CachedImage | undefined> {
   if (!forceRefresh) {
     const memoryCached = getCachedImage(key)
@@ -87,7 +89,7 @@ export async function cacheRemoteImage(
     if (persisted) return persisted
   }
 
-  const res = await fetch(upstreamUrl, { headers })
+  const res = await fetcher(upstreamUrl, { headers })
   if (!res.ok) return undefined
 
   const body = await res.arrayBuffer()
@@ -127,7 +129,9 @@ export async function prewarmProxiedImage(url: string | undefined): Promise<bool
         Referer: 'https://welplus.welstory.com',
         'User-Agent': 'Mozilla/5.0'
       },
-      true
+      true,
+      false,
+      welstoryFetch
     )
     return Boolean(cached)
   }

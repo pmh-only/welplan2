@@ -1,4 +1,5 @@
 import { createLogger } from './log.js'
+import { welstoryFetch } from './proxy.js'
 
 export class WelstoryAuthError extends Error {
   constructor(
@@ -71,7 +72,7 @@ export class AuthManager {
     this.authLog.info('login started')
 
     try {
-      const response = await fetch(`${this.options.baseUrl}/login`, {
+      const response = await welstoryFetch(`${this.options.baseUrl}/login`, {
         method: 'POST',
         headers: {
           'User-Agent': 'Welplus',
@@ -129,7 +130,7 @@ export class AuthManager {
     this.authLog.info('session refresh started')
 
     try {
-      const response = await fetch(`${this.options.baseUrl}/session`, {
+      const response = await welstoryFetch(`${this.options.baseUrl}/session`, {
         headers: {
           'User-Agent': 'Welplus',
           'X-Device-Id': this.options.deviceId,

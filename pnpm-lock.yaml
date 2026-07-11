@@ -39,6 +39,9 @@ importers:
       '@pmh-only/welplan2-model':
         specifier: workspace:*
         version: link:../../model
+      undici:
+        specifier: ^8.7.0
+        version: 8.7.0
     devDependencies:
       '@types/node':
         specifier: ^25.3.5
@@ -1549,8 +1552,8 @@ packages:
     peerDependencies:
       svelte: ^5
 
-  '@maxim_mazurok/gapi.client.androidpublisher-v3@0.3.20260609':
-    resolution: {integrity: sha512-GCcTHt4/u4qliyRBbNasAw3vpLYKr+DgG/MaWywKzY2pLDEWJzDpkpFAroGkXRT5yFOGEh1oHVMQ3RC9yCDYlw==}
+  '@maxim_mazurok/gapi.client.androidpublisher-v3@0.4.20260706':
+    resolution: {integrity: sha512-s8lamOTlLYOOmP0XDzjbf49levLsnfUrLyLS4gSaomCUoJ0RwDwsoZIfae5XLThGPJb6QCFqXUrmqUK2o44+mA==}
 
   '@maxim_mazurok/gapi.client.discovery-v1@0.6.20200806':
     resolution: {integrity: sha512-QN6aGmIbLXcJW0SEf8tz9UWCpQTBMy2u4xSuZ04YofzMGknhWwMeUecySLntCZYAEstHzDoSgwxCf5Gb8GqIRQ==}
@@ -4316,6 +4319,10 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
+  undici@8.7.0:
+    resolution: {integrity: sha512-N7iQtfyLhIMOFgQubvmLV26svHpO0bqKnAiWotTQCVKCmWrcGbBotPuW1x+xwYZ2VHdSTVUfPQQnlEt1/LouTQ==}
+    engines: {node: '>=22.19.0'}
+
   unicode-canonical-property-names-ecmascript@2.0.1:
     resolution: {integrity: sha512-dA8WbNeb2a6oQzAQ55YlT5vQAWGV9WXOsi3SskE3bcCdM0P4SDd+24zS/OCacdRq5BkdsRj9q3Pg6YyQoxIGqg==}
     engines: {node: '>=4'}
@@ -5972,7 +5979,7 @@ snapshots:
     dependencies:
       svelte: 5.53.7
 
-  '@maxim_mazurok/gapi.client.androidpublisher-v3@0.3.20260609':
+  '@maxim_mazurok/gapi.client.androidpublisher-v3@0.4.20260706':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -6309,7 +6316,7 @@ snapshots:
 
   '@types/gapi.client.androidpublisher@3.0.2':
     dependencies:
-      '@maxim_mazurok/gapi.client.androidpublisher-v3': 0.3.20260609
+      '@maxim_mazurok/gapi.client.androidpublisher-v3': 0.4.20260706
 
   '@types/gapi.client.discovery-v1@0.0.4':
     dependencies:
@@ -9000,6 +9007,8 @@ snapshots:
       which-boxed-primitive: 1.1.1
 
   undici-types@7.18.2: {}
+
+  undici@8.7.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 

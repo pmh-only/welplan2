@@ -30,7 +30,8 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@pmh-only/welplan2-model": "workspace:*"
+    "@pmh-only/welplan2-model": "workspace:*",
+    "undici": "^8.7.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

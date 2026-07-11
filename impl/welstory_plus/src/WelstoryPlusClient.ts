@@ -8,6 +8,7 @@ import type {
 } from '@pmh-only/welplan2-model'
 import { AuthManager, WelstoryAuthError } from './AuthManager.js'
 import { createLogger } from './log.js'
+import { welstoryFetch } from './proxy.js'
 import type {
   WpApiResponse,
   WpDish,
@@ -133,7 +134,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
             requestBodyBytes
           })
 
-          const response = await fetch(`${this.baseUrl}${path}`, {
+          const response = await welstoryFetch(`${this.baseUrl}${path}`, {
             ...init,
             headers: buildHeaders(token)
           })
