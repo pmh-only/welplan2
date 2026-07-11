@@ -10,6 +10,7 @@ const MAX_OPTIMIZED_IMAGE_DIMENSION = 1280
 
 type CachedImage = { data: ArrayBuffer; contentType: string }
 type PersistedCachedImage = { data: string; contentType: string }
+type ImageFetcher = (url: string | URL, init?: RequestInit) => Promise<Response>
 
 const cache = new Map<string, CachedImage>()
 
@@ -79,7 +80,7 @@ export async function cacheRemoteImage(
   headers: HeadersInit,
   supportsWebP: boolean,
   forceRefresh = false,
-  fetcher: typeof fetch = fetch
+  fetcher: ImageFetcher = fetch
 ): Promise<CachedImage | undefined> {
   if (!forceRefresh) {
     const memoryCached = getCachedImage(key)

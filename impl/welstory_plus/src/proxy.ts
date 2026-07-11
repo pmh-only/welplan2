@@ -184,10 +184,10 @@ function isNetworkFailure(error: unknown): boolean {
   return error.name === 'TypeError' || ['ECONNRESET', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT'].includes(code ?? '')
 }
 
-export async function welstoryFetch(url: string | URL, init: RequestInit = {}): Promise<Response> {
+export async function welstoryFetch(input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1] = {}): Promise<Response> {
   await ensureProxiesLoaded()
 
-  if (proxies.length === 0) return fetch(url, init)
+  if (proxies.length === 0) return fetch(input, init)
 
   const maxAttempts = Math.min(
     proxies.length,
@@ -205,7 +205,7 @@ export async function welstoryFetch(url: string | URL, init: RequestInit = {}): 
         attempt,
         maxAttempts
       })
-      const response = await fetch(url, {
+      const response = await fetch(input, {
         ...(init as FetchInit),
         dispatcher: proxy.agent
       } as FetchInit)
