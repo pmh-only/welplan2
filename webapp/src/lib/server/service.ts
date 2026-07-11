@@ -21,6 +21,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const DEFAULT_RESTAURANT_SEARCH_CACHE_TTL_MS = 10 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
 const RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY = 'restaurantAdditionalPaths'
 const MAX_ADDITIONAL_PATHS = 20
@@ -28,6 +29,7 @@ const MAX_ADDITIONAL_PATH_PARTS = 12
 const MAX_ADDITIONAL_PATH_PART_LENGTH = 80
 const redisKeys = {
   restaurants: 'restaurants:all',
+  restaurantSearch: (query: string) => `restaurant-search:${encodeURIComponent(query)}`,
   restaurant: (id: string) => `restaurant:${id}`,
   mealTimes: (restaurantId: string) => `meal-times:${restaurantId}`,
   menus: (key: string) => `menus:${key}`,
@@ -382,6 +384,11 @@ export class CafeteriaService {
     return Number.isFinite(ttl) && ttl >= 0 ? ttl : DEFAULT_MENU_CACHE_TTL_MS
   }
 
+  private restaurantSearchCacheTtlMs(): number {
+    const ttl = Number(process.env.RESTAURANT_SEARCH_CACHE_TTL_MS)
+    return Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_RESTAURANT_SEARCH_CACHE_TTL_MS
+  }
+
   private isFreshCache(cachedAt: number): boolean {
     return this.now() - cachedAt < this.menuCacheTtlMs()
   }
@@ -502,6 +509,7 @@ export class CafeteriaService {
       })
       await Promise.all([
         deleteRedisPrefix('restaurants:'),
+        deleteRedisPrefix('restaurant-search:'),
         deleteRedisPrefix('restaurant:')
       ])
       await this.readRestaurants()
@@ -1454,6 +1462,7 @@ export class CafeteriaService {
     await db.delete(imageCache).execute()
     await Promise.all([
       deleteRedisPrefix('restaurants:'),
+      deleteRedisPrefix('restaurant-search:'),
       deleteRedisPrefix('restaurant:'),
       deleteRedisPrefix('meal-times:'),
       deleteRedisPrefix('menus:'),
@@ -1503,7 +1512,8 @@ export class CafeteriaService {
 
     await Promise.all([
       setRedisJson(redisKeys.restaurant(mergedRestaurant.id), mergedRestaurant),
-      setRedisJson(redisKeys.restaurants, [...(await this.readRestaurants()).filter((r) => r.id !== mergedRestaurant.id), mergedRestaurant])
+      setRedisJson(redisKeys.restaurants, [...(await this.readRestaurants()).filter((r) => r.id !== mergedRestaurant.id), mergedRestaurant]),
+      deleteRedisPrefix('restaurant-search:')
     ])
 
     syncLog.info('registered restaurant', {
@@ -1551,6 +1561,7 @@ export class CafeteriaService {
       .execute()
     await Promise.all([
       deleteRedisPrefix('restaurants:'),
+      deleteRedisPrefix('restaurant-search:'),
       deleteRedisPrefix('restaurant:')
     ])
 
@@ -1576,6 +1587,7 @@ export class CafeteriaService {
         set: { selectedAt }
       })
       .execute()
+    await deleteRedisPrefix('restaurant-search:')
 
     syncLog.info('recorded restaurant selection', {
       restaurantId: restaurant.id,
@@ -1587,13 +1599,25 @@ export class CafeteriaService {
 
   async searchRestaurants(query: string): Promise<Restaurant[]> {
     await this.ensureCache()
+    const normalizedQuery = this.normalizeSearchText(query)
+    const searchCacheKey = normalizedQuery ? redisKeys.restaurantSearch(normalizedQuery) : null
+    const cachedSearch = searchCacheKey ? await getRedisJson<RedisCacheEntry<Restaurant[]>>(searchCacheKey) : null
+    if (cachedSearch) {
+      syncLog.info('restaurant search cache hit', {
+        query,
+        cachedAt: cachedSearch.cachedAt,
+        resultCount: cachedSearch.data.length
+      })
+      return cachedSearch.data
+    }
+
     const selectionRecency = await this.readRestaurantSelectionRecency()
     const fromCache = (await this.readRestaurants()).filter(
       (restaurant) => !this.isClosedRestaurant(restaurant)
     )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
-    if (!query.trim()) {
+    if (!normalizedQuery) {
       return this.sortRestaurantsByGlobalSelectionRecency(fromCache, selectionRecency)
     }
 
@@ -1634,6 +1658,9 @@ export class CafeteriaService {
       vendorMatchCount: fromWelstory.length,
       mergedCount: merged.length
     })
+    if (searchCacheKey) {
+      await setRedisJson(searchCacheKey, { data: merged, cachedAt: this.now() }, this.restaurantSearchCacheTtlMs())
+    }
     return merged
   }
 }
