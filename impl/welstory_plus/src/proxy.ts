@@ -1,4 +1,5 @@
-import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from 'undici'
+import { Readable } from 'node:stream'
+import { request as undiciRequest, ProxyAgent } from 'undici'
 import { createLogger } from './log.js'
 
 type WebshareProxy = {
@@ -19,8 +20,6 @@ type ProxyEntry = {
   agent: ProxyAgent
   unavailableUntil: number
 }
-
-type FetchInit = RequestInit & { dispatcher?: Dispatcher }
 
 const proxyLog = createLogger('proxy')
 const DEFAULT_PROXY_COOLDOWN_MS = 10 * 60 * 1000
@@ -184,9 +183,37 @@ function isNetworkFailure(error: unknown): boolean {
   return error.name === 'TypeError' || ['ECONNRESET', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT'].includes(code ?? '')
 }
 
+function appendHeaders(headers: Headers, values: Record<string, string | string[] | undefined>): void {
+  for (const [name, value] of Object.entries(values)) {
+    if (Array.isArray(value)) {
+      for (const entry of value) headers.append(name, entry)
+    } else if (value !== undefined) {
+      headers.append(name, value)
+    }
+  }
+}
+
+async function proxyFetch(input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1], proxy: ProxyEntry): Promise<Response> {
+  const request = input instanceof Request ? input : null
+  const requestInput = request ? request.url : input as string | URL
+  const response = await undiciRequest(requestInput, {
+    method: init?.method ?? request?.method,
+    headers: init?.headers ?? request?.headers,
+    body: init?.body as undefined,
+    dispatcher: proxy.agent,
+    signal: init?.signal ?? request?.signal
+  } as unknown as Parameters<typeof undiciRequest>[1])
+  const headers = new Headers()
+  appendHeaders(headers, response.headers)
+
+  return new Response(Readable.toWeb(response.body) as unknown as BodyInit, {
+    status: response.statusCode,
+    headers
+  })
+}
+
 export async function welstoryFetch(input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1] = {}): Promise<Response> {
   await ensureProxiesLoaded()
-  const requestInput = input instanceof Request ? input.url : input
 
   if (proxies.length === 0) return fetch(input, init)
 
@@ -206,10 +233,7 @@ export async function welstoryFetch(input: Parameters<typeof fetch>[0], init: Pa
         attempt,
         maxAttempts
       })
-      const response = await undiciFetch(requestInput, {
-        ...(init as FetchInit),
-        dispatcher: proxy.agent
-      } as unknown as Parameters<typeof undiciFetch>[1])
+      const response = await proxyFetch(input, init, proxy)
 
       if (isBlockedResponse(response) && attempt < maxAttempts) {
         markProxyBlocked(proxy, `HTTP ${response.status}`)
@@ -217,7 +241,7 @@ export async function welstoryFetch(input: Parameters<typeof fetch>[0], init: Pa
         continue
       }
 
-      return response as unknown as Response
+      return response
     } catch (error) {
       lastError = error
       if (isNetworkFailure(error) && attempt < maxAttempts) {
