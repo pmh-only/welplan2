@@ -500,11 +500,11 @@ export class CafeteriaService {
             .execute()
         }
       })
-      const restaurants = toInsert.map((row) => JSON.parse(row.data) as Restaurant)
       await Promise.all([
-        setRedisJson(redisKeys.restaurants, restaurants),
-        ...restaurants.map((restaurant) => setRedisJson(redisKeys.restaurant(restaurant.id), restaurant))
+        deleteRedisPrefix('restaurants:'),
+        deleteRedisPrefix('restaurant:')
       ])
+      await this.readRestaurants()
     }
 
     this.cacheLoaded = true
