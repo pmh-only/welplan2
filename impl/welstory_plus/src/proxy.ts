@@ -75,7 +75,7 @@ function createProxyEntries(urls: string[]): ProxyEntry[] {
     return {
       id: proxyId(uri),
       uri,
-      agent: new ProxyAgent(uri),
+      agent: new ProxyAgent({ uri, proxyTunnel: true }),
       unavailableUntil: 0
     }
   })
