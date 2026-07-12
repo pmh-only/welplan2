@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process'
 
 let shuttingDown = false
+let exitTimer = null
+let shutdownStatus = 0
 
 const children = [
   ['webapp', 'node', ['/app/webapp/build/index.js']],
@@ -13,11 +15,12 @@ const children = [
   })
 
   child.on('exit', (code, signal) => {
-    if (shuttingDown) return
-    shuttingDown = true
-    const status = code ?? (signal ? 1 : 0)
-    stopAll(signal ?? 'SIGTERM')
-    process.exitCode = status
+    if (!shuttingDown) {
+      shuttingDown = true
+      shutdownStatus = code ?? (signal ? 1 : 0)
+      stopAll(signal ?? 'SIGTERM')
+    }
+    exitAfterChildren()
   })
 
   return { name, child }
@@ -29,10 +32,21 @@ function stopAll(signal = 'SIGTERM') {
   }
 }
 
+function exitAfterChildren() {
+  exitTimer ??= setTimeout(() => process.exit(shutdownStatus), 5000)
+  for (const { child } of children) {
+    if (child.exitCode === null && child.signalCode === null) return
+  }
+  if (exitTimer) clearTimeout(exitTimer)
+  process.exit(shutdownStatus)
+}
+
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     if (shuttingDown) return
     shuttingDown = true
+    shutdownStatus = 0
     stopAll(signal)
+    exitAfterChildren()
   })
 }
