@@ -3,10 +3,11 @@ import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-route
 import {
   buildRestaurantPageDescription,
   loadGalleryMenusForRestaurantDate,
-  mealTimesForRestaurant
+  mealTimesForRestaurant,
+  refreshGalleryMenusForRestaurantDate
 } from '$lib/server/menu-page'
 import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
-import { createService } from '$lib/server/service'
+import { createService, service as cachedService } from '$lib/server/service'
 import type { PageServerLoad } from './$types'
 
 export const prerender = false
@@ -46,20 +47,29 @@ export const load: PageServerLoad = async ({ params, parent, request, url }) => 
 
   const mealTimes = mealTimesForRestaurant(
     restaurant,
-    await menuService.getMealTimes(restaurant.id).catch(() => [])
+    await cachedService.getMealTimes(restaurant.id).catch(() => [])
   )
-  const { menus, mealTimeMenus } = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, params.date, {
-    enrichNutrientDetails: restaurants.some((selected) => selected.id === restaurant.id),
-    service: menuService
+  const enrichNutrientDetails = restaurants.some((selected) => selected.id === restaurant.id)
+  const cachedGallery = await loadGalleryMenusForRestaurantDate(restaurant, mealTimes, params.date, {
+    enrichNutrientDetails
   })
+  const refreshedGallery = refreshGalleryMenusForRestaurantDate(
+    restaurant,
+    mealTimes,
+    params.date,
+    { enrichNutrientDetails, service: menuService }
+  )
+    .catch(() => cachedGallery)
+  const galleryData = cachedGallery.menus.length > 0 ? cachedGallery : refreshedGallery
   const vendorLabel = restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'
 
   return {
     restaurant,
     restaurants: [restaurant],
-    mealTimes,
-    mealTimeMenus,
-    menus,
+    mealTimes: cachedGallery.mealTimes ?? mealTimes,
+    mealTimeMenus: cachedGallery.mealTimeMenus,
+    menus: cachedGallery.menus,
+    galleryData,
     date: params.date,
     routeMode: 'dated' as const,
     canonicalPath,

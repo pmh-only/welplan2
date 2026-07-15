@@ -28,6 +28,7 @@
     routeMode: 'plural' | 'dated'
     canonicalPath: string
     detailPath?: string
+    loading?: boolean
   }
 
   type GallerySection = {
@@ -323,7 +324,14 @@
     </div>
   </section>
 
-  {#if menuKind === 'takeout'}
+  {#if data.loading}
+    <section class="gallery-panel" aria-label={`${data.restaurant.name} 메뉴 불러오는 중`}>
+      <div class="loading-state" role="status">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <p>메뉴를 불러오는 중입니다.</p>
+      </div>
+    </section>
+  {:else if menuKind === 'takeout'}
     <section class="gallery-panel table-panel" aria-label={`${data.restaurant.name} ${menuKindLabel} 메뉴 표`}>
       <div class="section-head">
         <div class="section-head-left">
@@ -995,6 +1003,30 @@
     color: var(--text-dim);
     font-size: 13px;
     font-style: italic;
+  }
+
+  .loading-state {
+    display: flex;
+    min-height: 180px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: gallery-loading-spin 0.8s linear infinite;
+  }
+
+  @keyframes gallery-loading-spin {
+    to { transform: rotate(360deg); }
   }
 
   .cta-panel {

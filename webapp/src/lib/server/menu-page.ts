@@ -24,8 +24,11 @@ export type GalleryRouteData = {
 export type RestaurantGalleryDateData = {
   menus: Menu[]
   date: string
+  mealTimes: MealTime[]
   mealTimeMenus: GalleryMealTimeResult[]
 }
+
+const restaurantGalleryRefreshes = new Map<string, Promise<RestaurantGalleryDateData>>()
 
 type GalleryMealTimeResult = MealTime & {
   menuCount: number
@@ -229,8 +232,44 @@ export async function computeGalleryMenusForRestaurantDate(
   return {
     menus: mealTimeResults.flatMap((result) => result.menus),
     date,
+    mealTimes: targetMealTimes,
     mealTimeMenus: mealTimeResults.map((result) => result.mealTime)
   }
+}
+
+export function refreshGalleryMenusForRestaurantDate(
+  restaurant: Restaurant,
+  mealTimes: MealTime[],
+  date: string,
+  options: { enrichNutrientDetails?: boolean; service?: CafeteriaService } = {}
+): Promise<RestaurantGalleryDateData> {
+  const enrichNutrientDetails = options.enrichNutrientDetails !== false
+  const key = `${restaurant.vendor}:${restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails)}`
+  const existing = restaurantGalleryRefreshes.get(key)
+  if (existing) return existing
+
+  const cafeteriaService = options.service ?? service
+  const refresh = cafeteriaService.getMealTimes(restaurant.id)
+    .catch(() => mealTimes)
+    .then((refreshedMealTimes) => computeGalleryMenusForRestaurantDate(
+      restaurant,
+      mealTimesForRestaurant(restaurant, refreshedMealTimes),
+      date,
+      options
+    ))
+    .then(async (data) => {
+      await cafeteriaService.setPrecomputedPage(
+        restaurantGalleryDateCacheKey(restaurant, date, enrichNutrientDetails),
+        data
+      ).catch(() => undefined)
+      return data
+    })
+  restaurantGalleryRefreshes.set(key, refresh)
+  const clear = () => {
+    if (restaurantGalleryRefreshes.get(key) === refresh) restaurantGalleryRefreshes.delete(key)
+  }
+  refresh.then(clear, clear).catch(() => undefined)
+  return refresh
 }
 
 async function enrichGalleryMenus(

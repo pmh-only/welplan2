@@ -5,4 +5,8 @@
   let { data }: { data: PageData } = $props()
 </script>
 
-<RestaurantGalleryPage {data} />
+{#await data.galleryData}
+  <RestaurantGalleryPage data={{ ...data, menus: [], mealTimeMenus: [], loading: true }} />
+{:then galleryData}
+  <RestaurantGalleryPage data={{ ...data, ...galleryData }} />
+{/await}
