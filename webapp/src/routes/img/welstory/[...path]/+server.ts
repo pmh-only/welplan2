@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types'
+import { welstoryFetch } from '@pmh-only/welplan2-welstory-plus'
 import { cacheRemoteImage } from '$lib/server/image-cache'
 
 export const GET: RequestHandler = async ({ params, request, url }) => {
@@ -16,7 +17,8 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
         'User-Agent': 'Mozilla/5.0'
       },
       supportsWebP,
-      forceRefresh
+      forceRefresh,
+      welstoryFetch
     )
     if (!cached) return new Response(null, { status: 502 })
 
