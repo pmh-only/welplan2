@@ -233,7 +233,10 @@ export class WelstoryPlusClient implements CafeteriaClient {
       `/api/meal?menuDt=${date}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
     )
     const wrapper = unwrap<WpMealListWrapper>(raw)
-    const dishes: WpDish[] = wrapper.mealList ?? []
+    if (wrapper === null || typeof wrapper !== 'object' || !Array.isArray(wrapper.mealList)) {
+      throw new WelstoryPlusError('Invalid menu response')
+    }
+    const dishes: WpDish[] = wrapper.mealList
     const menus = groupDishesToMenus(dishes, restaurant.id)
 
     return menus

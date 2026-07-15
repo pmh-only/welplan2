@@ -21,6 +21,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
 const DEFAULT_MENU_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const DEFAULT_EMPTY_MENU_CACHE_TTL_MS = 10 * 60 * 1000
 const DEFAULT_RESTAURANT_SEARCH_CACHE_TTL_MS = 10 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
 const RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY = 'restaurantAdditionalPaths'
@@ -384,13 +385,23 @@ export class CafeteriaService {
     return Number.isFinite(ttl) && ttl >= 0 ? ttl : DEFAULT_MENU_CACHE_TTL_MS
   }
 
+  private emptyMenuCacheTtlMs(): number {
+    const ttl = Number(process.env.EMPTY_MENU_CACHE_TTL_MS)
+    return Number.isFinite(ttl) && ttl >= 0 ? ttl : DEFAULT_EMPTY_MENU_CACHE_TTL_MS
+  }
+
+  private menuCacheTtlMsFor(menus: Menu[], vendor: Vendor): number {
+    if (menus.length > 0) return this.menuCacheTtlMs()
+    return vendor === 'welstory' ? this.emptyMenuCacheTtlMs() : 0
+  }
+
   private restaurantSearchCacheTtlMs(): number {
     const ttl = Number(process.env.RESTAURANT_SEARCH_CACHE_TTL_MS)
     return Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_RESTAURANT_SEARCH_CACHE_TTL_MS
   }
 
-  private isFreshCache(cachedAt: number): boolean {
-    return this.now() - cachedAt < this.menuCacheTtlMs()
+  private isFreshCache(cachedAt: number, ttlMs = this.menuCacheTtlMs()): boolean {
+    return this.now() - cachedAt < ttlMs
   }
 
   private async notifyMenuDataUpdated(event: MenuDataUpdatedEvent): Promise<void> {
@@ -411,6 +422,23 @@ export class CafeteriaService {
 
   private menuCacheKey(restaurantId: string, date: string, mealTimeId: string): string {
     return `${restaurantId}:${date}:${mealTimeId}`
+  }
+
+  private isCachedMenuArray(value: unknown): value is Menu[] {
+    return Array.isArray(value) && value.every((menu) => {
+      if (menu === null || typeof menu !== 'object') return false
+      const candidate = menu as Partial<Menu>
+      return (
+        typeof candidate.id === 'string' &&
+        typeof candidate.name === 'string' &&
+        typeof candidate.date === 'string' &&
+        typeof candidate.mealTimeId === 'string' &&
+        typeof candidate.restaurantId === 'string' &&
+        (candidate.vendor === 'welstory' || candidate.vendor === 'shinsegae') &&
+        Array.isArray(candidate.components) &&
+        typeof candidate.isTakeOut === 'boolean'
+      )
+    })
   }
 
   private parseMenuCacheKey(key: string): { restaurantId: string; date: string; mealTimeId: string } | null {
@@ -789,8 +817,12 @@ export class CafeteriaService {
     const restaurant = await this.resolveRestaurant(restaurantId)
     const key = this.menuCacheKey(restaurantId, date, mealTimeId)
     const redisCached = await getRedisJson<RedisCacheEntry<Menu[]>>(redisKeys.menus(key))
-    if (redisCached && this.isFreshCache(redisCached.cachedAt)) {
-      const normalized = this.normalizeMenus(redisCached.data)
+    const redisMenus = redisCached && this.isCachedMenuArray(redisCached.data) ? redisCached.data : null
+    if (redisCached && !redisMenus) {
+      syncLog.warn('invalid menu redis cache ignored', { restaurantId, date, mealTimeId })
+    }
+    if (redisCached && redisMenus && this.isFreshCache(redisCached.cachedAt, this.menuCacheTtlMsFor(redisMenus, restaurant.vendor))) {
+      const normalized = this.normalizeMenus(redisMenus)
       syncLog.info('menu redis cache hit', {
         restaurantId,
         date,
@@ -801,8 +833,8 @@ export class CafeteriaService {
       return normalized.menus
     }
 
-    if (redisCached && !this.allowRemoteFetch) {
-      const normalized = this.normalizeMenus(redisCached.data)
+    if (redisCached && redisMenus && !this.allowRemoteFetch) {
+      const normalized = this.normalizeMenus(redisMenus)
       syncLog.info('menu redis cache returned in read-only mode', {
         restaurantId,
         date,
@@ -813,19 +845,22 @@ export class CafeteriaService {
     }
 
     const cached = await this.readOne(db.select().from(menusCache).where(eq(menusCache.key, key)))
+    let cachedMenus: Menu[] | null = null
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached.data) as unknown
+        if (this.isCachedMenuArray(parsed)) cachedMenus = parsed
+        else syncLog.warn('invalid menu cache ignored', { restaurantId, date, mealTimeId })
+      } catch {
+        syncLog.warn('invalid menu cache ignored', { restaurantId, date, mealTimeId })
+      }
+    }
 
-    if (cached && this.isFreshCache(cached.cachedAt)) {
-      const menus = JSON.parse(cached.data) as Menu[]
-      if (menus.length === 0) {
-        await db.delete(menusCache).where(eq(menusCache.key, key)).execute()
-        syncLog.info('empty menu cache ignored', {
-          restaurantId,
-          date,
-          mealTimeId
-        })
-      } else {
-        const normalized = this.normalizeMenus(menus)
-        await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt }, this.menuCacheTtlMs() - (this.now() - cached.cachedAt))
+    if (cached && cachedMenus) {
+      const cacheTtlMs = this.menuCacheTtlMsFor(cachedMenus, restaurant.vendor)
+      if (this.isFreshCache(cached.cachedAt, cacheTtlMs)) {
+        const normalized = this.normalizeMenus(cachedMenus)
+        await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt }, cacheTtlMs - (this.now() - cached.cachedAt))
         syncLog.info('menu cache hit', {
           restaurantId,
           date,
@@ -837,9 +872,8 @@ export class CafeteriaService {
       }
     }
 
-    if (cached && !this.allowRemoteFetch) {
-      const menus = JSON.parse(cached.data) as Menu[]
-      const normalized = this.normalizeMenus(menus)
+    if (cached && cachedMenus && !this.allowRemoteFetch) {
+      const normalized = this.normalizeMenus(cachedMenus)
       await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt })
       syncLog.info('menu cache returned in read-only mode', {
         restaurantId,
@@ -850,13 +884,13 @@ export class CafeteriaService {
       return normalized.menus
     }
 
-    if (cached) {
+    if (cached && cachedMenus) {
       syncLog.info('menu cache stale', {
         restaurantId,
         date,
         mealTimeId,
         cachedAgeMs: this.now() - cached.cachedAt,
-        cacheTtlMs: this.menuCacheTtlMs()
+        cacheTtlMs: this.menuCacheTtlMsFor(cachedMenus, restaurant.vendor)
       })
     }
 
@@ -871,7 +905,9 @@ export class CafeteriaService {
         await this.getClient(restaurant.vendor).getMenus(restaurant, date, mealTimeId)
       )
 
-      if (menus.length > 0) {
+      const cacheTtlMs = this.menuCacheTtlMsFor(menus, restaurant.vendor)
+      const shouldCache = menus.length > 0 || restaurant.vendor === 'welstory'
+      if (shouldCache) {
         const now = this.now()
         const data = JSON.stringify(menus)
         const dataChanged = cached?.data !== data
@@ -883,19 +919,20 @@ export class CafeteriaService {
             set: { data, cachedAt: now }
           })
           .execute()
-        await setRedisJson(redisKeys.menus(key), { data: menus, cachedAt: now }, this.menuCacheTtlMs())
-        if (dataChanged) {
+        await setRedisJson(redisKeys.menus(key), { data: menus, cachedAt: now }, cacheTtlMs)
+        if (dataChanged && (menus.length > 0 || (cachedMenus?.length ?? 0) > 0)) {
           await this.notifyMenuDataUpdated({ kind: 'menus', restaurant, date, mealTimeId })
         }
       }
 
-      syncLog.info(menus.length > 0 ? 'menus cached' : 'menus not cached because empty', {
+      syncLog.info(shouldCache ? 'menus cached' : 'menus not cached because empty', {
         restaurantId,
         vendor: restaurant.vendor,
         date,
         mealTimeId,
         menuCount: menus.length,
-        takeOutAdjustments
+        takeOutAdjustments,
+        cacheTtlMs
       })
       return menus
     } catch (error) {
@@ -906,8 +943,8 @@ export class CafeteriaService {
         mealTimeId,
         error
       })
-      if (redisCached) {
-        const normalized = this.normalizeMenus(redisCached.data)
+      if (redisCached && redisMenus) {
+        const normalized = this.normalizeMenus(redisMenus)
         syncLog.info('stale menu redis cache returned after fetch failure', {
           restaurantId,
           date,
@@ -916,9 +953,8 @@ export class CafeteriaService {
         })
         return normalized.menus
       }
-      if (cached) {
-        const menus = JSON.parse(cached.data) as Menu[]
-        const normalized = this.normalizeMenus(menus)
+      if (cached && cachedMenus) {
+        const normalized = this.normalizeMenus(cachedMenus)
         await setRedisJson(redisKeys.menus(key), { data: normalized.menus, cachedAt: cached.cachedAt })
         syncLog.info('stale menu cache returned after fetch failure', {
           restaurantId,
