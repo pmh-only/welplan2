@@ -131,6 +131,9 @@
   const selectedDate = $derived((data as typeof data & { date: string }).date)
   const selectedTime = $derived((data as typeof data & { time: string }).time)
   const isAllMealTime = $derived(selectedTime === ALL_MEAL_TIME_ID)
+  const expansionContext = $derived(
+    `${selectedDate}:${selectedTime}:${data.restaurants.map((restaurant) => restaurant.id).join(',')}`
+  )
 
   function liveRefreshUrl(): string {
     return `/api/menu/live?${new URLSearchParams({ kind: 'gallery', date: selectedDate, time: selectedTime })}`
@@ -161,9 +164,11 @@
   }
 
   $effect(() => {
-    const _date = selectedDate
-    const _time = selectedTime
-    expandedMealTimeIds = isAllMealTime ? defaultExpandedMealTimeIds() : []
+    const _context = expansionContext
+    const expandDefault = isAllMealTime
+    untrack(() => {
+      expandedMealTimeIds = expandDefault ? defaultExpandedMealTimeIds() : []
+    })
   })
 
   afterNavigate(() => {

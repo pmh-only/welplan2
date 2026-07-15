@@ -437,6 +437,7 @@
       mobileKcalOnly={kind === 'takein'}
       sortKey={menuSortKey()}
       sortDirection={menuSortDirection()}
+      expansionContextKey={kind === 'takein' ? selectedTakeInRestaurantId : selectedTakeoutRestaurantId}
       {imageRefreshKey}
     />
   </div>

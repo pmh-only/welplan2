@@ -22,7 +22,8 @@
     mobileKcalOnly = false,
     sortKey = null,
     sortDirection = 'asc',
-    imageRefreshKey = ''
+    imageRefreshKey = '',
+    expansionContextKey = ''
   }: {
     menus: Menu[]
     restaurants: Restaurant[]
@@ -39,6 +40,7 @@
     sortKey?: SortKey | null
     sortDirection?: 'asc' | 'desc'
     imageRefreshKey?: string
+    expansionContextKey?: string
   } = $props()
 
   let expandedMenuId = $state<string | null>(null)
@@ -135,7 +137,17 @@
     showSelectionDetail = false
     selectionFloatDismissed = false
     selectedMenuQuantities = {}
-    expandedMealTimeIds = groupByMealTime ? defaultExpandedMealTimeIds() : []
+  })
+
+  const expansionContext = $derived(
+    `${date}:${time}:${groupByMealTime ? 'grouped' : 'flat'}:${restaurants.map((restaurant) => restaurant.id).join(',')}:${expansionContextKey}`
+  )
+
+  $effect(() => {
+    const _context = expansionContext
+    untrack(() => {
+      expandedMealTimeIds = groupByMealTime ? defaultExpandedMealTimeIds() : []
+    })
   })
 
   function restaurantName (id: string): string {
