@@ -58,7 +58,10 @@ def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: System.getenv(
 
 android {
     compileSdkVersion 36
-    namespace "codes.pmh.welplan.twa"
+    namespace = "codes.pmh.welplan.twa"
+    buildFeatures {
+        resValues = true
+    }
     defaultConfig {
         applicationId "codes.pmh.welplan.twa"
         minSdkVersion 21
@@ -167,8 +170,10 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
             minifyEnabled true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     compileOptions {
@@ -176,7 +181,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     lintOptions {
-        checkReleaseBuilds false
+        checkReleaseBuilds = false
     }
 }
 
