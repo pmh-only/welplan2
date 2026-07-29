@@ -61,8 +61,10 @@ const createSchemaSql = `
     key TEXT PRIMARY KEY,
     data TEXT NOT NULL,
     content_type TEXT NOT NULL,
-    cached_at BIGINT NOT NULL
+    cached_at BIGINT NOT NULL,
+    photo_date TEXT
   );
+  ALTER TABLE image_cache ADD COLUMN IF NOT EXISTS photo_date TEXT;
   DROP TABLE IF EXISTS user_selected_restaurants;
   CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,

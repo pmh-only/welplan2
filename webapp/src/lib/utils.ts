@@ -1,4 +1,5 @@
 import type { MealTime, NutritionInfo, Restaurant } from './types.js'
+import { isPhotoOlderThanRetention } from './image-retention.js'
 
 export const ALL_MEAL_TIME_ID = 'all'
 
@@ -118,6 +119,7 @@ export function autoSelectMealTime(times: MealTime[]): string | null {
 
 export function proxyImg(url: string | undefined, refreshKey = '', photoDate?: string): string | undefined {
   if (!url) return undefined
+  if (photoDate && isPhotoOlderThanRetention(photoDate)) return url
   const search = new URLSearchParams()
   if (refreshKey) search.set('v', refreshKey)
   if (photoDate) search.set('date', photoDate)

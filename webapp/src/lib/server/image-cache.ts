@@ -1,9 +1,9 @@
 import sharp from 'sharp'
-import { eq, lt } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { welstoryFetch } from '@pmh-only/welplan2-welstory-plus'
 import { db, ensureDbInitialized } from './db/index.js'
 import { imageCache } from './db/schema.js'
-import { IMAGE_RETENTION_MS, isPhotoOlderThanRetention } from './image-retention.js'
+import { IMAGE_RETENTION_MS, isPhotoOlderThanRetention } from '../image-retention.js'
 import { deleteRedisPrefix, getRedisJson, setRedisJson } from './redis-cache.js'
 
 const MAX_ENTRIES = 300
@@ -50,7 +50,8 @@ async function getPersistedCachedImage(key: string): Promise<CachedImage | undef
 async function setPersistedCachedImage(
   key: string,
   data: ArrayBuffer,
-  contentType: string
+  contentType: string,
+  photoDate?: string
 ): Promise<void> {
   await ensureDbInitialized()
   const serialized = Buffer.from(data).toString('base64')
@@ -60,19 +61,34 @@ async function setPersistedCachedImage(
       key,
       data: serialized,
       contentType,
-      cachedAt: Date.now()
+      cachedAt: Date.now(),
+      photoDate
     })
     .onConflictDoUpdate({
       target: imageCache.key,
       set: {
         data: serialized,
         contentType,
-        cachedAt: Date.now()
+        cachedAt: Date.now(),
+        photoDate
       }
     })
     .execute()
   await setRedisJson(`image:${key}`, { data: serialized, contentType })
   setCachedImage(key, data, contentType)
+}
+
+async function deletePersistedCachedImage(key: string): Promise<void> {
+  await ensureDbInitialized()
+  const deleted = await db
+    .delete(imageCache)
+    .where(eq(imageCache.key, key))
+    .returning({ key: imageCache.key })
+    .execute()
+  if (deleted.length === 0) return
+
+  cache.delete(key)
+  await deleteRedisPrefix(`image:${key}`)
 }
 
 export async function cacheRemoteImage(
@@ -85,6 +101,8 @@ export async function cacheRemoteImage(
   photoDate?: string
 ): Promise<CachedImage | undefined> {
   const shouldPersist = !isPhotoOlderThanRetention(photoDate ?? '') && !isPhotoOlderThanRetention(key)
+
+  if (!shouldPersist) await deletePersistedCachedImage(key)
 
   if (!forceRefresh && shouldPersist) {
     const memoryCached = getCachedImage(key)
@@ -114,19 +132,33 @@ export async function cacheRemoteImage(
       webpBuffer.byteOffset,
       webpBuffer.byteOffset + webpBuffer.byteLength
     ) as ArrayBuffer
-    if (shouldPersist) await setPersistedCachedImage(key, webpData, 'image/webp')
+    if (shouldPersist) await setPersistedCachedImage(key, webpData, 'image/webp', photoDate)
     return { data: webpData, contentType: 'image/webp' }
   }
 
-  if (shouldPersist) await setPersistedCachedImage(key, body, contentType)
+  if (shouldPersist) await setPersistedCachedImage(key, body, contentType, photoDate)
   return { data: body, contentType }
 }
 
 export async function deleteExpiredImages(now = Date.now()): Promise<number> {
   await ensureDbInitialized()
+  const rows = await db
+    .select({ key: imageCache.key, cachedAt: imageCache.cachedAt, photoDate: imageCache.photoDate })
+    .from(imageCache)
+    .execute()
+  const expiredKeys = rows
+    .filter((row) =>
+      row.photoDate
+        ? isPhotoOlderThanRetention(row.photoDate, now)
+        : isPhotoOlderThanRetention(row.key, now) || row.cachedAt <= now - IMAGE_RETENTION_MS
+    )
+    .map((row) => row.key)
+
+  if (expiredKeys.length === 0) return 0
+
   const deleted = await db
     .delete(imageCache)
-    .where(lt(imageCache.cachedAt, now - IMAGE_RETENTION_MS))
+    .where(inArray(imageCache.key, expiredKeys))
     .returning({ key: imageCache.key })
     .execute()
 

@@ -45,7 +45,8 @@ export const imageCache = pgTable('image_cache', {
   key: text('key').primaryKey(),
   data: text('data').notNull(), // base64 image bytes
   contentType: text('content_type').notNull(),
-  cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
+  cachedAt: bigint('cached_at', { mode: 'number' }).notNull(),
+  photoDate: text('photo_date')
 })
 
 export const appSettings = pgTable('app_settings', {
