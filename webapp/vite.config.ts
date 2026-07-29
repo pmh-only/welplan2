@@ -3,6 +3,9 @@ import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  ssr: {
+    external: ['@pmh-only/welplan2-welstory-plus']
+  },
   plugins: [
     sveltekit(),
     SvelteKitPWA({
