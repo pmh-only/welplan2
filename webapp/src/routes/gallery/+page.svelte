@@ -82,7 +82,7 @@
   }
 
   function hasMenuImage (menu: Menu): boolean {
-    return Boolean(proxyImg(menu.imageUrl, imageRefreshKey))
+    return Boolean(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))
   }
 
   function isImageAvailable (src: string | undefined): src is string {
@@ -90,7 +90,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl, imageRefreshKey)
+    const src = proxyImg(menu.imageUrl, imageRefreshKey, menu.date)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -275,7 +275,7 @@
 
 <svelte:head>
   {#each (data.menus as Menu[]).filter((m) => m.imageUrl && !m.isTakeOut).slice(0, 1) as menu}
-    <link rel="preload" as="image" href={proxyImg(menu.imageUrl, imageRefreshKey)} fetchpriority="high" />
+    <link rel="preload" as="image" href={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)} fetchpriority="high" />
   {/each}
 </svelte:head>
 
@@ -355,8 +355,8 @@
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
-                      {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                        <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
+                      {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
+                        <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                         <span class="zoom-indicator" aria-hidden="true">
                           <ZoomIn class="zoom-indicator-icon" />
                         </span>
@@ -397,8 +397,8 @@
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
-                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
-                  <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
+                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
+                  <LiveImage fill imageClass="gallery-img" src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                   <span class="zoom-indicator" aria-hidden="true">
                     <ZoomIn class="zoom-indicator-icon" />
                   </span>
@@ -450,10 +450,10 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey))}
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date))}
           <div class="lightbox-image-frame">
-            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)!} alt={zoomedMenu.name} onerror={markImageBroken} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
               더 크게 보기
             </a>
           </div>

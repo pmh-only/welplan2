@@ -1,9 +1,10 @@
 import sharp from 'sharp'
-import { eq } from 'drizzle-orm'
+import { eq, lt } from 'drizzle-orm'
 import { welstoryFetch } from '@pmh-only/welplan2-welstory-plus'
 import { db, ensureDbInitialized } from './db/index.js'
 import { imageCache } from './db/schema.js'
-import { getRedisJson, setRedisJson } from './redis-cache.js'
+import { IMAGE_RETENTION_MS, isPhotoOlderThanRetention } from './image-retention.js'
+import { deleteRedisPrefix, getRedisJson, setRedisJson } from './redis-cache.js'
 
 const MAX_ENTRIES = 300
 const MAX_OPTIMIZED_IMAGE_DIMENSION = 1280
@@ -80,9 +81,12 @@ export async function cacheRemoteImage(
   headers: HeadersInit,
   supportsWebP: boolean,
   forceRefresh = false,
-  fetcher: ImageFetcher = fetch
+  fetcher: ImageFetcher = fetch,
+  photoDate?: string
 ): Promise<CachedImage | undefined> {
-  if (!forceRefresh) {
+  const shouldPersist = !isPhotoOlderThanRetention(photoDate ?? '') && !isPhotoOlderThanRetention(key)
+
+  if (!forceRefresh && shouldPersist) {
     const memoryCached = getCachedImage(key)
     if (memoryCached) return memoryCached
 
@@ -110,15 +114,30 @@ export async function cacheRemoteImage(
       webpBuffer.byteOffset,
       webpBuffer.byteOffset + webpBuffer.byteLength
     ) as ArrayBuffer
-    await setPersistedCachedImage(key, webpData, 'image/webp')
+    if (shouldPersist) await setPersistedCachedImage(key, webpData, 'image/webp')
     return { data: webpData, contentType: 'image/webp' }
   }
 
-  await setPersistedCachedImage(key, body, contentType)
+  if (shouldPersist) await setPersistedCachedImage(key, body, contentType)
   return { data: body, contentType }
 }
 
-export async function prewarmProxiedImage(url: string | undefined): Promise<boolean> {
+export async function deleteExpiredImages(now = Date.now()): Promise<number> {
+  await ensureDbInitialized()
+  const deleted = await db
+    .delete(imageCache)
+    .where(lt(imageCache.cachedAt, now - IMAGE_RETENTION_MS))
+    .returning({ key: imageCache.key })
+    .execute()
+
+  if (deleted.length > 0) {
+    cache.clear()
+    await deleteRedisPrefix('image:')
+  }
+  return deleted.length
+}
+
+export async function prewarmProxiedImage(url: string | undefined, photoDate?: string): Promise<boolean> {
   if (!url) return false
 
   if (url.includes('samsungwelstory.com')) {
@@ -132,7 +151,8 @@ export async function prewarmProxiedImage(url: string | undefined): Promise<bool
       },
       true,
       false,
-      welstoryFetch
+      welstoryFetch,
+      photoDate
     )
     return Boolean(cached)
   }
@@ -143,7 +163,10 @@ export async function prewarmProxiedImage(url: string | undefined): Promise<bool
       `planeat:${path}:webp`,
       `https://m.planeatchoice.net/${path}`,
       { 'User-Agent': 'Mozilla/5.0' },
-      true
+      true,
+      false,
+      fetch,
+      photoDate
     )
     return Boolean(cached)
   }

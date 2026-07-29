@@ -18,7 +18,8 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
       },
       supportsWebP,
       forceRefresh,
-      welstoryFetch
+      welstoryFetch,
+      url.searchParams.get('date') ?? undefined
     )
     if (!cached) return new Response(null, { status: 502 })
 

@@ -13,7 +13,9 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
       upstreamUrl,
       { 'User-Agent': 'Mozilla/5.0' },
       supportsWebP,
-      forceRefresh
+      forceRefresh,
+      fetch,
+      url.searchParams.get('date') ?? undefined
     )
     if (!cached) return new Response(null, { status: 502 })
 

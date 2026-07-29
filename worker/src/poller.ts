@@ -7,13 +7,14 @@ import {
   galleryRouteCacheKey,
   restaurantGalleryDateCacheKey
 } from '../../webapp/src/lib/server/menu-page.js'
-import { prewarmProxiedImage } from '../../webapp/src/lib/server/image-cache.js'
+import { deleteExpiredImages, prewarmProxiedImage } from '../../webapp/src/lib/server/image-cache.js'
 import { menuScanDates, scanRestaurantMealInfo } from './menu-availability.js'
 import { DEFAULT_RESTAURANTS } from './defaults.js'
 import { todayStr } from './utils.js'
 
 const ACTIVE_PREFETCH_INTERVAL_MS = 6 * 60 * 60 * 1000
 const FULL_SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000
+const IMAGE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 const ACTIVE_PREFETCH_DAYS = 2
 const ALL_MEAL_TIME_ID = 'all'
 const syncLog = createServerLogger('sync')
@@ -57,7 +58,7 @@ async function prefetchMenuDetails(service: CafeteriaService, menu: Menu): Promi
 async function prewarmMenuImages(menus: Menu[]): Promise<number> {
   let prewarmed = 0
   for (const menu of menus) {
-    if (await prewarmProxiedImage(menu.imageUrl).catch(() => false)) prewarmed++
+    if (await prewarmProxiedImage(menu.imageUrl, menu.date).catch(() => false)) prewarmed++
     await yield_()
   }
   return prewarmed
@@ -266,6 +267,16 @@ export function startPoller(
       syncLog.error('full prefetch failed', { error })
     })
   }, fullIntervalMs))
+
+  const cleanUpImages = () => {
+    deleteExpiredImages().then((deleted) => {
+      syncLog.info('expired image cleanup completed', { deleted })
+    }).catch((error) => {
+      syncLog.error('expired image cleanup failed', { error })
+    })
+  }
+  cleanUpImages()
+  timers.push(setInterval(cleanUpImages, IMAGE_CLEANUP_INTERVAL_MS))
 
   syncLog.info('poller started', {
     activePrefetchDays,

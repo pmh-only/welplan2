@@ -117,7 +117,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl)
+    const src = proxyImg(menu.imageUrl, '', menu.date)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -271,7 +271,7 @@
 <svelte:head>
   {#each galleryMenus.slice(0, 1) as menu}
     {#if menu.imageUrl}
-      <link rel="preload" as="image" href={proxyImg(menu.imageUrl)} fetchpriority="high" />
+      <link rel="preload" as="image" href={proxyImg(menu.imageUrl, '', menu.date)} fetchpriority="high" />
     {/if}
   {/each}
 </svelte:head>
@@ -376,8 +376,8 @@
               {#each section.menus as menu, index (`${section.mealTime.id}:${menu.id}`)}
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
-                    {#if isImageAvailable(proxyImg(menu.imageUrl))}
-                      <LiveImage fill src={proxyImg(menu.imageUrl)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
+                    {#if isImageAvailable(proxyImg(menu.imageUrl, '', menu.date))}
+                      <LiveImage fill src={proxyImg(menu.imageUrl, '', menu.date)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                       <span class="zoom-indicator" aria-hidden="true">
                         <ZoomIn class="zoom-indicator-icon" />
                       </span>
@@ -457,10 +457,10 @@
       onkeydown={(event) => event.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl))}
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date))}
           <div class="lightbox-image-frame">
-            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl)!} alt={zoomedMenu.name} onerror={markImageBroken} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
+            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
               더 크게 보기
             </a>
           </div>

@@ -114,7 +114,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl, imageRefreshKey)
+    const src = proxyImg(menu.imageUrl, imageRefreshKey, menu.date)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -463,11 +463,11 @@
             {/if}
             {#if hasAnyImage}
               <td class="col-img" data-label="이미지">
-                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey))}
+                {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
                   <button type="button" class="thumb-btn" onclick={(e) => openMenuLightbox(menu, e)} aria-label={`${menu.name} 이미지 확대`}>
-                    <LiveImage imageClass="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey)!} alt={menu.name} loading="lazy" onerror={markImageBroken} />
+                    <LiveImage imageClass="thumb thumb-clickable" src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading="lazy" onerror={markImageBroken} />
                   </button>
-                {:else if proxyImg(menu.imageUrl, imageRefreshKey)}
+                {:else if proxyImg(menu.imageUrl, imageRefreshKey, menu.date)}
                   <span class="thumb thumb-placeholder" aria-label="이미지 준비중"></span>
                 {/if}
               </td>

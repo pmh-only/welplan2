@@ -158,7 +158,7 @@
   }
 
   function menuImageUrl (menu: Menu, origin: string): string | undefined {
-    return absoluteUrl(proxyImg(menu.imageUrl), origin)
+    return absoluteUrl(proxyImg(menu.imageUrl, '', menu.date), origin)
   }
 
   function firstMenuImageUrl (menus: Menu[] | undefined, origin: string): string | undefined {

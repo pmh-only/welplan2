@@ -116,9 +116,12 @@ export function autoSelectMealTime(times: MealTime[]): string | null {
   return times[0].id
 }
 
-export function proxyImg(url: string | undefined, refreshKey = ''): string | undefined {
+export function proxyImg(url: string | undefined, refreshKey = '', photoDate?: string): string | undefined {
   if (!url) return undefined
-  const suffix = refreshKey ? `?v=${encodeURIComponent(refreshKey)}` : ''
+  const search = new URLSearchParams()
+  if (refreshKey) search.set('v', refreshKey)
+  if (photoDate) search.set('date', photoDate)
+  const suffix = search.size > 0 ? `?${search}` : ''
   if (url.includes('samsungwelstory.com')) {
     return `${url.replace('http://samsungwelstory.com/', '/img/welstory/')}${suffix}`
   }
