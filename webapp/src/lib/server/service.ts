@@ -1291,6 +1291,18 @@ export class CafeteriaService {
     return Number.isFinite(count) ? count : 0
   }
 
+  async assertCacheReadable(): Promise<void> {
+    await ensureDbInitialized()
+    await db.execute(sql`
+      select 1
+      from ${restaurantsTable}
+      where ${restaurantsTable.id} = ''
+        or ${restaurantsTable.data} = ''
+        or ${restaurantsTable.cachedAt} = -1
+      limit 1
+    `)
+  }
+
   async getCacheStatus(): Promise<Record<string, number | boolean>> {
     return {
       restaurantsLoaded: this.cacheLoaded,
