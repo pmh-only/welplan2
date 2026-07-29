@@ -21,6 +21,7 @@
     "../webapp/src/lib/server/indexnow.ts",
     "../webapp/src/lib/server/menu-page.ts",
     "../webapp/src/lib/server/image-cache.ts",
+    "../webapp/src/lib/server/image-retention.ts",
     "../webapp/src/lib/server/redis-cache.ts",
     "../webapp/src/lib/server/db/index.ts",
     "../webapp/src/lib/server/db/schema.ts",
