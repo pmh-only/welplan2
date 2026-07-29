@@ -123,7 +123,7 @@ export function proxyImg(url: string | undefined, refreshKey = '', photoDate?: s
   if (photoDate) search.set('date', photoDate)
   const suffix = search.size > 0 ? `?${search}` : ''
   if (url.includes('samsungwelstory.com')) {
-    return `${url.replace('http://samsungwelstory.com/', '/img/welstory/')}${suffix}`
+    return `${url.replace(/^https?:\/\/samsungwelstory\.com\//, '/img/welstory/')}${suffix}`
   }
   if (url.includes('planeatchoice.net')) {
     return `${url.replace(/https?:\/\/[^/]*planeatchoice\.net\//, '/img/planeat/')}${suffix}`

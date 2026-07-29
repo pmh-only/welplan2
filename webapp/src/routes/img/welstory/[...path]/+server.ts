@@ -6,7 +6,6 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
   const upstreamUrl = `http://samsungwelstory.com/${params.path}`
   const supportsWebP = request.headers.get('Accept')?.includes('image/webp') ?? false
   const cacheKey = `welstory:${params.path}:${supportsWebP ? 'webp' : 'orig'}`
-  const forceRefresh = url.searchParams.has('v')
 
   try {
     const cached = await cacheRemoteImage(
@@ -17,7 +16,7 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
         'User-Agent': 'Mozilla/5.0'
       },
       supportsWebP,
-      forceRefresh,
+      false,
       welstoryFetch,
       url.searchParams.get('date') ?? undefined
     )
@@ -27,7 +26,7 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
       status: 200,
       headers: {
         'Content-Type': cached.contentType,
-        'Cache-Control': forceRefresh ? 'no-store' : 'public, max-age=31536000, immutable',
+        'Cache-Control': 'public, max-age=31536000, immutable',
         Vary: 'Accept'
       }
     })
