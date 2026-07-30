@@ -13,7 +13,7 @@
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { Camera, Check, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
+  import { Camera, Check, Megaphone, Package, Search, Send, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -81,6 +81,7 @@
     '칼로리 및 영양정보 조회',
     '테이크인·테이크아웃 메뉴 분류',
     'RSS 메뉴 피드',
+    '협업 도구 메뉴 웹훅',
     'OpenAPI 및 Markdown 메뉴 응답'
   ]
   const SITE_NAVIGATION_LINKS = [
@@ -88,6 +89,7 @@
     { path: '/takein', name: '테이크 인 메뉴' },
     { path: '/takeout', name: '테이크 아웃 메뉴' },
     { path: '/restaurants', name: '식당 선택' },
+    { path: '/webhooks', name: '메뉴 웹훅' },
     { path: '/docs/api', name: 'API 문서' },
     { path: '/notice', name: '공지사항' }
   ]
@@ -286,6 +288,7 @@
     if (segment === 'docs') return '문서'
     if (segment === 'api') return 'API'
     if (segment === 'notice') return '공지사항'
+    if (segment === 'webhooks') return '메뉴 웹훅'
     if (segment === 'privacy') return '개인정보 처리방침'
     if (segment === 'data-deletion') return '데이터 삭제 요청'
     if (/^\d{8}$/.test(segment)) return formatKoreanDate(segment)
@@ -821,6 +824,17 @@
         ogTitle: 'Welplan 공지사항',
         description: 'Welplan 서비스 공지사항과 업데이트 안내입니다.',
         keywords: mergeKeywords('Welplan 공지사항', '웰플랜 공지', DEFAULT_KEYWORDS)
+      }
+    }
+
+    if (pathname.startsWith('/webhooks')) {
+      return {
+        ...baseMeta,
+        title: '메뉴 웹훅 | Slack·Discord·Teams 메뉴 알림 | Welplan',
+        ogTitle: 'Welplan 팀 채널 메뉴 알림',
+        description: 'Slack, Discord, Google Chat, Microsoft Teams 등 팀 채널로 원하는 식당의 메뉴를 예약 전송합니다.',
+        robots: NOINDEX_ROBOTS,
+        keywords: mergeKeywords('구내식당 메뉴 알림', 'Slack 메뉴 웹훅', 'Discord 메뉴 봇', DEFAULT_KEYWORDS)
       }
     }
 
@@ -1417,6 +1431,18 @@
     </div>
   {/if}
 
+  {#if !hideGlobalNav && !page.url.pathname.startsWith('/webhooks')}
+    <a
+      class="webhook-shortcut"
+      href="/webhooks"
+      aria-label="메뉴 알림 웹훅 설정"
+      onclick={() => trackEvent('Webhook Shortcut Clicked', { source: 'floating_button' })}
+    >
+      <Send class="webhook-shortcut-icon" aria-hidden="true" />
+      <span>메뉴 알림</span>
+    </a>
+  {/if}
+
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage || hideGlobalNav} aria-busy={showLoading}>
     {@render children()}
 
@@ -1994,6 +2020,42 @@
     border-radius: 2px;
   }
 
+  .webhook-shortcut {
+    position: fixed;
+    top: 64px;
+    right: 0;
+    z-index: 125;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 8px 11px;
+    border: 1px solid #047857;
+    border-right: 0;
+    border-radius: 999px 0 0 999px;
+    color: #fff;
+    background: #059669;
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.32);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  }
+
+  .webhook-shortcut:hover {
+    transform: translateX(-3px);
+    border-color: #065f46;
+    background: #047857;
+    box-shadow: 0 10px 28px rgba(5, 150, 105, 0.42);
+  }
+
+  :global(.webhook-shortcut-icon) {
+    width: 14px;
+    height: 14px;
+  }
+
   @media (display-mode: window-controls-overlay) {
     header {
       min-height: max(52px, env(titlebar-area-height, 52px));
@@ -2059,6 +2121,7 @@
     .route-progress-bar-primary { width: 58%; }
     .route-progress-bar-secondary { display: none; }
     .content { transition: none; }
+    .webhook-shortcut { transition: none; }
   }
 
   @media (max-width: 640px) {
@@ -2150,6 +2213,10 @@
       gap: 2px;
     }
     .header-nav::-webkit-scrollbar { display: none; }
+    .webhook-shortcut {
+      top: 54px;
+      right: 0;
+    }
     .tab-btn {
       flex: 1 0 64px;
       flex-direction: column;

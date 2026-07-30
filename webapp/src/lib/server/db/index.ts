@@ -71,6 +71,49 @@ const createSchemaSql = `
     data TEXT NOT NULL,
     updated_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS webhook_subscriptions (
+    id TEXT PRIMARY KEY,
+    manage_token_hash TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL,
+    data TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  );
+  UPDATE webhook_subscriptions SET enabled = TRUE WHERE enabled = FALSE;
+  CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    key TEXT PRIMARY KEY,
+    subscription_id TEXT NOT NULL REFERENCES webhook_subscriptions(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    schedule_id TEXT NOT NULL DEFAULT 'legacy',
+    schedule_date TEXT NOT NULL,
+    menu_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts BIGINT NOT NULL,
+    completed_parts BIGINT NOT NULL DEFAULT 0,
+    claim_token TEXT,
+    payload_hash TEXT,
+    next_attempt_at BIGINT,
+    claimed_at BIGINT,
+    response_status BIGINT,
+    error TEXT,
+    sent_at BIGINT,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  );
+  ALTER TABLE webhook_deliveries ADD COLUMN IF NOT EXISTS schedule_id TEXT NOT NULL DEFAULT 'legacy';
+  ALTER TABLE webhook_deliveries ADD COLUMN IF NOT EXISTS completed_parts BIGINT NOT NULL DEFAULT 0;
+  ALTER TABLE webhook_deliveries ADD COLUMN IF NOT EXISTS claim_token TEXT;
+  ALTER TABLE webhook_deliveries ADD COLUMN IF NOT EXISTS payload_hash TEXT;
+  CREATE INDEX IF NOT EXISTS webhook_subscriptions_enabled_idx
+    ON webhook_subscriptions(enabled);
+  CREATE INDEX IF NOT EXISTS webhook_deliveries_subscription_idx
+    ON webhook_deliveries(subscription_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS webhook_registration_limits (
+    address_hash TEXT PRIMARY KEY,
+    window_started_at BIGINT NOT NULL,
+    attempts BIGINT NOT NULL
+  );
 `
 
 let initialized: Promise<void> | null = null

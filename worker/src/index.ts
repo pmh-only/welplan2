@@ -3,6 +3,7 @@ import { createServerLogger } from '../../webapp/src/lib/server/log.js'
 import { createService } from '../../webapp/src/lib/server/service.js'
 import { createIndexNowSubmitter } from './indexnow.js'
 import { startPoller } from './poller.js'
+import { startWebhookScheduler } from './webhook-scheduler.js'
 
 const logger = createServerLogger('worker')
 const indexNow = createIndexNowSubmitter()
@@ -12,6 +13,7 @@ const service = createService({
   onMenuDataUpdated: (event) => indexNow.notifyMenuDataUpdated(event)
 })
 const poller = startPoller(service)
+const webhookScheduler = startWebhookScheduler(service)
 
 let shuttingDown = false
 
@@ -20,9 +22,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
   shuttingDown = true
   logger.info('received shutdown signal', { signal })
   poller.stop()
-  await indexNow.flush().catch((error) => {
-    logger.warn('indexnow flush during shutdown failed', { error })
-  })
+  await Promise.all([
+    webhookScheduler.stop().catch((error) => {
+      logger.warn('webhook scheduler shutdown failed', { error })
+    }),
+    indexNow.flush().catch((error) => {
+      logger.warn('indexnow flush during shutdown failed', { error })
+    })
+  ])
   process.exit(0)
 }
 

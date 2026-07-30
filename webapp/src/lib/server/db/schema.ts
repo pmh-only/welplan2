@@ -1,4 +1,4 @@
-import { bigint, pgTable, text } from 'drizzle-orm/pg-core'
+import { bigint, boolean, pgTable, text } from 'drizzle-orm/pg-core'
 
 export const restaurants = pgTable('restaurants', {
   id: text('id').primaryKey(),
@@ -53,4 +53,43 @@ export const appSettings = pgTable('app_settings', {
   key: text('key').primaryKey(),
   data: text('data').notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+})
+
+export const webhookSubscriptions = pgTable('webhook_subscriptions', {
+  id: text('id').primaryKey(),
+  manageTokenHash: text('manage_token_hash').notNull(),
+  platform: text('platform').notNull(),
+  enabled: boolean('enabled').notNull(),
+  data: text('data').notNull(), // JSON: WebhookSubscriptionConfig
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+})
+
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+  key: text('key').primaryKey(),
+  subscriptionId: text('subscription_id')
+    .notNull()
+    .references(() => webhookSubscriptions.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),
+  scheduleId: text('schedule_id').notNull().default('legacy'),
+  scheduleDate: text('schedule_date').notNull(),
+  menuDate: text('menu_date').notNull(),
+  status: text('status').notNull(),
+  attempts: bigint('attempts', { mode: 'number' }).notNull(),
+  completedParts: bigint('completed_parts', { mode: 'number' }).notNull().default(0),
+  claimToken: text('claim_token'),
+  payloadHash: text('payload_hash'),
+  nextAttemptAt: bigint('next_attempt_at', { mode: 'number' }),
+  claimedAt: bigint('claimed_at', { mode: 'number' }),
+  responseStatus: bigint('response_status', { mode: 'number' }),
+  error: text('error'),
+  sentAt: bigint('sent_at', { mode: 'number' }),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+})
+
+export const webhookRegistrationLimits = pgTable('webhook_registration_limits', {
+  addressHash: text('address_hash').primaryKey(),
+  windowStartedAt: bigint('window_started_at', { mode: 'number' }).notNull(),
+  attempts: bigint('attempts', { mode: 'number' }).notNull()
 })

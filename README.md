@@ -23,6 +23,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 - Displays calories and detailed nutrition in the web UI.
 - Caches restaurants, meal times, menus, and menu details in PostgreSQL.
 - Uses a dedicated worker for periodic cache prefetching. The web app reads from PostgreSQL cache only.
+- Sends take-in breakfast, lunch, and dinner menus either together or at independently configured times to Discord, Slack, Google Chat, Microsoft Teams, Mattermost, Dooray!, Swit, and JANDI.
 - Builds and publishes a Docker image to GHCR.
 - Publishes client packages to the GitHub Packages npm registry.
 
@@ -67,15 +68,22 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `PGPASSWORD`                   | No                       | none           | PostgreSQL password (used when `DATABASE_URL` is not set).                                                         |
 | `HOST`                         | No                       | `0.0.0.0`      | Host used by the production Node server.                                                                           |
 | `PORT`                         | No                       | `3000`         | Port used by the production Node server.                                                                           |
-| `ORIGIN`                       | Recommended behind proxy | request origin | Public origin, e.g. `https://welplan.pmh.codes`, used by SvelteKit CSRF checks and absolute URLs.                  |
+| `ORIGIN`                       | Required for webhooks      | request origin | Public origin, e.g. `https://welplan.pmh.codes`, used by SvelteKit CSRF checks, menu links, and webhook management links. |
 | `HOST_HEADER`                  | No                       | none           | Header adapter-node should trust for host, e.g. `x-forwarded-host`, when using a reverse proxy.                    |
 | `PROTOCOL_HEADER`              | No                       | none           | Header adapter-node should trust for protocol, e.g. `x-forwarded-proto`, when using a reverse proxy.               |
+| `ADDRESS_HEADER`               | Behind a trusted proxy   | none           | Header containing the original client IP, usually `x-forwarded-for`; required for per-client webhook registration limits behind a proxy. |
+| `XFF_DEPTH`                    | With `ADDRESS_HEADER`    | none           | Number of trusted proxy hops used to select the client address from `X-Forwarded-For`.                             |
 | `ADMIN_OIDC_RESPONSE_MODE`     | No                       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks.        |
+| `SLACK_CLIENT_ID`              | For Slack OAuth          | none           | Client ID of the Welplan Slack OAuth app with the `incoming-webhook` scope.                                        |
+| `SLACK_CLIENT_SECRET`          | For Slack OAuth          | none           | Client secret used only by the server for `oauth.v2.access`.                                                       |
+| `SLACK_OAUTH_REDIRECT_URI`     | No                       | request origin | Slack OAuth redirect URI; defaults to `<origin>/webhooks/slack/callback` and must match the Slack app configuration. |
 | `TWA_PACKAGE_NAME`             | For Android TWA          | none           | Android package name allowed to claim this web origin through Digital Asset Links.                                 |
 | `TWA_SHA256_CERT_FINGERPRINTS` | For Android TWA          | none           | Comma or whitespace separated SHA-256 signing certificate fingerprints served from `/.well-known/assetlinks.json`. |
 | `INDEXNOW_KEY`                 | No                       | none           | Public IndexNow key. When configured, the web app serves `/{INDEXNOW_KEY}.txt` and the worker can submit updates.  |
 | `INDEXNOW_ORIGIN`              | No                       | `ORIGIN`       | Public site origin used by worker IndexNow submissions, e.g. `https://welplan.pmh.codes`.                          |
 | `INDEXNOW_ENDPOINT`            | No                       | IndexNow API   | IndexNow submission endpoint. Defaults to `https://api.indexnow.org/indexnow`.                                     |
+| `WEBHOOK_ALLOW_HTTP`           | No                       | off            | Allow non-HTTPS webhook URLs. Intended only for trusted local development.                                         |
+| `WEBHOOK_ALLOW_PRIVATE_NETWORKS` | No                     | off            | Allow webhook delivery to private or loopback IP addresses. Intended for trusted self-hosted deployments.          |
 
 ### Worker Environment Variables
 
@@ -85,6 +93,9 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `WORKER_FULL_SCAN_INTERVAL_MS`       | No       | `21600000` | Poll interval for full cache scan across all cached restaurants. |
 | `WORKER_ACTIVE_PREFETCH_DAYS`        | No       | `2`        | Days from today for active prefetch.                             |
 | `INDEXNOW_DEBOUNCE_MS`               | No       | `5000`     | Delay used to batch worker IndexNow submissions after menu data changes. |
+| `WEBHOOK_SCHEDULER_INTERVAL_MS`       | No       | `30000`    | How often the worker checks for due menu webhook subscriptions.       |
+| `WEBHOOK_SCHEDULER_DISABLED`          | No       | off        | Disable scheduled webhook delivery without deleting subscriptions.    |
+| `WEBHOOK_REQUEST_TIMEOUT_MS`          | No       | `15000`    | Wall-clock timeout for each outbound webhook request.                  |
 
 PlanEAT Choice requests do not currently require credentials.
 
@@ -159,6 +170,8 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/takein`: redirect to the current take-in menu.
 - `/takeout`: redirect to the current take-out menu.
 - `/restaurants`: manage the restaurant list stored in the `welplan_restaurants` cookie.
+- `/webhooks`: create a scheduled menu webhook.
+- `/webhooks/{internal_id}`: edit, test, or delete a webhook through its capability URL included in every delivered message. New webhooks send a test immediately and are always active.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
 - `/.well-known/assetlinks.json`: Android Digital Asset Links for Trusted Web Activity verification when TWA env vars are configured.
