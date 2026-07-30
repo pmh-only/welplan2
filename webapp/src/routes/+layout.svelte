@@ -66,7 +66,7 @@
   const NOINDEX_ROBOTS = 'noindex, follow'
   const SITE_NAME = 'Welplan'
   const SITE_ALTERNATE_NAMES = ['웰플랜']
-  const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
+  const SITE_DESCRIPTION = '웰스토리·신세계푸드와 공식 관계가 없는 독립 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const CONTACT_EMAIL = 'pmh_only@pmh.codes'
   const MAX_JSON_LD_MENUS = 80
@@ -289,6 +289,7 @@
     if (segment === 'api') return 'API'
     if (segment === 'notice') return '공지사항'
     if (segment === 'webhooks') return '메뉴 웹훅'
+    if (segment === 'terms') return '서비스 이용약관'
     if (segment === 'privacy') return '개인정보 처리방침'
     if (segment === 'data-deletion') return '데이터 삭제 요청'
     if (/^\d{8}$/.test(segment)) return formatKoreanDate(segment)
@@ -540,7 +541,7 @@
         description: '웰스토리·신세계푸드 식당 검색, 날짜별 메뉴 조회, RSS 피드를 제공하는 Welplan API입니다.',
         documentation: canonicalUrl,
         provider: { '@id': organizationId },
-        termsOfService: new URL('/privacy', origin).toString(),
+        termsOfService: new URL('/terms', origin).toString(),
         entryPoint: [
           {
             '@type': 'EntryPoint',
@@ -803,7 +804,7 @@
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
       ogTitle: 'Welplan | 웰스토리·신세계푸드 메뉴 조회',
-      description: '웰스토리·신세계푸드 식단 조회를 한 곳에서. 메뉴 사진과 영양정보를 빠르게.',
+      description: '웰스토리·신세계푸드와 공식 관계가 없는 독립 서비스에서 식단, 메뉴 사진과 영양정보를 빠르게 확인하세요.',
       robots: INDEXABLE_ROBOTS,
       keywords: DEFAULT_KEYWORDS
     }
@@ -813,7 +814,7 @@
         ...baseMeta,
         title: '웰스토리 식단 조회 | 웰스토리 식단표·메뉴 조회 | Welplan',
         ogTitle: '웰스토리 식단 조회와 메뉴 갤러리 | Welplan',
-        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, 칼로리, 상세 영양정보를 빠르게 볼 수 있습니다.'
+        description: '삼성웰스토리와 공식 관계가 없는 독립 서비스에서 날짜·식사 시간별 메뉴 사진, 칼로리와 영양정보를 확인하세요.'
       }
     }
 
@@ -845,6 +846,16 @@
         ogTitle: 'Welplan 개인정보 처리방침',
         description: 'Welplan 웹사이트와 Android 앱의 개인정보 처리방침입니다. 식당 선택 저장, 쿠키, 로컬 저장소, 문의 처리 방식을 안내합니다.',
         keywords: mergeKeywords('Welplan 개인정보 처리방침', '개인정보 처리방침', '구내식당 메뉴 앱 개인정보', DEFAULT_KEYWORDS)
+      }
+    }
+
+    if (pathname.startsWith('/terms')) {
+      return {
+        ...baseMeta,
+        title: '서비스 이용약관 | Welplan',
+        ogTitle: 'Welplan 서비스 이용약관',
+        description: 'Welplan의 비상업적 이용 범위, 상업적 이용 및 메뉴 이미지 재배포 금지, 서비스 중단과 책임 제한을 설명합니다.',
+        keywords: mergeKeywords('Welplan 이용약관', '메뉴 이미지 이용 조건', '상업적 이용 금지', '서비스 이용약관', DEFAULT_KEYWORDS)
       }
     }
 
@@ -1406,7 +1417,7 @@
           <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true" />
           <div class="brand-text">
             <span class="brand-name">Welplan</span>
-            <span class="brand-sub">웰스토리 · 신세계푸드</span>
+            <span class="brand-sub">독립 메뉴 조회 서비스</span>
           </div>
         </a>
         <nav class="header-nav">
@@ -1451,11 +1462,11 @@
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage || hideGlobalNav} aria-busy={showLoading}>
     {@render children()}
 
-    <footer class="legal-notice" aria-label="상표, 개인정보 및 문의 안내">
+    <footer class="legal-notice" aria-label="이용약관, 상표, 개인정보 및 문의 안내">
       <p>
         삼성웰스토리, 신세계푸드 및 각 사의 브랜드명, 식당명에 포함된 회사명·브랜드명 등 모든 상표는 해당 권리자에게 귀속됩니다.
-        Welplan은 해당 상표권자 및 관련 회사와 제휴, 후원, 승인 또는 공식 관계가 없는 독립적인 사이트 및 애플리케이션입니다.
-        <a href="/privacy">개인정보 처리방침</a>과 <a href="/data-deletion">데이터 삭제 요청 안내</a>를 확인할 수 있으며, 문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
+        Welplan은 해당 상표권자 및 관련 회사와 제휴, 후원, 승인, 위탁, 대리 또는 그 밖의 공식 관계가 전혀 없는 독립적인 사이트 및 애플리케이션이며, 해당 회사들은 Welplan의 개발·운영·검수에 참여하지 않습니다.
+        <a href="/terms">서비스 이용약관</a>, <a href="/privacy">개인정보 처리방침</a>과 <a href="/data-deletion">데이터 삭제 요청 안내</a>를 확인할 수 있으며, 문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
       </p>
     </footer>
   </main>

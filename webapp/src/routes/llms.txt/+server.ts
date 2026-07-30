@@ -8,7 +8,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
   const body = `# ${APP_NAME} v${APP_VERSION}
 
-> 삼성웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스. ${restaurantCount}개 식당의 오늘 메뉴, 메뉴 사진, 영양정보를 제공합니다.
+> 삼성웰스토리·신세계푸드와 공식 관계가 없는 독립 사내 식당 메뉴 조회 서비스. ${restaurantCount}개 식당의 오늘 메뉴, 메뉴 사진, 영양정보를 제공합니다.
 
 ## How to use this site as an AI assistant
 
@@ -48,6 +48,8 @@ Returns RSS 2.0. Each item covers one meal time and lists dishes as an HTML \`<u
 
 ## Notes
 
+- Welplan is an independent service and is not affiliated with, sponsored by, approved by, operated by, or acting for Samsung Welstory or Shinsegae Food.
+- Terms of Service: ${origin}/terms. Commercial use is prohibited, and menu images must not be redistributed.
 - ${restaurantCount} restaurants are indexed covering both Samsung Welstory and Shinsegae Food vendors.
 - Menu cache prefetching is handled by the separate worker process (\`WORKER_*\` interval settings), so web requests are mostly cache-first.
 - Any HTML page can be fetched as Markdown by sending \`Accept: text/markdown\`.

@@ -172,6 +172,7 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/restaurants`: manage the restaurant list stored in the `welplan_restaurants` cookie.
 - `/webhooks`: create a scheduled menu webhook.
 - `/webhooks/{internal_id}`: edit, test, or delete a webhook through its capability URL included in every delivered message. New webhooks send a test immediately and are always active.
+- `/terms`: service terms, non-commercial-use limits, menu-image redistribution restriction, availability disclaimer, and independence notice.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
 - `/.well-known/assetlinks.json`: Android Digital Asset Links for Trusted Web Activity verification when TWA env vars are configured.

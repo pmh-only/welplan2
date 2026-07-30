@@ -15,7 +15,8 @@
     <p>
       이 방침은 Welplan 웹사이트와 Android Trusted Web Activity 앱에 적용됩니다. Welplan은
       삼성웰스토리, 신세계푸드 또는 각 식당 운영사와 제휴하거나 공식적으로 운영되는
-      서비스가 아닙니다.
+      서비스가 아닙니다. 해당 회사들은 Welplan의 개발, 운영, 검수, 후원 또는 지원에 참여하지
+      않으며 Welplan은 해당 회사들을 대표하지 않습니다.
     </p>
   </section>
 

@@ -6,6 +6,7 @@ const STATIC_ENTRIES = [
   { path: '/', changefreq: 'daily' as const, priority: '1.0' },
   { path: '/docs/api', changefreq: 'weekly' as const, priority: '0.7' },
   { path: '/notice', changefreq: 'weekly' as const, priority: '0.4' },
+  { path: '/terms', changefreq: 'yearly' as const, priority: '0.3' },
   { path: '/privacy', changefreq: 'yearly' as const, priority: '0.3' },
   { path: '/data-deletion', changefreq: 'yearly' as const, priority: '0.3' }
 ]
