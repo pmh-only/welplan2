@@ -1206,7 +1206,12 @@
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const hideGlobalNav = $derived(page.url.searchParams.has('nonav'))
   const showGlobalChrome = $derived(!isRestaurantDetailPage && !hideGlobalNav)
-  const showFirstVisitDialog = $derived(firstVisitDialogOpen && !isAdminPage && !page.url.pathname.startsWith('/restaurants'))
+  const showFirstVisitDialog = $derived(
+    firstVisitDialogOpen &&
+    !isAdminPage &&
+    !page.url.pathname.startsWith('/restaurants') &&
+    !page.url.pathname.startsWith('/webhooks')
+  )
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
   const noticeHref = $derived(isRestaurantDetailPage ? '/notice?nonav' : '/notice')
