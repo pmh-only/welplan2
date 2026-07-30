@@ -241,12 +241,12 @@ test('renders and posts a compatible payload for every supported platform', asyn
   } as unknown as CafeteriaService
 
   const expectedKeys: Record<(typeof WEBHOOK_PLATFORMS)[number], string> = {
-    discord: 'content',
-    slack: 'text',
-    'google-chat': 'text',
+    discord: 'components',
+    slack: 'blocks',
+    'google-chat': 'cardsV2',
     'microsoft-teams': 'attachments',
-    mattermost: 'text',
-    dooray: 'text',
+    mattermost: 'attachments',
+    dooray: 'attachments',
     swit: 'text',
     jandi: 'connectInfo'
   }
@@ -269,22 +269,40 @@ test('renders and posts a compatible payload for every supported platform', asyn
     assert.match(JSON.stringify(payload), /webhooks\/subscription-1/, platform)
 
     if (platform === 'discord') {
-      assert.deepEqual(Object.keys(payload).sort(), ['allowed_mentions', 'content'])
+      assert.deepEqual(Object.keys(payload).sort(), ['allowed_mentions', 'components', 'flags'])
+      assert.equal(payload.flags, 32_768)
       assert.deepEqual(payload.allowed_mentions, { parse: [] })
-      assert.match(String(payload.content), /^\*\*2026년 7월 30일 메뉴\*\*/)
-      assert.match(String(payload.content), /## 테스트 식당/)
-      assert.equal(requests[0].path, '/webhook/discord?wait=true')
+      const container = (payload.components as Record<string, unknown>[])[0]
+      assert.equal(container.type, 17)
+      assert.equal(container.accent_color, 0x10b981)
+      const components = container.components as Record<string, unknown>[]
+      assert.deepEqual(components.map((component) => component.type), [10, 14, 10, 14, 10])
+      assert.match(String(components[0].content), /^# 🍽️ 2026년 7월 30일 메뉴/)
+      assert.match(String(components[2].content), /## 🏢 테스트 식당/)
+      assert.match(String(components[4].content), /웹훅 설정 관리/)
+      assert.equal(requests[0].path, '/webhook/discord?wait=true&with_components=true')
       assert.equal(requests[0].headers['user-agent'], 'DiscordBot (https://welplan.pmh.codes, 1.0)')
     } else if (platform === 'slack') {
-      assert.deepEqual(Object.keys(payload), ['text'])
-      assert.match(String(payload.text), /^\*2026년 7월 30일 메뉴\*/)
-      assert.match(String(payload.text), /\*테스트 식당\*/)
-      assert.doesNotMatch(String(payload.text), /##|\*\*점심\*\*/)
+      assert.deepEqual(Object.keys(payload), ['text', 'blocks'])
+      const blocks = payload.blocks as Record<string, unknown>[]
+      assert.deepEqual(blocks.map((block) => block.type), ['header', 'section', 'divider', 'context'])
+      assert.equal((blocks[0].text as Record<string, unknown>).type, 'plain_text')
+      assert.match(String((blocks[0].text as Record<string, unknown>).text), /^🍽️ 2026년 7월 30일 메뉴/)
+      assert.match(JSON.stringify(blocks[1]), /\*🏢 테스트 식당\*/)
+      assert.match(JSON.stringify(blocks[3]), /웹훅 설정 관리/)
+      assert.doesNotMatch(JSON.stringify(blocks), /"type":"actions"/)
     } else if (platform === 'google-chat') {
-      assert.deepEqual(Object.keys(payload), ['text'])
-      assert.match(String(payload.text), /^\*2026년 7월 30일 메뉴\*/)
-      assert.match(String(payload.text), /\*테스트 식당\*/)
-      assert.doesNotMatch(String(payload.text), /##|\*\*점심\*\*/)
+      assert.deepEqual(Object.keys(payload), ['fallbackText', 'cardsV2'])
+      const card = (payload.cardsV2 as Record<string, unknown>[])[0].card as Record<string, unknown>
+      assert.equal((card.header as Record<string, unknown>).subtitle, 'Welplan 메뉴 알림')
+      const sections = card.sections as Record<string, unknown>[]
+      const contentWidget = (sections[0].widgets as Record<string, unknown>[])[0]
+      const paragraph = contentWidget.textParagraph as Record<string, unknown>
+      assert.match(String(paragraph.text), /<b>🏢 테스트 식당<\/b>/)
+      assert.match(String(paragraph.text), /<br>/)
+      const buttonWidget = (sections[1].widgets as Record<string, unknown>[])[0]
+      const button = ((buttonWidget.buttonList as Record<string, unknown>).buttons as Record<string, unknown>[])[0]
+      assert.equal(((button.onClick as Record<string, unknown>).openLink as Record<string, unknown>).url, 'https://welplan.example.com/webhooks/subscription-1')
     } else if (platform === 'microsoft-teams') {
       assert.deepEqual(Object.keys(payload).sort(), ['attachments', 'type'])
       assert.equal(payload.type, 'message')
@@ -294,24 +312,40 @@ test('renders and posts a compatible payload for every supported platform', asyn
       const card = attachment.content as Record<string, unknown>
       assert.equal(card.type, 'AdaptiveCard')
       assert.equal(card.version, '1.2')
-      assert.equal(card.fallbackText, '2026년 7월 30일 메뉴')
+      assert.match(String(card.fallbackText), /^2026년 7월 30일 메뉴:/)
       assert.doesNotMatch(JSON.stringify(card.body), /##/)
+      assert.equal(((card.body as Record<string, unknown>[])[2]).type, 'Container')
+      assert.deepEqual((card.actions as Record<string, unknown>[])[0], {
+        type: 'Action.OpenUrl',
+        title: '웹훅 설정 관리',
+        url: 'https://welplan.example.com/webhooks/subscription-1'
+      })
     } else if (platform === 'mattermost') {
-      assert.deepEqual(Object.keys(payload).sort(), ['text', 'username'])
+      assert.deepEqual(Object.keys(payload).sort(), ['attachments', 'text', 'username'])
       assert.equal(payload.username, 'Welplan')
-      assert.match(String(payload.text), /## 테스트 식당/)
+      assert.match(String(payload.text), /^### 🍽️/)
+      const attachment = (payload.attachments as Record<string, unknown>[])[0]
+      assert.equal(attachment.color, '#10b981')
+      assert.equal(attachment.title_link, 'https://welplan.example.com/webhooks/subscription-1')
+      assert.match(String(attachment.text), /## 🏢 테스트 식당/)
     } else if (platform === 'dooray') {
-      assert.deepEqual(Object.keys(payload).sort(), ['botName', 'text'])
+      assert.deepEqual(Object.keys(payload).sort(), ['attachments', 'botName', 'text'])
       assert.equal(payload.botName, 'Welplan')
-      assert.match(String(payload.text), /## 테스트 식당/)
+      assert.equal(payload.text, '🍽️ Welplan 메뉴 알림')
+      const attachment = (payload.attachments as Record<string, unknown>[])[0]
+      assert.equal(attachment.color, 'green')
+      assert.equal(attachment.titleLink, 'https://welplan.example.com/webhooks/subscription-1')
+      assert.match(String(attachment.text), /## 🏢 테스트 식당/)
     } else if (platform === 'swit') {
       assert.deepEqual(Object.keys(payload), ['text'])
       assert.doesNotMatch(String(payload.text), /##|\*\*/)
+      assert.match(String(payload.text), /^🍽️ 2026년 7월 30일 메뉴/)
+      assert.match(String(payload.text), /⚙️ 웹훅 설정 관리/)
     } else if (platform === 'jandi') {
       assert.deepEqual(Object.keys(payload).sort(), ['body', 'connectColor', 'connectInfo'])
-      assert.equal(payload.body, '2026년 7월 30일 메뉴')
+      assert.equal(payload.body, '[⚙️ 웹훅 설정 관리](https://welplan.example.com/webhooks/subscription-1)')
       assert.equal(payload.connectColor, '#10b981')
-      assert.deepEqual((payload.connectInfo as Record<string, unknown>[])[0]?.title, payload.body)
+      assert.equal((payload.connectInfo as Record<string, unknown>[])[0]?.title, '🍽️ 2026년 7월 30일 메뉴')
       assert.doesNotMatch(String((payload.connectInfo as Record<string, unknown>[])[0]?.description), /##|\*\*/)
       assert.equal(requests[0].headers.accept, 'application/vnd.tosslab.jandi-v2+json')
     }
@@ -544,6 +578,97 @@ test('keeps Teams payloads below the platform byte limit', async () => {
   assert.ok(requests.every((request) => request.bytes < 28_000), requests.map((request) => request.bytes).join(','))
 })
 
+test('splits rich cards within Slack, Google Chat, and JANDI limits', async () => {
+  const largeMenu = { ...menu, name: '한'.repeat(5000) }
+  const service = {
+    getRestaurant: async () => restaurant,
+    getMealTimes: async () => [mealTime],
+    getMenus: async () => [largeMenu]
+  } as unknown as CafeteriaService
+
+  for (const platform of ['slack', 'google-chat', 'jandi'] as const) {
+    requests = []
+    const result = await deliverWebhookSubscription(
+      service,
+      subscription({ platform, webhookUrl: `${webhookUrl}/${platform}-size` }),
+      '20260730',
+      'https://welplan.example.com',
+      `${platform}-size`
+    )
+    assert.ok(result.messageCount > 1, platform)
+    for (const request of requests) {
+      const payload = JSON.parse(request.body) as Record<string, unknown>
+      if (platform === 'slack') {
+        const blocks = payload.blocks as Record<string, unknown>[]
+        const section = blocks.find((block) => block.type === 'section') as Record<string, unknown>
+        assert.ok(Array.from(String((section.text as Record<string, unknown>).text)).length <= 3000)
+      } else if (platform === 'google-chat') {
+        assert.ok(request.bytes < 32_000)
+      } else {
+        const info = payload.connectInfo as Record<string, unknown>[]
+        const displayed = [payload.body, ...info.flatMap((item) => [item.title, item.description])]
+          .filter((item): item is string => typeof item === 'string')
+          .join('\n')
+        assert.ok(Array.from(displayed).length <= 5000)
+        assert.ok(request.bytes < 256_000)
+      }
+    }
+  }
+})
+
+test('keeps fallback mentions inert and rich markup balanced', async () => {
+  const hostileMenu = { ...menu, name: '<!channel> @channel <menu&>'.repeat(100) }
+  const service = {
+    getRestaurant: async () => restaurant,
+    getMealTimes: async () => [mealTime],
+    getMenus: async () => [hostileMenu]
+  } as unknown as CafeteriaService
+
+  requests = []
+  await deliverWebhookSubscription(
+    service,
+    subscription({ platform: 'slack', webhookUrl: `${webhookUrl}/slack-safe-fallback` }),
+    '20260730',
+    'https://welplan.example.com',
+    'slack-safe-fallback'
+  )
+  for (const request of requests) {
+    const payload = JSON.parse(request.body) as { text: string }
+    assert.doesNotMatch(payload.text, /<!channel>/)
+  }
+
+  requests = []
+  await deliverWebhookSubscription(
+    service,
+    subscription({ platform: 'mattermost', webhookUrl: `${webhookUrl}/mattermost-safe-fallback` }),
+    '20260730',
+    'https://welplan.example.com',
+    'mattermost-safe-fallback'
+  )
+  for (const request of requests) {
+    const payload = JSON.parse(request.body) as { attachments: { fallback: string }[] }
+    assert.doesNotMatch(payload.attachments[0].fallback, /@channel/)
+  }
+
+  requests = []
+  await deliverWebhookSubscription(
+    service,
+    subscription({ platform: 'google-chat', webhookUrl: `${webhookUrl}/google-chat-balanced` }),
+    '20260730',
+    'https://welplan.example.com',
+    'google-chat-balanced'
+  )
+  for (const request of requests) {
+    const payload = JSON.parse(request.body) as Record<string, unknown>
+    const card = (payload.cardsV2 as Record<string, unknown>[])[0].card as Record<string, unknown>
+    const section = (card.sections as Record<string, unknown>[])[0]
+    const widget = (section.widgets as Record<string, unknown>[])[0]
+    const text = String((widget.textParagraph as Record<string, unknown>).text)
+    assert.equal(text.match(/<b>/g)?.length ?? 0, text.match(/<\/b>/g)?.length ?? 0)
+    assert.equal(text.match(/<a href=/g)?.length ?? 0, text.match(/<\/a>/g)?.length ?? 0)
+  }
+})
+
 test('keeps Mattermost posts below its default character limit', async () => {
   requests = []
   const largeMenu = { ...menu, name: '한'.repeat(20_000) }
@@ -562,8 +687,8 @@ test('keeps Mattermost posts below its default character limit', async () => {
 
   assert.ok(result.messageCount > 1)
   assert.ok(requests.every((request) => {
-    const payload = JSON.parse(request.body) as { text: string }
-    return Array.from(payload.text).length <= 16_383
+    const payload = JSON.parse(request.body) as { attachments: { text: string }[] }
+    return Array.from(payload.attachments[0].text).length <= 16_383
   }))
 })
 

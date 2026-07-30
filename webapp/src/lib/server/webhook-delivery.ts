@@ -49,6 +49,7 @@ type RestaurantMenuSnapshot = {
 type OutboundMessage = {
   title: string
   text: string
+  managementUrl: string
 }
 
 export type DueWebhookSchedule = {
@@ -231,13 +232,60 @@ function inlineText(value: string): string {
   return value.replace(/[\r\n]+/g, ' ').trim()
 }
 
+function truncateText(value: string, limit: number): string {
+  const characters = Array.from(value)
+  return characters.length <= limit ? value : `${characters.slice(0, Math.max(0, limit - 1)).join('')}…`
+}
+
+function htmlText(value: string): string {
+  return inlineText(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+}
+
+function htmlAttribute(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+}
+
+function plainText(value: string): string {
+  return value
+    .replace(/<a href="[^"]*">(.*?)<\/a>/g, '$1')
+    .replace(/<([^>|]+)\|([^>]+)>/g, '$2')
+    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/[*_~`#]/g, '')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '‹')
+    .replaceAll('&gt;', '›')
+    .replaceAll('&quot;', '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function fallbackText(title: string, text: string): string {
+  const summary = truncateText(plainText(text), 500)
+  return summary ? `${inlineText(title)}: ${summary}` : inlineText(title)
+}
+
+function accentColorNumber(value: string): number {
+  const normalized = value.match(/^#([0-9a-f]{6})$/i)?.[1]
+  return normalized ? Number.parseInt(normalized, 16) : 0x10b981
+}
+
+function mealTimeIcon(mealTime: MealTime): string {
+  const type = mealTime.type ?? MEAL_TYPE_BY_ID[mealTime.id]
+  if (type === 'breakfast' || type === 'dawn') return '🌅'
+  if (type === 'lunch') return '☀️'
+  if (type === 'dinner' || type === 'supper') return '🌙'
+  return '🍴'
+}
+
 function escapedText(platform: WebhookPlatform, value: string): string {
   const text = inlineText(value)
   if (platform === 'slack') {
     return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   }
   if (platform === 'google-chat') {
-    return text.replace(/([*_~`])/g, '\\$1').replaceAll('<', '‹').replaceAll('>', '›')
+    return htmlText(text)
   }
   if (platform === 'mattermost') {
     return text.replaceAll('@', '@\u200b').replace(/([\\`*_[\]()~])/g, '\\$1')
@@ -248,7 +296,8 @@ function escapedText(platform: WebhookPlatform, value: string): string {
 
 function strongText(platform: WebhookPlatform, value: string): string {
   const text = escapedText(platform, value)
-  if (platform === 'slack' || platform === 'google-chat') return `*${text}*`
+  if (platform === 'slack') return `*${text}*`
+  if (platform === 'google-chat') return `<b>${text}</b>`
   if (platform === 'swit' || platform === 'jandi') return text
   return `**${text}**`
 }
@@ -261,7 +310,8 @@ function headingText(platform: WebhookPlatform, value: string): string {
 
 function linkedText(platform: WebhookPlatform, label: string, url: string): string {
   const text = escapedText(platform, label)
-  if (platform === 'slack' || platform === 'google-chat') return `<${url}|${text}>`
+  if (platform === 'slack') return `<${url}|${text}>`
+  if (platform === 'google-chat') return `<a href="${htmlAttribute(url)}">${text}</a>`
   if (platform === 'swit') return `${text}: ${url}`
   return `[${text}](${url})`
 }
@@ -273,15 +323,15 @@ function snapshotText(
   origin: string | undefined
 ): string {
   const platform = subscription.platform
-  const lines = [headingText(platform, snapshot.restaurant.name), '']
+  const lines = [headingText(platform, `🏢 ${snapshot.restaurant.name}`), '']
   if (snapshot.sections.length === 0) lines.push('등록된 메뉴가 없습니다.')
 
   for (const [sectionIndex, section] of snapshot.sections.entries()) {
     if (sectionIndex > 0) lines.push('')
-    lines.push(strongText(platform, section.mealTime.name))
+    lines.push(strongText(platform, `${mealTimeIcon(section.mealTime)} ${section.mealTime.name}`))
     for (const menu of section.menus) {
       const calories = subscription.includeCalories && menu.nutrition?.calories != null
-        ? ` (${Math.round(menu.nutrition.calories)} kcal)`
+        ? ` · ${Math.round(menu.nutrition.calories)} kcal`
         : ''
       lines.push(`- ${escapedText(platform, menuName(menu))}${calories}`)
       if (subscription.includeComponents) {
@@ -319,35 +369,32 @@ function outboundMessages(
   const title = renderTemplate(subscription.titleTemplate, menuDate, snapshots.length)
   const header = renderTemplate(subscription.headerText, menuDate, snapshots.length)
   const footer = renderTemplate(subscription.footerText, menuDate, snapshots.length)
-  const managementLink = linkedText(
-    subscription.platform,
-    '웹훅 설정 관리',
-    new URL(`/webhooks/${encodeURIComponent(subscription.id)}`, origin).toString()
-  )
+  const managementUrl = new URL(`/webhooks/${encodeURIComponent(subscription.id)}`, origin).toString()
   const visibleSnapshots = snapshots.length > 0 ? snapshots : []
 
   if (subscription.combineRestaurants) {
     const body = visibleSnapshots.length > 0
       ? visibleSnapshots.map((snapshot) => snapshotText(snapshot, subscription, menuDate, origin)).join('\n\n')
       : '등록된 메뉴가 없습니다.'
-    return [{ title, text: [header, body, footer, managementLink].filter(Boolean).join('\n\n') }]
+    return [{ title, text: [header, body, footer].filter(Boolean).join('\n\n'), managementUrl }]
   }
 
   if (visibleSnapshots.length === 0) {
-    return [{ title, text: [header, '등록된 메뉴가 없습니다.', footer, managementLink].filter(Boolean).join('\n\n') }]
+    return [{ title, text: [header, '등록된 메뉴가 없습니다.', footer].filter(Boolean).join('\n\n'), managementUrl }]
   }
 
   return visibleSnapshots.map((snapshot) => ({
     title: `${title} · ${snapshot.restaurant.name}`,
-    text: [header, snapshotText(snapshot, subscription, menuDate, origin), footer, managementLink].filter(Boolean).join('\n\n')
+    text: [header, snapshotText(snapshot, subscription, menuDate, origin), footer].filter(Boolean).join('\n\n'),
+    managementUrl
   }))
 }
 
 function platformTextLimit(platform: WebhookPlatform): number {
   switch (platform) {
     case 'discord': return 1900
-    case 'slack': return 3900
-    case 'jandi': return 4500
+    case 'slack': return 2700
+    case 'jandi': return 4300
     case 'dooray': return 9000
     case 'swit': return 9000
     case 'mattermost': return 16_383
@@ -364,7 +411,7 @@ function splitText(text: string, limit: number): string[] {
   for (const line of text.split('\n')) {
     if (line.length > limit) {
       if (current) chunks.push(current)
-      const characters = Array.from(line)
+      const characters = Array.from(plainText(line))
       for (let index = 0; index < characters.length; index += limit) {
         chunks.push(characters.slice(index, index + limit).join(''))
       }
@@ -391,14 +438,70 @@ function payloadForPlatform(
   const rawTitle = continuation ? `${message.title} (계속)` : message.title
   const title = escapedText(subscription.platform, rawTitle)
   const text = message.text
+  const summary = fallbackText(rawTitle, text)
 
   switch (subscription.platform) {
     case 'discord':
-      return { content: `**${title}**\n${text}`, allowed_mentions: { parse: [] } }
+      return {
+        flags: 32_768,
+        allowed_mentions: { parse: [] },
+        components: [{
+          type: 17,
+          accent_color: accentColorNumber(subscription.accentColor),
+          components: [
+            { type: 10, content: `# 🍽️ ${title}` },
+            { type: 14, divider: true, spacing: 1 },
+            { type: 10, content: text },
+            { type: 14, divider: true, spacing: 1 },
+            { type: 10, content: `-# ⚙️ [웹훅 설정 관리](${message.managementUrl})` }
+          ]
+        }]
+      }
     case 'slack':
-      return { text: `*${title}*\n${text}` }
+      return {
+        text: summary,
+        blocks: [
+          {
+            type: 'header',
+            text: { type: 'plain_text', text: truncateText(`🍽️ ${inlineText(rawTitle)}`, 150), emoji: true }
+          },
+          { type: 'section', text: { type: 'mrkdwn', text } },
+          { type: 'divider' },
+          {
+            type: 'context',
+            elements: [{ type: 'mrkdwn', text: `⚙️ <${message.managementUrl}|웹훅 설정 관리>` }]
+          }
+        ]
+      }
     case 'google-chat':
-      return { text: `*${title}*\n${text}` }
+      return {
+        fallbackText: summary,
+        cardsV2: [{
+          card: {
+            header: {
+              title: truncateText(`🍽️ ${inlineText(rawTitle)}`, 200),
+              subtitle: 'Welplan 메뉴 알림'
+            },
+            sections: [
+              {
+                widgets: [{ textParagraph: { text: text.replaceAll('\n', '<br>') } }]
+              },
+              {
+                widgets: [{
+                  buttonList: {
+                    buttons: [{
+                      text: '웹훅 설정 관리',
+                      altText: 'Welplan 웹훅 설정 관리 페이지 열기',
+                      type: 'FILLED_TONAL',
+                      onClick: { openLink: { url: message.managementUrl } }
+                    }]
+                  }
+                }]
+              }
+            ]
+          }
+        }]
+      }
     case 'microsoft-teams':
       return {
         type: 'message',
@@ -409,33 +512,55 @@ function payloadForPlatform(
             $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
             type: 'AdaptiveCard',
             version: '1.2',
-            fallbackText: inlineText(rawTitle),
+            fallbackText: summary,
             body: [
-              { type: 'TextBlock', text: title, weight: 'Bolder', size: 'Large', wrap: true },
-              { type: 'TextBlock', text, wrap: true }
-            ]
+              { type: 'TextBlock', text: `🍽️ ${title}`, weight: 'Bolder', size: 'Large', color: 'Accent', wrap: true },
+              { type: 'TextBlock', text: 'Welplan 메뉴 알림', size: 'Small', isSubtle: true, spacing: 'None', wrap: true },
+              {
+                type: 'Container',
+                style: 'emphasis',
+                separator: true,
+                spacing: 'Medium',
+                items: [{ type: 'TextBlock', text, wrap: true }]
+              }
+            ],
+            actions: [{ type: 'Action.OpenUrl', title: '웹훅 설정 관리', url: message.managementUrl }]
           }
         }]
       }
     case 'mattermost':
       return {
-        text: `**${title}**\n${text}`,
+        text: `### 🍽️ ${title}`,
         username: subscription.botName,
-        ...(subscription.avatarUrl ? { icon_url: subscription.avatarUrl } : {})
+        ...(subscription.avatarUrl ? { icon_url: subscription.avatarUrl } : {}),
+        attachments: [{
+          fallback: summary,
+          color: subscription.accentColor,
+          text,
+          title: '웹훅 설정 관리',
+          title_link: message.managementUrl,
+          footer: 'Welplan 메뉴 알림'
+        }]
       }
     case 'dooray':
       return {
         botName: subscription.botName,
         ...(subscription.avatarUrl ? { botIconImage: subscription.avatarUrl } : {}),
-        text: `**${title}**\n${text}`
+        text: '🍽️ Welplan 메뉴 알림',
+        attachments: [{
+          title: inlineText(rawTitle),
+          titleLink: message.managementUrl,
+          text,
+          color: 'green'
+        }]
       }
     case 'swit':
-      return { text: `${title}\n${text}` }
+      return { text: `🍽️ ${title}\n\n${text}\n\n⚙️ 웹훅 설정 관리\n${message.managementUrl}` }
     case 'jandi':
       return {
-        body: title,
+        body: `[⚙️ 웹훅 설정 관리](${message.managementUrl})`,
         connectColor: subscription.accentColor,
-        connectInfo: [{ title, description: text }]
+        connectInfo: [{ title: `🍽️ ${title}`, description: text }]
       }
   }
 }
@@ -452,21 +577,29 @@ function assertPayloadFitsPlatform(platform: WebhookPlatform, payload: Record<st
     throw new WebhookDeliveryError('잔디 메시지가 256KB 제한을 초과했습니다.')
   }
 
-  const text = platform === 'discord'
-    ? payload.content
-    : platform === 'jandi'
-      ? payload.body
+  if (platform === 'slack') {
+    const blocks = Array.isArray(payload.blocks) ? payload.blocks as Record<string, unknown>[] : []
+    const sectionText = (blocks.find((block) => block.type === 'section')?.text as Record<string, unknown> | undefined)?.text
+    if (typeof sectionText === 'string' && Array.from(sectionText).length > 3000) {
+      throw new WebhookDeliveryError('Slack 섹션이 3,000자 제한을 초과했습니다.')
+    }
+  }
+
+  const text = platform === 'jandi'
+    ? [
+        payload.body,
+        ...((payload.connectInfo as Record<string, unknown>[] | undefined)?.flatMap((item) => [item.title, item.description]) ?? [])
+      ].filter((item): item is string => typeof item === 'string').join('\n')
+    : platform === 'mattermost'
+      ? (payload.attachments as Record<string, unknown>[] | undefined)?.map((item) => item.text).join('\n')
       : payload.text
   if (typeof text !== 'string') return
   const characters = Array.from(text).length
-  if (platform === 'discord' && characters > 2000) {
-    throw new WebhookDeliveryError('Discord 메시지가 2,000자 제한을 초과했습니다.')
-  }
-  if (platform === 'google-chat' && characters > 2000) {
-    throw new WebhookDeliveryError('Google Chat 메시지가 2,000자 제한을 초과했습니다.')
-  }
   if (platform === 'mattermost' && characters > 16_383) {
     throw new WebhookDeliveryError('Mattermost 메시지가 글자 수 제한을 초과했습니다.')
+  }
+  if (platform === 'jandi' && characters > 5000) {
+    throw new WebhookDeliveryError('잔디 메시지가 5,000자 제한을 초과했습니다.')
   }
 }
 
@@ -630,7 +763,10 @@ async function postWebhook(
   deliveryKey: string
 ): Promise<number> {
   const target = await assertSafeWebhookTarget(subscription.webhookUrl)
-  if (subscription.platform === 'discord') target.url.searchParams.set('wait', 'true')
+  if (subscription.platform === 'discord') {
+    target.url.searchParams.set('wait', 'true')
+    if (Array.isArray(payload.components)) target.url.searchParams.set('with_components', 'true')
+  }
   await waitForRequestSlot(subscription)
   const body = JSON.stringify(payload)
   return await new Promise<number>((resolve, reject) => {
