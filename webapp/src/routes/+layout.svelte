@@ -13,7 +13,7 @@
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { Camera, Check, Megaphone, Package, Search, Send, Store, Utensils, X } from '@lucide/svelte'
+  import { Camera, Check, FileText, Megaphone, Package, Search, Send, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -66,7 +66,7 @@
   const NOINDEX_ROBOTS = 'noindex, follow'
   const SITE_NAME = 'Welplan'
   const SITE_ALTERNATE_NAMES = ['웰플랜']
-  const SITE_DESCRIPTION = '웰스토리·신세계푸드와 공식 관계가 없는 독립 사내 식당 메뉴 조회 서비스'
+  const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const CONTACT_EMAIL = 'pmh_only@pmh.codes'
   const MAX_JSON_LD_MENUS = 80
@@ -804,7 +804,7 @@
     const baseMeta: RouteMeta = {
       title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
       ogTitle: 'Welplan | 웰스토리·신세계푸드 메뉴 조회',
-      description: '웰스토리·신세계푸드와 공식 관계가 없는 독립 서비스에서 식단, 메뉴 사진과 영양정보를 빠르게 확인하세요.',
+      description: '웰스토리·신세계푸드 식단 조회를 한 곳에서. 메뉴 사진과 영양정보를 빠르게.',
       robots: INDEXABLE_ROBOTS,
       keywords: DEFAULT_KEYWORDS
     }
@@ -814,7 +814,7 @@
         ...baseMeta,
         title: '웰스토리 식단 조회 | 웰스토리 식단표·메뉴 조회 | Welplan',
         ogTitle: '웰스토리 식단 조회와 메뉴 갤러리 | Welplan',
-        description: '삼성웰스토리와 공식 관계가 없는 독립 서비스에서 날짜·식사 시간별 메뉴 사진, 칼로리와 영양정보를 확인하세요.'
+        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, 칼로리, 상세 영양정보를 빠르게 볼 수 있습니다.'
       }
     }
 
@@ -1417,7 +1417,7 @@
           <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true" />
           <div class="brand-text">
             <span class="brand-name">Welplan</span>
-            <span class="brand-sub">독립 메뉴 조회 서비스</span>
+            <span class="brand-sub">웰스토리 · 신세계푸드</span>
           </div>
         </a>
         <nav class="header-nav">
@@ -1447,7 +1447,7 @@
     </div>
   {/if}
 
-  {#if !hideGlobalNav && !page.url.pathname.startsWith('/webhooks')}
+  {#if !hideGlobalNav}
     <a
       class="webhook-shortcut"
       href="/webhooks"
@@ -1456,6 +1456,15 @@
     >
       <Send class="webhook-shortcut-icon" aria-hidden="true" />
       <span>메뉴 알림</span>
+    </a>
+    <a
+      class="webhook-shortcut terms-shortcut"
+      href="/terms"
+      aria-label="서비스 이용약관"
+      onclick={() => trackEvent('Terms Shortcut Clicked', { source: 'floating_button' })}
+    >
+      <FileText class="webhook-shortcut-icon" aria-hidden="true" />
+      <span>이용 약관</span>
     </a>
   {/if}
 
@@ -2067,6 +2076,19 @@
     box-shadow: 0 10px 28px rgba(5, 150, 105, 0.42);
   }
 
+  .terms-shortcut {
+    top: 106px;
+    border-color: #475569;
+    background: #64748b;
+    box-shadow: 0 8px 24px rgba(71, 85, 105, 0.3);
+  }
+
+  .terms-shortcut:hover {
+    border-color: #334155;
+    background: #475569;
+    box-shadow: 0 10px 28px rgba(71, 85, 105, 0.4);
+  }
+
   :global(.webhook-shortcut-icon) {
     width: 14px;
     height: 14px;
@@ -2233,6 +2255,7 @@
       top: 54px;
       right: 0;
     }
+    .terms-shortcut { top: 96px; }
     .tab-btn {
       flex: 1 0 64px;
       flex-direction: column;

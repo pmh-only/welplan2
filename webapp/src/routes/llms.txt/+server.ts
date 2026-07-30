@@ -8,7 +8,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
   const body = `# ${APP_NAME} v${APP_VERSION}
 
-> 삼성웰스토리·신세계푸드와 공식 관계가 없는 독립 사내 식당 메뉴 조회 서비스. ${restaurantCount}개 식당의 오늘 메뉴, 메뉴 사진, 영양정보를 제공합니다.
+> 삼성웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스. ${restaurantCount}개 식당의 오늘 메뉴, 메뉴 사진, 영양정보를 제공합니다.
 
 ## How to use this site as an AI assistant
 
