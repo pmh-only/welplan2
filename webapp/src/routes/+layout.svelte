@@ -13,7 +13,7 @@
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { Camera, Check, FileText, Megaphone, Package, Search, Send, Store, Utensils, X } from '@lucide/svelte'
+  import { BellRing, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -1449,13 +1449,18 @@
 
   {#if !hideGlobalNav}
     <a
-      class="webhook-shortcut"
+      class="webhook-shortcut notification-shortcut"
       href="/webhooks"
-      aria-label="메뉴 알림 웹훅 설정"
+      aria-label="Slack, Discord, Teams 메뉴 알림 설정"
       onclick={() => trackEvent('Webhook Shortcut Clicked', { source: 'floating_button' })}
     >
-      <Send class="webhook-shortcut-icon" aria-hidden="true" />
-      <span>메뉴 알림</span>
+      <span class="notification-shortcut-icon-wrap" aria-hidden="true">
+        <BellRing class="notification-shortcut-icon" />
+      </span>
+      <span class="notification-shortcut-copy">
+        <strong>메뉴 알림 받기</strong>
+        <small>Slack · Discord · Teams</small>
+      </span>
     </a>
     <a
       class="webhook-shortcut terms-shortcut"
@@ -1471,11 +1476,16 @@
   <main class="content" class:content-loading={showLoading} class:focused-content={isRestaurantDetailPage || hideGlobalNav} aria-busy={showLoading}>
     {@render children()}
 
-    <footer class="legal-notice" aria-label="이용약관, 상표, 개인정보 및 문의 안내">
+    <footer class="legal-notice" aria-label="메뉴 알림, 이용약관, 상표, 개인정보 및 문의 안내">
       <p>
         삼성웰스토리, 신세계푸드 및 각 사의 브랜드명, 식당명에 포함된 회사명·브랜드명 등 모든 상표는 해당 권리자에게 귀속됩니다.
         Welplan은 해당 상표권자 및 관련 회사와 제휴, 후원, 승인, 위탁, 대리 또는 그 밖의 공식 관계가 전혀 없는 독립적인 사이트 및 애플리케이션이며, 해당 회사들은 Welplan의 개발·운영·검수에 참여하지 않습니다.
         <a href="/terms">서비스 이용약관</a>, <a href="/privacy">개인정보 처리방침</a>과 <a href="/data-deletion">데이터 삭제 요청 안내</a>를 확인할 수 있으며, 문의 및 건의사항은 <a href="https://github.com/pmh-only/welplan2" target="_blank" rel="noreferrer">GitHub 저장소</a> 또는 <a href="mailto:pmh_only@pmh.codes">pmh_only@pmh.codes</a>로 연락해 주세요.
+      </p>
+      <p class="mobile-footer-action">
+        <strong>매일 메뉴를 찾아보지 않아도 돼요</strong>
+        <span>선택한 식당의 메뉴를 Slack · Discord · Teams에서 원하는 요일과 시간에 받아보세요.</span>
+        <a href="/webhooks" onclick={() => trackEvent('Webhook Shortcut Clicked', { source: 'footer_link' })}>메뉴 알림 설정하기</a>
       </p>
     </footer>
   </main>
@@ -1507,6 +1517,10 @@
     color: var(--text-muted);
     text-decoration: underline;
     text-underline-offset: 2px;
+  }
+
+  .legal-notice .mobile-footer-action {
+    display: none;
   }
 
   .legal-notice a:hover { color: var(--text); }
@@ -2076,8 +2090,67 @@
     box-shadow: 0 10px 28px rgba(5, 150, 105, 0.42);
   }
 
+  .webhook-shortcut:focus-visible {
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+  }
+
+  .notification-shortcut {
+    min-height: 54px;
+    gap: 9px;
+    padding: 8px 16px 8px 9px;
+    border-color: #10b981;
+    background: linear-gradient(135deg, #065f46, #047857);
+    box-shadow: 0 10px 30px rgba(5, 150, 105, 0.38), 0 0 0 2px rgba(16, 185, 129, 0.14);
+  }
+
+  .notification-shortcut:hover {
+    border-color: #34d399;
+    background: linear-gradient(135deg, #064e3b, #065f46);
+    box-shadow: 0 12px 34px rgba(5, 150, 105, 0.48), 0 0 0 3px rgba(16, 185, 129, 0.18);
+  }
+
+  .notification-shortcut-icon-wrap {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  :global(.notification-shortcut-icon) {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.2;
+  }
+
+  .notification-shortcut-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    white-space: nowrap;
+  }
+
+  .notification-shortcut-copy strong {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .notification-shortcut-copy small {
+    color: #d1fae5;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
   .terms-shortcut {
-    top: 106px;
+    top: 126px;
     border-color: #475569;
     background: #64748b;
     box-shadow: 0 8px 24px rgba(71, 85, 105, 0.3);
@@ -2255,7 +2328,36 @@
       top: 54px;
       right: 0;
     }
-    .terms-shortcut { top: 96px; }
+    .notification-shortcut { display: none; }
+    .terms-shortcut { top: 54px; }
+    .legal-notice .mobile-footer-action {
+      display: block;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    .mobile-footer-action strong,
+    .mobile-footer-action span {
+      display: block;
+    }
+
+    .mobile-footer-action strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .mobile-footer-action span {
+      max-width: 320px;
+      margin: 3px auto 5px;
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .mobile-footer-action a {
+      color: #047857;
+      font-size: 12px;
+      font-weight: 700;
+    }
     .tab-btn {
       flex: 1 0 64px;
       flex-direction: column;
