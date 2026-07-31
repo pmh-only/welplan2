@@ -25,6 +25,7 @@
     "../webapp/src/lib/server/webhook-delivery.ts",
     "../webapp/src/lib/server/webhook-subscriptions.ts",
     "../webapp/src/lib/image-retention.ts",
+    "../webapp/src/lib/legal.ts",
     "../webapp/src/lib/server/redis-cache.ts",
     "../webapp/src/lib/server/db/index.ts",
     "../webapp/src/lib/server/db/schema.ts",
