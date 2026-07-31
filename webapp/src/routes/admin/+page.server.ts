@@ -130,7 +130,8 @@ export const actions: Actions = {
     const formData = await request.formData()
     const settings: Partial<WorkerProblemAlertSettings> = {
       enabled: formData.get('enabled') === 'on',
-      discordWebhookUrl: stringFormValue(formData, 'discordWebhookUrl')
+      discordWebhookUrl: stringFormValue(formData, 'discordWebhookUrl'),
+      discordRoleId: stringFormValue(formData, 'discordRoleId')
     }
 
     try {
@@ -140,7 +141,8 @@ export const actions: Actions = {
         await deliverDiscordWorkerAlert(
           testSettings.discordWebhookUrl,
           '✅ **Welplan worker 알림 테스트**\n관리자 페이지에 설정한 Discord 웹훅이 정상적으로 동작합니다.',
-          `admin-worker-alert-test:${Date.now()}`
+          `admin-worker-alert-test:${Date.now()}`,
+          testSettings.discordRoleId
         )
       }
       const savedSettings = await service.setWorkerProblemAlertSettings(settings)

@@ -48,7 +48,8 @@ const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
 }
 const EMPTY_WORKER_PROBLEM_ALERT_SETTINGS: WorkerProblemAlertSettings = {
   enabled: false,
-  discordWebhookUrl: ''
+  discordWebhookUrl: '',
+  discordRoleId: ''
 }
 
 type CachedCountRow = { count: number | string | bigint }
@@ -100,6 +101,7 @@ export type NoticeSettings = {
 export type WorkerProblemAlertSettings = {
   enabled: boolean
   discordWebhookUrl: string
+  discordRoleId: string
   updatedAt?: number
 }
 
@@ -108,6 +110,7 @@ export function normalizeWorkerProblemAlertSettings(
   strict = false
 ): WorkerProblemAlertSettings {
   const rawUrl = typeof value.discordWebhookUrl === 'string' ? value.discordWebhookUrl.normalize('NFKC').trim() : ''
+  const rawRoleId = typeof value.discordRoleId === 'string' ? value.discordRoleId.trim() : ''
   if (strict && rawUrl.length > 4096) throw new Error('Discord 웹훅 URL이 너무 깁니다')
 
   let discordWebhookUrl = ''
@@ -131,10 +134,15 @@ export function normalizeWorkerProblemAlertSettings(
   if (strict && value.enabled === true && !discordWebhookUrl) {
     throw new Error('알림을 사용하려면 Discord 웹훅 URL을 입력해 주세요')
   }
+  const discordRoleId = /^\d{17,20}$/.test(rawRoleId) ? rawRoleId : ''
+  if (strict && value.enabled === true && !discordRoleId) {
+    throw new Error('알림에서 호출할 Discord 역할 ID를 입력해 주세요')
+  }
 
   return {
-    enabled: value.enabled === true && Boolean(discordWebhookUrl),
+    enabled: value.enabled === true && Boolean(discordWebhookUrl) && Boolean(discordRoleId),
     discordWebhookUrl,
+    discordRoleId,
     updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : undefined
   }
 }

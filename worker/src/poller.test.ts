@@ -17,7 +17,7 @@ test('full prefetch scans every restaurant returned by the catalog', async () =>
       scannedRestaurantIds.push(restaurantId)
       return []
     },
-    getWorkerProblemAlertSettings: async () => ({ enabled: false, discordWebhookUrl: '' })
+    getWorkerProblemAlertSettings: async () => ({ enabled: false, discordWebhookUrl: '', discordRoleId: '' })
   } as unknown as CafeteriaService
 
   await prefetchAllAvailability(service)
@@ -34,7 +34,7 @@ test('does not alert when a restaurant successfully has no meal times', async ()
     getMenus: async () => [],
     getWorkerProblemAlertSettings: async () => {
       settingsRead = true
-      return { enabled: false, discordWebhookUrl: '' }
+      return { enabled: false, discordWebhookUrl: '', discordRoleId: '' }
     }
   } as unknown as CafeteriaService
 

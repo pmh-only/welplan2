@@ -871,15 +871,21 @@ async function waitForRequestSlot(subscription: WebhookTargetConfig): Promise<vo
 export async function deliverDiscordWorkerAlert(
   webhookUrl: string,
   content: string,
-  deliveryKey: string
+  deliveryKey: string,
+  roleId?: string
 ): Promise<number> {
+  const prefix = roleId ? `<@&${roleId}>\n` : ''
   const characters = Array.from(content)
-  const safeContent = characters.length <= 1900
+  const contentLimit = 1900 - prefix.length
+  const safeContent = `${prefix}${characters.length <= contentLimit
     ? content
-    : `${characters.slice(0, 1899).join('')}…`
+    : `${characters.slice(0, contentLimit - 1).join('')}…`}`
   return await postWebhook(
     { platform: 'discord', webhookUrl },
-    { content: safeContent, allowed_mentions: { parse: [] } },
+    {
+      content: safeContent,
+      allowed_mentions: roleId ? { parse: [], roles: [roleId] } : { parse: [] }
+    },
     deliveryKey
   )
 }

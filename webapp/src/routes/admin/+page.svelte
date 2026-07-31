@@ -48,6 +48,7 @@
   type WorkerProblemAlertSettings = {
     enabled: boolean
     discordWebhookUrl: string
+    discordRoleId: string
     updatedAt?: number
   }
 
@@ -321,6 +322,20 @@
           />
         </label>
         <span class="editor-help">Discord 채널 설정의 연동 메뉴에서 Incoming Webhook URL을 생성해 입력하세요.</span>
+
+        <label class="field-row" for="worker-discord-role-id">
+          <span>호출할 Discord 역할 ID</span>
+          <input
+            id="worker-discord-role-id"
+            name="discordRoleId"
+            inputmode="numeric"
+            value={workerProblemAlert.discordRoleId}
+            maxlength="20"
+            autocomplete="off"
+            placeholder="예: 123456789012345678"
+          />
+        </label>
+        <span class="editor-help">Discord 개발자 모드를 켠 뒤 호출할 역할을 우클릭하여 역할 ID를 복사하세요.</span>
 
         <div class="form-actions">
           {#if workerProblemAlert.updatedAt}

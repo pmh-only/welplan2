@@ -28,12 +28,20 @@ test('formats incomplete restaurant details for a Discord alert', () => {
 test('accepts only Discord incoming webhook URLs', () => {
   const settings = normalizeWorkerProblemAlertSettings({
     enabled: true,
-    discordWebhookUrl: 'https://discord.com/api/webhooks/123/token'
+    discordWebhookUrl: 'https://discord.com/api/webhooks/123/token',
+    discordRoleId: '123456789012345678'
   }, true)
   assert.equal(settings.enabled, true)
 
   assert.throws(() => normalizeWorkerProblemAlertSettings({
     enabled: true,
-    discordWebhookUrl: 'https://example.com/api/webhooks/123/token'
+    discordWebhookUrl: 'https://example.com/api/webhooks/123/token',
+    discordRoleId: '123456789012345678'
   }, true), /Discord Incoming Webhook URL/)
+
+  assert.throws(() => normalizeWorkerProblemAlertSettings({
+    enabled: true,
+    discordWebhookUrl: 'https://discord.com/api/webhooks/123/token',
+    discordRoleId: 'not-a-role-id'
+  }, true), /Discord 역할 ID/)
 })

@@ -441,12 +441,14 @@ test('sends a minimal test message without loading or rendering menus', async ()
   }
 })
 
-test('sends worker alerts to Discord with mentions disabled', async () => {
+test('mentions only the configured Discord role in worker alerts', async () => {
   requests = []
+  const roleId = '123456789012345678'
   const responseStatus = await deliverDiscordWorkerAlert(
     `${webhookUrl}/discord-worker-alert`,
     'Worker failed for @everyone',
-    'worker-alert-test'
+    'worker-alert-test',
+    roleId
   )
 
   assert.equal(responseStatus, 200)
@@ -454,8 +456,8 @@ test('sends worker alerts to Discord with mentions disabled', async () => {
   assert.equal(requests[0].path, '/webhook/discord-worker-alert?wait=true')
   assert.equal(requests[0].headers['x-welplan-delivery'], 'worker-alert-test')
   assert.deepEqual(JSON.parse(requests[0].body), {
-    content: 'Worker failed for @everyone',
-    allowed_mentions: { parse: [] }
+    content: `<@&${roleId}>\nWorker failed for @everyone`,
+    allowed_mentions: { parse: [], roles: [roleId] }
   })
 })
 

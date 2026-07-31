@@ -63,7 +63,8 @@ export async function notifyWorkerProblem(service: CafeteriaService, problem: Wo
         await deliverDiscordWorkerAlert(
           settings.discordWebhookUrl,
           workerProblemMessage(problem),
-          deliveryKey
+          deliveryKey,
+          settings.discordRoleId
         )
         alertLog.info('worker problem alert delivered', {
           totalRestaurants: problem.totalRestaurants,
