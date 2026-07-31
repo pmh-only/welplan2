@@ -1533,6 +1533,16 @@
         <span>선택한 식당의 메뉴를 Slack · Discord · Teams에서 원하는 요일과 시간에 받아보세요.</span>
         <a href="/webhooks" onclick={() => trackEvent('Webhook Shortcut Clicked', { source: 'footer_link' })}>메뉴 알림 설정하기</a>
       </p>
+      <nav class="mobile-footer-links" aria-label="LLM API 문서와 이용약관">
+        <a class="mobile-footer-link mobile-footer-api" href="/docs/api" onclick={() => trackEvent('LLM API Shortcut Clicked', { source: 'footer_link' })}>
+          <Braces class="mobile-footer-link-icon" aria-hidden="true" />
+          LLM APIs
+        </a>
+        <a class="mobile-footer-link mobile-footer-terms" href="/terms" onclick={() => trackEvent('Terms Shortcut Clicked', { source: 'footer_link' })}>
+          <FileText class="mobile-footer-link-icon" aria-hidden="true" />
+          이용약관
+        </a>
+      </nav>
     </footer>
   </main>
 
@@ -1570,6 +1580,10 @@
   }
 
   .legal-notice .mobile-footer-action {
+    display: none;
+  }
+
+  .legal-notice .mobile-footer-links {
     display: none;
   }
 
@@ -2391,9 +2405,9 @@
       top: 54px;
       right: 0;
     }
-    .notification-shortcut { display: none; }
-    .llm-api-shortcut { top: 54px; }
-    .terms-shortcut { top: 98px; }
+    .notification-shortcut,
+    .llm-api-shortcut,
+    .terms-shortcut { display: none; }
     .legal-notice .mobile-footer-action {
       display: block;
       margin-top: 14px;
@@ -2421,6 +2435,40 @@
       color: #047857;
       font-size: 12px;
       font-weight: 700;
+    }
+    .legal-notice .mobile-footer-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      max-width: 320px;
+      margin: 12px auto 0;
+    }
+    .legal-notice .mobile-footer-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .legal-notice .mobile-footer-api {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .legal-notice .mobile-footer-terms {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+      color: #475569;
+    }
+    :global(.mobile-footer-link-icon) {
+      width: 14px;
+      height: 14px;
     }
     .tab-btn {
       flex: 1 0 64px;
