@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { afterNavigate, goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
+  import { createDialogHistory } from '$lib/dialog-history'
   import LiveImage from '$lib/components/LiveImage.svelte'
   import { replaceMenuImages } from '$lib/live-menu-images'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
@@ -48,6 +49,9 @@
   let brokenImageSrcs = $state<string[]>([])
   let imageRefreshKey = $state('')
   let liveRefreshKey = ''
+  const zoomHistory = createDialogHistory(() => { zoomedMenu = null; detail = [] })
+
+  onDestroy(() => zoomHistory.destroy())
   let expandedMealTimeIds = $state<string[]>(
     untrack(() =>
       (data as typeof data & { time: string }).time === ALL_MEAL_TIME_ID
@@ -103,6 +107,7 @@
   async function openZoom (menu: GalleryMenu) {
     trackEvent('Gallery Menu Opened', { vendor: menu.vendor, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
+    zoomHistory.open()
     detail = []
     loadingDetail = false
 
@@ -124,7 +129,7 @@
     }
   }
 
-  function closeZoom () { zoomedMenu = null; detail = [] }
+  function closeZoom () { zoomHistory.close() }
 
   function onKeydown (e: KeyboardEvent) {
     if (zoomedMenu && e.key === 'Escape') closeZoom()

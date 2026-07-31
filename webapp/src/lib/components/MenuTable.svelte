@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { takeOutConditionValue } from '@pmh-only/welplan2-model'
   import { trackEvent } from '$lib/analytics'
+  import { createDialogHistory } from '$lib/dialog-history'
   import LiveImage from '$lib/components/LiveImage.svelte'
   import { autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
@@ -52,6 +53,13 @@
   let showSelectionDetail = $state(false)
   let selectionFloatDismissed = $state(false)
   let selectedMenuQuantities = $state<Record<string, number>>({})
+  const lightboxHistory = createDialogHistory(() => { lightboxSrc = null })
+  const selectionDetailHistory = createDialogHistory(() => { showSelectionDetail = false })
+
+  onDestroy(() => {
+    lightboxHistory.destroy()
+    selectionDetailHistory.destroy()
+  })
   let expandedMealTimeIds = $state<string[]>(
     untrack(() =>
       groupByMealTime ? [autoSelectMealTime(mealTimes)].filter((id): id is string => id != null) : []
@@ -105,9 +113,18 @@
     trackEvent('Menu Image Opened', { source: enableSelection ? 'takeout' : 'menu_table' })
     lightboxSrc = src
     lightboxAlt = alt
+    lightboxHistory.open()
   }
 
-  function closeLightbox () { lightboxSrc = null }
+  function closeLightbox () { lightboxHistory.close() }
+
+  function openSelectionDetail (source: 'mobile_toolbar' | 'floating_summary') {
+    showSelectionDetail = true
+    selectionDetailHistory.open()
+    trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedQuantityTotal, source })
+  }
+
+  function closeSelectionDetail () { selectionDetailHistory.close() }
 
   function isImageAvailable (src: string | undefined | null): src is string {
     return Boolean(src && !brokenImageSrcs.includes(src))
@@ -134,7 +151,7 @@
     expandedMenuId = null
     detail = []
     loadingDetail = false
-    showSelectionDetail = false
+    closeSelectionDetail()
     selectionFloatDismissed = false
     selectedMenuQuantities = {}
   })
@@ -219,7 +236,7 @@
 
   function clearSelection () {
     trackEvent('Takeout Menu Selection Cleared', { selectedCount: selectedMenuCount })
-    showSelectionDetail = false
+    closeSelectionDetail()
     selectionFloatDismissed = false
     selectedMenuQuantities = {}
   }
@@ -605,7 +622,7 @@
         </div>
         <div class="selected-items-mobile">{selectedItemsText}</div>
       </div>
-      <button type="button" class="toolbar-button" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedQuantityTotal, source: 'mobile_toolbar' }) }}>영양성분 보기</button>
+      <button type="button" class="toolbar-button" onclick={() => openSelectionDetail('mobile_toolbar')}>영양성분 보기</button>
     </div>
   </div>
 {/if}
@@ -666,7 +683,7 @@
 
       <div class="float-actions">
         <button type="button" class="btn-float" onclick={clearSelection}>선택 해제</button>
-        <button type="button" class="btn-float btn-primary" onclick={() => { showSelectionDetail = true; trackEvent('Takeout Nutrition Detail Opened', { selectedCount: selectedQuantityTotal, source: 'floating_summary' }) }}>상세보기</button>
+        <button type="button" class="btn-float btn-primary" onclick={() => openSelectionDetail('floating_summary')}>상세보기</button>
       </div>
     </div>
   </aside>
@@ -678,11 +695,11 @@
     role="button"
     tabindex="0"
     aria-label="선택 영양성분 닫기"
-    onclick={() => { showSelectionDetail = false }}
+    onclick={closeSelectionDetail}
     onkeydown={(e) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        showSelectionDetail = false
+        closeSelectionDetail()
       }
     }}
   >
@@ -692,7 +709,7 @@
           <BarChart3 class="float-title-icon" aria-hidden="true" />
           선택된 {selectedQuantityTotal}개 항목 통합 영양성분
         </h3>
-        <button type="button" class="float-close" onclick={() => { showSelectionDetail = false }} aria-label="상세 닫기">
+        <button type="button" class="float-close" onclick={closeSelectionDetail} aria-label="상세 닫기">
           <X class="float-close-icon" aria-hidden="true" />
         </button>
       </div>

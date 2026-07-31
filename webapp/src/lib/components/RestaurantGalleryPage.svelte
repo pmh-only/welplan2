@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
+  import { onDestroy } from 'svelte'
   import { trackEvent } from '$lib/analytics'
+  import { createDialogHistory } from '$lib/dialog-history'
   import LiveImage from '$lib/components/LiveImage.svelte'
   import MenuTable from '$lib/components/MenuTable.svelte'
   import { readRestaurantSelectionFromClient, saveRestaurantSelection } from '$lib/restaurant-cookie'
@@ -64,6 +66,16 @@
   let restaurantSearchResults = $state<Restaurant[]>([])
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
+  const zoomHistory = createDialogHistory(() => {
+    zoomedMenu = null
+    detail = []
+  })
+  const restaurantSearchHistory = createDialogHistory(() => { restaurantSearchOpen = false })
+
+  onDestroy(() => {
+    zoomHistory.destroy()
+    restaurantSearchHistory.destroy()
+  })
 
   function savedRestaurants (): Restaurant[] {
     if (typeof document === 'undefined') return []
@@ -196,12 +208,13 @@
 
   function openRestaurantSearch () {
     restaurantSearchOpen = true
+    restaurantSearchHistory.open()
     trackEvent('Restaurant Switch Dialog Opened', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id })
     if (allRestaurants.length === 0 && !restaurantSearching) loadAllRestaurants()
   }
 
   function closeRestaurantSearch () {
-    restaurantSearchOpen = false
+    restaurantSearchHistory.close()
   }
 
   async function searchRestaurants () {
@@ -226,14 +239,16 @@
     }
   }
 
-  function openRestaurant (restaurant: Restaurant) {
+  async function openRestaurant (restaurant: Restaurant) {
     trackEvent('Restaurant Switch Selected', { vendor: restaurant.vendor, restaurantId: restaurant.id, sourceVendor: data.restaurant.vendor, sourceRestaurantId: data.restaurant.id })
-    goto(restaurantDatedPath(restaurant, selectedDate))
+    await restaurantSearchHistory.close()
+    await goto(restaurantDatedPath(restaurant, selectedDate))
   }
 
   async function openZoom (menu: Menu) {
     trackEvent('Restaurant Gallery Menu Opened', { vendor: menu.vendor, restaurantId: menu.restaurantId, mealTimeId: menu.mealTimeId, hasImage: menu.imageUrl ? 1 : 0 })
     zoomedMenu = menu
+    zoomHistory.open()
     detail = []
     loadingDetail = false
 
@@ -256,8 +271,7 @@
   }
 
   function closeZoom () {
-    zoomedMenu = null
-    detail = []
+    zoomHistory.close()
   }
 
   function onKeydown (event: KeyboardEvent) {

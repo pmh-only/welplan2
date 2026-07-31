@@ -3,6 +3,7 @@
   import { Bot, Check, LoaderCircle, RotateCcw, Send, ShieldCheck, Square, Wrench, X } from '@lucide/svelte'
   import { trackEvent } from '$lib/analytics'
   import { WEB_MCP_TOOLS } from '$lib/agent'
+  import { createDialogHistory } from '$lib/dialog-history'
 
   type AgentMessage = {
     id: number
@@ -70,6 +71,7 @@
   let translationPromise: Promise<KoreanTranslators> | undefined
   let koreanTranslators: KoreanTranslators | undefined
   let isCreatingSession = false
+  const agentHistory = createDialogHistory(() => { void dismissAgent() })
 
   function initialMessages (): AgentMessage[] {
     return [{
@@ -550,6 +552,7 @@
 
   async function openAgent () {
     isOpen = true
+    agentHistory.open()
     trackEvent('AI Agent Opened', { availability })
     void prepareSession()
     await tick()
@@ -570,12 +573,16 @@
     trackEvent('AI Agent Request Stopped')
   }
 
-  async function closeAgent () {
-    if (isCommittingTool) return
+  async function dismissAgent () {
     if (isBusy || isInitializing) stopActiveRequest()
     isOpen = false
     await tick()
     launcherButton?.focus()
+  }
+
+  function closeAgent () {
+    if (isCommittingTool) return
+    agentHistory.close()
   }
 
   async function restartAgent () {
@@ -752,6 +759,7 @@
       settleConfirmation?.(false)
       destroySession()
       destroyTranslations()
+      agentHistory.destroy()
     }
   })
 </script>
