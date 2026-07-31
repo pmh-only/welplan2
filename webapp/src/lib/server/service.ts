@@ -25,6 +25,7 @@ const DEFAULT_EMPTY_MENU_CACHE_TTL_MS = 10 * 60 * 1000
 const DEFAULT_RESTAURANT_SEARCH_CACHE_TTL_MS = 10 * 60 * 1000
 const NOTICE_SETTINGS_KEY = 'notice'
 const RESTAURANT_ADDITIONAL_PATHS_SETTINGS_KEY = 'restaurantAdditionalPaths'
+const WORKER_PROBLEM_ALERT_SETTINGS_KEY = 'workerProblemDiscordWebhook'
 const MAX_ADDITIONAL_PATHS = 20
 const MAX_ADDITIONAL_PATH_PARTS = 12
 const MAX_ADDITIONAL_PATH_PART_LENGTH = 80
@@ -44,6 +45,10 @@ const EMPTY_NOTICE_SETTINGS: NoticeSettings = {
   summary: '',
   detail: '',
   contentHtml: ''
+}
+const EMPTY_WORKER_PROBLEM_ALERT_SETTINGS: WorkerProblemAlertSettings = {
+  enabled: false,
+  discordWebhookUrl: ''
 }
 
 type CachedCountRow = { count: number | string | bigint }
@@ -92,6 +97,48 @@ export type NoticeSettings = {
   updatedAt?: number
 }
 
+export type WorkerProblemAlertSettings = {
+  enabled: boolean
+  discordWebhookUrl: string
+  updatedAt?: number
+}
+
+export function normalizeWorkerProblemAlertSettings(
+  value: Partial<WorkerProblemAlertSettings>,
+  strict = false
+): WorkerProblemAlertSettings {
+  const rawUrl = typeof value.discordWebhookUrl === 'string' ? value.discordWebhookUrl.normalize('NFKC').trim() : ''
+  if (strict && rawUrl.length > 4096) throw new Error('Discord 웹훅 URL이 너무 깁니다')
+
+  let discordWebhookUrl = ''
+  if (rawUrl) {
+    try {
+      const url = new URL(rawUrl)
+      const allowHttp = ['1', 'true', 'yes', 'on'].includes(process.env.WEBHOOK_ALLOW_HTTP?.trim().toLowerCase() ?? '')
+      const hostname = url.hostname.toLowerCase()
+      const discordHost = hostname === 'discord.com' || hostname.endsWith('.discord.com') ||
+        hostname === 'discordapp.com' || hostname.endsWith('.discordapp.com')
+      const localTestUrl = allowHttp && url.protocol === 'http:'
+      if ((!discordHost || url.protocol !== 'https:') && !localTestUrl) throw new Error()
+      if (!/^\/api(?:\/v\d+)?\/webhooks\/[^/]+\/[^/]+\/?$/.test(url.pathname) && !localTestUrl) throw new Error()
+      if (url.username || url.password) throw new Error()
+      discordWebhookUrl = url.toString()
+    } catch {
+      if (strict) throw new Error('Discord Incoming Webhook URL을 올바르게 입력해 주세요')
+    }
+  }
+
+  if (strict && value.enabled === true && !discordWebhookUrl) {
+    throw new Error('알림을 사용하려면 Discord 웹훅 URL을 입력해 주세요')
+  }
+
+  return {
+    enabled: value.enabled === true && Boolean(discordWebhookUrl),
+    discordWebhookUrl,
+    updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : undefined
+  }
+}
+
 export type MenuDataUpdatedEvent = {
   kind: 'menus' | 'menuDetail' | 'menuNutrientDetail'
   restaurant: Restaurant
@@ -99,9 +146,19 @@ export type MenuDataUpdatedEvent = {
   mealTimeId: string
 }
 
+export type RestaurantSyncProblemEvent = {
+  restaurantCount: number
+  sources: {
+    source: 'welstory-search' | 'planeat'
+    restaurantCount: number
+    error?: unknown
+  }[]
+}
+
 export type ServiceOptions = {
   allowRemoteFetch?: boolean
   onMenuDataUpdated?: (event: MenuDataUpdatedEvent) => void | Promise<void>
+  onRestaurantSyncProblem?: (event: RestaurantSyncProblemEvent) => void | Promise<void>
 }
 
 export class CafeteriaService {
@@ -111,10 +168,12 @@ export class CafeteriaService {
   private cachePromise: Promise<void> | null = null
   private readonly allowRemoteFetch: boolean
   private readonly onMenuDataUpdated?: ServiceOptions['onMenuDataUpdated']
+  private readonly onRestaurantSyncProblem?: ServiceOptions['onRestaurantSyncProblem']
 
   constructor(options: ServiceOptions = {}) {
     this.allowRemoteFetch = options.allowRemoteFetch === true
     this.onMenuDataUpdated = options.onMenuDataUpdated
+    this.onRestaurantSyncProblem = options.onRestaurantSyncProblem
   }
 
   private normalizeSearchText(value: string): string {
@@ -420,6 +479,18 @@ export class CafeteriaService {
     }
   }
 
+  private async notifyRestaurantSyncProblem(event: RestaurantSyncProblemEvent): Promise<void> {
+    if (!this.onRestaurantSyncProblem) return
+    try {
+      await this.onRestaurantSyncProblem(event)
+    } catch (error) {
+      syncLog.warn('restaurant sync problem notification failed', {
+        sources: event.sources.map(({ source }) => source),
+        error
+      })
+    }
+  }
+
   private menuCacheKey(restaurantId: string, date: string, mealTimeId: string): string {
     return `${restaurantId}:${date}:${mealTimeId}`
   }
@@ -519,6 +590,26 @@ export class CafeteriaService {
       syncLog.warn('vendor restaurant sync failed', {
         vendor: 'planeat',
         error: planeatResult.reason
+      })
+    }
+
+    const requiredSources = [
+      { source: 'welstory-search' as const, result: welstorySearchResult },
+      { source: 'planeat' as const, result: planeatResult }
+    ]
+    const sourceProblems = requiredSources.flatMap(({ source, result }) => (
+      result.status === 'rejected' || result.value.length === 0
+        ? [{
+            source,
+            restaurantCount: result.status === 'fulfilled' ? result.value.length : 0,
+            error: result.status === 'rejected' ? result.reason : new Error('vendor returned no restaurants')
+          }]
+        : []
+    ))
+    if (sourceProblems.length > 0) {
+      await this.notifyRestaurantSyncProblem({
+        restaurantCount: toInsert.length,
+        sources: sourceProblems
       })
     }
 
@@ -1479,6 +1570,39 @@ export class CafeteriaService {
 
     syncLog.info('notice settings updated', { enabled: notice.enabled })
     return notice
+  }
+
+  async getWorkerProblemAlertSettings(): Promise<WorkerProblemAlertSettings> {
+    await ensureDbInitialized()
+    const row = await this.readOne(db.select().from(appSettings).where(eq(appSettings.key, WORKER_PROBLEM_ALERT_SETTINGS_KEY)))
+    if (!row) return EMPTY_WORKER_PROBLEM_ALERT_SETTINGS
+
+    try {
+      return normalizeWorkerProblemAlertSettings({
+        ...(JSON.parse(row.data) as Partial<WorkerProblemAlertSettings>),
+        updatedAt: row.updatedAt
+      })
+    } catch {
+      return EMPTY_WORKER_PROBLEM_ALERT_SETTINGS
+    }
+  }
+
+  async setWorkerProblemAlertSettings(value: Partial<WorkerProblemAlertSettings>): Promise<WorkerProblemAlertSettings> {
+    await ensureDbInitialized()
+    const now = this.now()
+    const settings = normalizeWorkerProblemAlertSettings({ ...value, updatedAt: now }, true)
+
+    await db
+      .insert(appSettings)
+      .values({ key: WORKER_PROBLEM_ALERT_SETTINGS_KEY, data: JSON.stringify(settings), updatedAt: now })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { data: JSON.stringify(settings), updatedAt: now }
+      })
+      .execute()
+
+    syncLog.info('worker problem alert settings updated', { enabled: settings.enabled })
+    return settings
   }
 
   async clearCaches(): Promise<Record<string, number>> {

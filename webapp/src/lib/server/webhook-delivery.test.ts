@@ -12,6 +12,7 @@ import {
 import { DEFAULT_WEBHOOK_CONFIG, WEBHOOK_PLATFORMS, type WebhookSubscription } from '../webhook-types.js'
 import type { CafeteriaService } from './service.js'
 import {
+  deliverDiscordWorkerAlert,
   deliverWebhookSubscription,
   deliverWebhookTest,
   dueWebhookSchedule,
@@ -438,6 +439,24 @@ test('sends a minimal test message without loading or rendering menus', async ()
       assert.equal(request.headers.accept, 'application/vnd.tosslab.jandi-v2+json')
     }
   }
+})
+
+test('sends worker alerts to Discord with mentions disabled', async () => {
+  requests = []
+  const responseStatus = await deliverDiscordWorkerAlert(
+    `${webhookUrl}/discord-worker-alert`,
+    'Worker failed for @everyone',
+    'worker-alert-test'
+  )
+
+  assert.equal(responseStatus, 200)
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].path, '/webhook/discord-worker-alert?wait=true')
+  assert.equal(requests[0].headers['x-welplan-delivery'], 'worker-alert-test')
+  assert.deepEqual(JSON.parse(requests[0].body), {
+    content: 'Worker failed for @everyone',
+    allowed_mentions: { parse: [] }
+  })
 })
 
 test('rejects success responses that do not match provider contracts', async () => {

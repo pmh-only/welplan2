@@ -1,4 +1,11 @@
-import { service, type CacheTableName, type NoticeSettings } from '$lib/server/service'
+import { deliverDiscordWorkerAlert } from '$lib/server/webhook-delivery'
+import {
+  normalizeWorkerProblemAlertSettings,
+  service,
+  type CacheTableName,
+  type NoticeSettings,
+  type WorkerProblemAlertSettings
+} from '$lib/server/service'
 import type { Restaurant, Vendor } from '$lib/types'
 import type { Actions, PageServerLoad } from './$types'
 
@@ -78,6 +85,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     cacheTables: CACHE_TABLES,
     cachePage: await service.getCachePage(table, page, pageSize),
     notice: await service.getNoticeSettings(),
+    workerProblemAlert: await service.getWorkerProblemAlertSettings(),
     additionalPathRestaurants: (await service.getRestaurants())
       .sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id, 'ko'))
       .map(adminRestaurant)
@@ -114,6 +122,42 @@ export const actions: Actions = {
       notice: savedNotice,
       status: await service.getCacheStatus(),
       cachePage: await service.getCachePage('restaurants', 1, 20)
+    }
+  },
+  updateWorkerProblemAlert: async ({ locals, request }) => {
+    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+
+    const formData = await request.formData()
+    const settings: Partial<WorkerProblemAlertSettings> = {
+      enabled: formData.get('enabled') === 'on',
+      discordWebhookUrl: stringFormValue(formData, 'discordWebhookUrl')
+    }
+
+    try {
+      if (formData.get('intent') === 'test') {
+        const testSettings = normalizeWorkerProblemAlertSettings(settings, true)
+        if (!testSettings.enabled) throw new Error('테스트하려면 알림을 활성화하고 웹훅 URL을 입력해 주세요')
+        await deliverDiscordWorkerAlert(
+          testSettings.discordWebhookUrl,
+          '✅ **Welplan worker 알림 테스트**\n관리자 페이지에 설정한 Discord 웹훅이 정상적으로 동작합니다.',
+          `admin-worker-alert-test:${Date.now()}`
+        )
+      }
+      const savedSettings = await service.setWorkerProblemAlertSettings(settings)
+      return {
+        message: formData.get('intent') === 'test'
+          ? '설정을 저장하고 Discord 테스트 알림을 전송했습니다'
+          : savedSettings.enabled ? 'Worker 문제 알림을 활성화했습니다' : 'Worker 문제 알림을 비활성화했습니다',
+        workerProblemAlert: savedSettings,
+        status: await service.getCacheStatus(),
+        cachePage: await service.getCachePage('restaurants', 1, 20)
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Worker 문제 알림 설정에 실패했습니다',
+        status: await service.getCacheStatus(),
+        cachePage: await service.getCachePage('restaurants', 1, 20)
+      }
     }
   },
   updateRestaurantAdditionalPaths: async ({ locals, request }) => {

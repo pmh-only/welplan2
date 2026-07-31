@@ -31,6 +31,7 @@
     status?: CacheStatus
     cachePage?: CachePage
     notice?: NoticeSettings
+    workerProblemAlert?: WorkerProblemAlertSettings
     restaurantAdditionalPaths?: {
       restaurant: string
       additionalPathsText: string
@@ -44,6 +45,11 @@
     contentHtml: string
     updatedAt?: number
   }
+  type WorkerProblemAlertSettings = {
+    enabled: boolean
+    discordWebhookUrl: string
+    updatedAt?: number
+  }
 
   let { data, form }: {
     data: {
@@ -52,6 +58,7 @@
       cacheTables: string[]
       cachePage: CachePage
       notice: NoticeSettings
+      workerProblemAlert: WorkerProblemAlertSettings
       additionalPathRestaurants: AdminRestaurant[]
     }
     form?: ActionData
@@ -59,6 +66,7 @@
   const status = $derived(form?.status ?? data.status)
   const cachePage = $derived(form?.cachePage ?? data.cachePage)
   const notice = $derived(form?.notice ?? data.notice)
+  const workerProblemAlert = $derived(form?.workerProblemAlert ?? data.workerProblemAlert)
   const statusEntries = $derived(Object.entries(status))
   const displayName = $derived(data.user?.name ?? data.user?.email ?? data.user?.id ?? 'admin')
   let editorElement: HTMLDivElement
@@ -281,6 +289,47 @@
             <span>최근 수정: {formatCachedAt(notice.updatedAt)}</span>
           {/if}
           <button type="submit" class="primary-button">공지 저장</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="worker-alert-title">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Worker monitoring</p>
+          <h2 id="worker-alert-title">Discord 문제 알림</h2>
+          <p class="panel-description">전체 식당 데이터 수집이 일부라도 실패하면 한 번의 요약 알림을 전송합니다.</p>
+        </div>
+      </div>
+
+      <form method="POST" action="?/updateWorkerProblemAlert" class="notice-form">
+        <label class="toggle-row">
+          <input type="checkbox" name="enabled" checked={workerProblemAlert.enabled} />
+          <span>Worker 문제 알림 사용</span>
+        </label>
+
+        <label class="field-row" for="worker-discord-webhook-url">
+          <span>Discord Incoming Webhook URL</span>
+          <input
+            id="worker-discord-webhook-url"
+            name="discordWebhookUrl"
+            type="password"
+            value={workerProblemAlert.discordWebhookUrl}
+            maxlength="4096"
+            autocomplete="off"
+            placeholder="https://discord.com/api/webhooks/..."
+          />
+        </label>
+        <span class="editor-help">Discord 채널 설정의 연동 메뉴에서 Incoming Webhook URL을 생성해 입력하세요.</span>
+
+        <div class="form-actions">
+          {#if workerProblemAlert.updatedAt}
+            <span>최근 수정: {formatCachedAt(workerProblemAlert.updatedAt)}</span>
+          {/if}
+          <div class="form-button-group">
+            <button type="submit" name="intent" value="test">저장 후 테스트</button>
+            <button type="submit" name="intent" value="save" class="primary-button">설정 저장</button>
+          </div>
         </div>
       </form>
     </section>
@@ -787,6 +836,11 @@
     color: #64748b;
     font-size: 12px;
     font-weight: 700;
+  }
+
+  .form-button-group {
+    display: flex;
+    gap: 8px;
   }
 
   .browser-header {

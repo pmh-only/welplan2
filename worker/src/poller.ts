@@ -11,6 +11,7 @@ import { deleteExpiredImages, prewarmProxiedImage } from '../../webapp/src/lib/s
 import { menuScanDates, scanRestaurantMealInfo } from './menu-availability.js'
 import { DEFAULT_RESTAURANTS } from './defaults.js'
 import { todayStr } from './utils.js'
+import { notifyWorkerProblem, type WorkerRestaurantProblem } from './worker-alerts.js'
 
 const ACTIVE_PREFETCH_INTERVAL_MS = 6 * 60 * 60 * 1000
 const FULL_SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -164,7 +165,7 @@ async function prefetchActiveRestaurants(service: CafeteriaService, activePrefet
   }
 }
 
-async function prefetchAllAvailability(service: CafeteriaService): Promise<void> {
+export async function prefetchAllAvailability(service: CafeteriaService): Promise<void> {
   if (fullScanRunning) {
     syncLog.debug('full prefetch skipped because another run is active')
     return
@@ -173,11 +174,13 @@ async function prefetchAllAvailability(service: CafeteriaService): Promise<void>
   const startedAt = Date.now()
 
   try {
-    const restaurants = uniqueRestaurants(
-      await service.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
-    )
+    const restaurants = uniqueRestaurants(await service.getRestaurants())
     if (restaurants.length === 0) {
       syncLog.info('full prefetch skipped because no restaurants are cached')
+      await notifyWorkerProblem(service, {
+        summary: '전체 식당 데이터 수집을 시작할 수 없습니다. 캐시된 식당이 없습니다.',
+        totalRestaurants: 0
+      })
       return
     }
 
@@ -185,6 +188,7 @@ async function prefetchAllAvailability(service: CafeteriaService): Promise<void>
     let fetched = 0
     let skipped = 0
     let errors = 0
+    const incompleteRestaurants: WorkerRestaurantProblem[] = []
 
     syncLog.info('full prefetch started', {
       restaurantCount: restaurants.length,
@@ -201,6 +205,18 @@ async function prefetchAllAvailability(service: CafeteriaService): Promise<void>
       const result = await scanRestaurantMealInfo(service, restaurant, dates, { afterBatch: yield_ })
       fetched += result.fetchedBatchCount
       errors += result.errorCount
+      const expectedBatchCount = dates.length * result.mealTimeCount
+      if (result.errorCount > 0 || result.fetchedBatchCount !== expectedBatchCount) {
+        incompleteRestaurants.push({
+          id: restaurant.id,
+          name: restaurant.name,
+          vendor: restaurant.vendor,
+          mealTimeCount: result.mealTimeCount,
+          fetchedBatchCount: result.fetchedBatchCount,
+          expectedBatchCount,
+          errorCount: result.errorCount
+        })
+      }
 
       syncLog.info('full prefetched restaurant meal scan', {
         restaurantId: restaurant.id,
@@ -229,6 +245,21 @@ async function prefetchAllAvailability(service: CafeteriaService): Promise<void>
       restaurantCount: restaurants.length,
       durationMs: Date.now() - startedAt
     })
+    if (incompleteRestaurants.length > 0) {
+      await notifyWorkerProblem(service, {
+        summary: '전체 식당 데이터 수집이 일부 식당에서 완료되지 않았습니다.',
+        totalRestaurants: restaurants.length,
+        dates,
+        restaurants: incompleteRestaurants
+      })
+    }
+  } catch (error) {
+    await notifyWorkerProblem(service, {
+      summary: '전체 식당 데이터 수집 작업이 중단되었습니다.',
+      totalRestaurants: 0,
+      error
+    })
+    throw error
   } finally {
     fullScanRunning = false
   }

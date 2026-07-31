@@ -1,16 +1,26 @@
 import '../../webapp/src/lib/server/env.js'
 import { createServerLogger } from '../../webapp/src/lib/server/log.js'
-import { createService } from '../../webapp/src/lib/server/service.js'
+import { createService, type CafeteriaService } from '../../webapp/src/lib/server/service.js'
 import { createIndexNowSubmitter } from './indexnow.js'
 import { startPoller } from './poller.js'
 import { startWebhookScheduler } from './webhook-scheduler.js'
+import { notifyWorkerProblem } from './worker-alerts.js'
 
 const logger = createServerLogger('worker')
 const indexNow = createIndexNowSubmitter()
-
+const alertService: CafeteriaService = createService()
 const service = createService({
   allowRemoteFetch: true,
-  onMenuDataUpdated: (event) => indexNow.notifyMenuDataUpdated(event)
+  onMenuDataUpdated: (event) => indexNow.notifyMenuDataUpdated(event),
+  onRestaurantSyncProblem: async (event) => {
+    await notifyWorkerProblem(alertService, {
+      summary: '전체 식당 목록을 공급사에서 가져오지 못했습니다.',
+      totalRestaurants: event.restaurantCount,
+      details: event.sources.map(({ source, error }) => (
+        `공급사 소스 ${source}: ${error instanceof Error ? error.message : String(error ?? 'empty response')}`
+      ))
+    })
+  }
 })
 const poller = startPoller(service)
 const webhookScheduler = startWebhookScheduler(service)

@@ -4,7 +4,7 @@ import type { CafeteriaService } from '../../webapp/src/lib/server/service.js'
 
 const MENU_SCAN_DAYS = 7
 
-type RestaurantMealScanResult = {
+export type RestaurantMealScanResult = {
   restaurant: Restaurant
   datesWithMenus: string[]
   mealTimeCount: number

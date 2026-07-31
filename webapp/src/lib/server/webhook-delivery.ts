@@ -92,6 +92,8 @@ type SafeWebhookTarget = {
   family: 4 | 6
 }
 
+type WebhookTargetConfig = Pick<WebhookSubscriptionConfig, 'platform' | 'webhookUrl'>
+
 export class WebhookDeliveryError extends Error {
   constructor(message: string, readonly responseStatus?: number, readonly retryAfterMs?: number) {
     super(message)
@@ -758,7 +760,7 @@ function isSuccessfulWebhookResponse(platform: WebhookPlatform, status: number, 
 }
 
 async function postWebhook(
-  subscription: WebhookSubscriptionConfig,
+  subscription: WebhookTargetConfig,
   payload: Record<string, unknown>,
   deliveryKey: string
 ): Promise<number> {
@@ -850,7 +852,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function waitForRequestSlot(subscription: WebhookSubscriptionConfig): Promise<void> {
+async function waitForRequestSlot(subscription: WebhookTargetConfig): Promise<void> {
   const interval = requestIntervalMs(subscription.platform)
   const key = `${subscription.platform}\0${subscription.webhookUrl}`
   const now = Date.now()
@@ -864,6 +866,22 @@ async function waitForRequestSlot(subscription: WebhookSubscriptionConfig): Prom
   cleanup.unref()
 
   if (requestAt > now) await wait(requestAt - now)
+}
+
+export async function deliverDiscordWorkerAlert(
+  webhookUrl: string,
+  content: string,
+  deliveryKey: string
+): Promise<number> {
+  const characters = Array.from(content)
+  const safeContent = characters.length <= 1900
+    ? content
+    : `${characters.slice(0, 1899).join('')}…`
+  return await postWebhook(
+    { platform: 'discord', webhookUrl },
+    { content: safeContent, allowed_mentions: { parse: [] } },
+    deliveryKey
+  )
 }
 
 export async function deliverWebhookTest(

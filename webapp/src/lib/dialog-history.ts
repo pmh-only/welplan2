@@ -11,7 +11,7 @@ const entries: DialogEntry[] = []
 let nextId = 1
 let listening = false
 
-function dialogId (state: unknown): number | undefined {
+function dialogId(state: unknown): number | undefined {
   if (!state || typeof state !== 'object') return undefined
   const record = state as Record<string, unknown>
   const id = record[DIALOG_STATE_KEY]
@@ -23,12 +23,12 @@ function dialogId (state: unknown): number | undefined {
   return typeof pageStateId === 'number' ? pageStateId : undefined
 }
 
-function removeEntry (entry: DialogEntry) {
+function removeEntry(entry: DialogEntry) {
   const index = entries.indexOf(entry)
   if (index !== -1) entries.splice(index, 1)
 }
 
-function onPopState (event: PopStateEvent) {
+function onPopState(event: PopStateEvent) {
   const entry = entries.at(-1)
   if (!entry || dialogId(event.state) === entry.id) return
 
@@ -36,20 +36,20 @@ function onPopState (event: PopStateEvent) {
   entry.dismiss()
 }
 
-function ensureListener () {
+function ensureListener() {
   if (listening || typeof window === 'undefined') return
   window.addEventListener('popstate', onPopState)
   listening = true
 }
 
-export function createDialogHistory (dismiss: () => void) {
+export function createDialogHistory(dismiss: () => void) {
   let entry: DialogEntry | undefined
   let closing = false
   let closePromise: Promise<void> | undefined
   let resolveClose: (() => void) | undefined
 
   return {
-    open () {
+    open() {
       if (entry || typeof window === 'undefined') return
       ensureListener()
       closing = false
@@ -69,7 +69,7 @@ export function createDialogHistory (dismiss: () => void) {
       pushState('', { [DIALOG_STATE_KEY]: entry.id })
     },
 
-    close () {
+    close() {
       if (!entry) {
         dismiss()
         return Promise.resolve()
@@ -92,7 +92,7 @@ export function createDialogHistory (dismiss: () => void) {
       return Promise.resolve()
     },
 
-    destroy () {
+    destroy() {
       if (!entry) return
       removeEntry(entry)
       entry = undefined

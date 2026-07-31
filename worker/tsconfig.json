@@ -14,6 +14,7 @@
     "src/poller.ts",
     "src/webhook-scheduler.ts",
     "src/menu-availability.ts",
+    "src/worker-alerts.ts",
     "src/defaults.ts",
     "src/utils.ts",
     "../webapp/src/lib/server/service.ts",
