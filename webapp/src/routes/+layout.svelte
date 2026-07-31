@@ -13,7 +13,7 @@
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { BellRing, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
+  import { BellRing, Braces, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -1478,6 +1478,15 @@
       </span>
     </a>
     <a
+      class="webhook-shortcut llm-api-shortcut"
+      href="/docs/api"
+      aria-label="LLM API 문서"
+      onclick={() => trackEvent('LLM API Shortcut Clicked', { source: 'floating_button' })}
+    >
+      <Braces class="webhook-shortcut-icon" aria-hidden="true" />
+      <span>LLM APIs</span>
+    </a>
+    <a
       class="webhook-shortcut terms-shortcut"
       href="/terms"
       aria-label="서비스 이용약관"
@@ -2165,7 +2174,7 @@
   }
 
   .terms-shortcut {
-    top: 126px;
+    top: 170px;
     border-color: #475569;
     background: #64748b;
     box-shadow: 0 8px 24px rgba(71, 85, 105, 0.3);
@@ -2175,6 +2184,19 @@
     border-color: #334155;
     background: #475569;
     box-shadow: 0 10px 28px rgba(71, 85, 105, 0.4);
+  }
+
+  .llm-api-shortcut {
+    top: 126px;
+    border-color: #2563eb;
+    background: #3b82f6;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+  }
+
+  .llm-api-shortcut:hover {
+    border-color: #1d4ed8;
+    background: #2563eb;
+    box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
   }
 
   :global(.webhook-shortcut-icon) {
@@ -2344,7 +2366,8 @@
       right: 0;
     }
     .notification-shortcut { display: none; }
-    .terms-shortcut { top: 54px; }
+    .llm-api-shortcut { top: 54px; }
+    .terms-shortcut { top: 98px; }
     .legal-notice .mobile-footer-action {
       display: block;
       margin-top: 14px;
