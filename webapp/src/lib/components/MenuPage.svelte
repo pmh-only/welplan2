@@ -4,6 +4,7 @@
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
+  import { replaceMenuImages } from '$lib/live-menu-images'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, fallbackMealTime, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
   import { Check, ChevronLeft, ChevronRight, Search, Store } from '@lucide/svelte'
@@ -43,12 +44,11 @@
     return `/api/menu/live?${new URLSearchParams({ kind, date: data.date, time: data.time })}`
   }
 
-  function hasUsableLiveData(liveData: MenuPageData | null): liveData is MenuPageData {
-    if (!liveData || liveData.restaurants.length === 0) return false
-    return liveData.menus.length > 0 || data.menus.length === 0
+  function hasUsableLiveImages(liveData: MenuPageData | null): liveData is MenuPageData {
+    return Boolean(liveData?.menus.length)
   }
 
-  async function refreshLiveData(): Promise<void> {
+  async function refreshLiveImages(): Promise<void> {
     if (data.restaurants.length === 0) return
 
     const key = `${kind}:${data.date}:${data.time}`
@@ -58,12 +58,13 @@
     try {
       const response = await fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin' })
       const liveData: MenuPageData | null = response.ok ? await response.json() : null
-      if (hasUsableLiveData(liveData)) {
-        data = liveData
+      if (hasUsableLiveImages(liveData)) {
+        const menus = replaceMenuImages(data.menus, liveData.menus)
+        if (menus !== data.menus) data = { ...data, menus }
         imageRefreshKey = String(Date.now())
       }
     } catch {
-      // Keep SSR cached data visible when live refresh fails.
+      // Keep the cached images visible when live refresh fails.
     }
   }
 
@@ -211,7 +212,7 @@
   })
 
   afterNavigate(() => {
-    void refreshLiveData()
+    void refreshLiveImages()
   })
 
   const visibleMenus = $derived(

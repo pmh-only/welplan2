@@ -3,6 +3,7 @@
   import { afterNavigate, goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
   import LiveImage from '$lib/components/LiveImage.svelte'
+  import { replaceMenuImages } from '$lib/live-menu-images'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
@@ -139,12 +140,11 @@
     return `/api/menu/live?${new URLSearchParams({ kind: 'gallery', date: selectedDate, time: selectedTime })}`
   }
 
-  function hasUsableLiveData(liveData: PageData | null): liveData is PageData {
-    if (!liveData || liveData.restaurants.length === 0) return false
-    return liveData.menus.length > 0 || data.menus.length === 0
+  function hasUsableLiveImages(liveData: PageData | null): liveData is PageData {
+    return Boolean(liveData?.menus.length)
   }
 
-  async function refreshLiveData(): Promise<void> {
+  async function refreshLiveImages(): Promise<void> {
     if (data.restaurants.length === 0) return
 
     const key = `gallery:${selectedDate}:${selectedTime}`
@@ -154,12 +154,13 @@
     try {
       const response = await fetch(liveRefreshUrl(), { cache: 'no-store', credentials: 'same-origin' })
       const liveData: PageData | null = response.ok ? await response.json() : null
-      if (hasUsableLiveData(liveData)) {
-        data = liveData
+      if (hasUsableLiveImages(liveData)) {
+        const menus = replaceMenuImages(data.menus, liveData.menus)
+        if (menus !== data.menus) data = { ...data, menus }
         imageRefreshKey = String(Date.now())
       }
     } catch {
-      // Keep SSR cached data visible when live refresh fails.
+      // Keep the cached images visible when live refresh fails.
     }
   }
 
@@ -172,7 +173,7 @@
   })
 
   afterNavigate(() => {
-    void refreshLiveData()
+    void refreshLiveImages()
   })
 
   function navigate (date: string, time: string, source: string) {
