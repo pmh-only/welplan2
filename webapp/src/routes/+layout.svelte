@@ -13,6 +13,7 @@
   import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
+  import AiAgent from '$lib/components/AiAgent.svelte'
   import { BellRing, Braces, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
@@ -73,6 +74,7 @@
   const MAX_JSON_LD_RESTAURANTS = 30
   const MAX_JSON_LD_COMPONENTS = 12
   const MAX_WEB_MCP_SEARCH_RESULTS = 10
+  const MAX_WEB_MCP_RESOLVED_RESTAURANTS = 100
   const MAX_WEB_MCP_PAGE_HEADINGS = 12
   const MAX_WEB_MCP_PAGE_TEXT = 1000
   const APP_FEATURES = [
@@ -956,6 +958,7 @@
 
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
+  let webMcpReady = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let firstVisitDialogOpen = $state(untrack(() => data.isFirstVisit))
   let dialogRestaurants = $state<Restaurant[]>(untrack(() => data.isFirstVisit ? [] : data.restaurants ?? []))
@@ -1125,9 +1128,10 @@
     if (!modelContext) return
 
     const controller = new AbortController()
+    const resolvedRestaurants = new Map<string, Restaurant>()
 
     function pageSummary () {
-      const headings = [...document.querySelectorAll('h1, h2, h3')]
+      const headings = [...document.querySelectorAll('.content h1, .content h2, .content h3')]
         .map((heading) => heading.textContent?.trim())
         .filter(Boolean)
         .slice(0, MAX_WEB_MCP_PAGE_HEADINGS)
@@ -1166,11 +1170,22 @@
                   const value: unknown = await response.json()
                   if (!Array.isArray(value)) throw new Error('Search returned an invalid response')
                   const results = value.filter(isRestaurant)
+                  const visibleResults = results.slice(0, MAX_WEB_MCP_SEARCH_RESULTS)
+                  for (const restaurant of visibleResults) {
+                    const key = `${restaurant.vendor}:${restaurant.id}`
+                    resolvedRestaurants.delete(key)
+                    resolvedRestaurants.set(key, restaurant)
+                  }
+                  while (resolvedRestaurants.size > MAX_WEB_MCP_RESOLVED_RESTAURANTS) {
+                    const oldestKey = resolvedRestaurants.keys().next().value
+                    if (typeof oldestKey !== 'string') break
+                    resolvedRestaurants.delete(oldestKey)
+                  }
                   return {
                     query,
                     resultCount: results.length,
                     truncated: results.length > MAX_WEB_MCP_SEARCH_RESULTS,
-                    results: results.slice(0, MAX_WEB_MCP_SEARCH_RESULTS).map((restaurant) => ({
+                    results: visibleResults.map((restaurant) => ({
                       id: restaurant.id,
                       name: restaurant.name,
                       vendor: restaurant.vendor,
@@ -1181,22 +1196,24 @@
                 case 'welplan.open-restaurant': {
                   const vendor = input.vendor === 'welstory' || input.vendor === 'shinsegae' ? input.vendor : ''
                   const id = typeof input.id === 'string' ? input.id.trim() : ''
+                  const name = typeof input.name === 'string' ? input.name.trim() : ''
                   const date = typeof input.date === 'string' ? input.date.trim() : ''
                   if (!vendor || !id || id.length > 256) throw new Error('vendor and a valid id are required')
+                  if (name.length > 200) throw new Error('name must not exceed 200 characters')
                   if (date && !/^\d{8}$/.test(date)) throw new Error('date must use YYYYMMDD format')
 
-                  const searchResponse = await fetch(`/proxy/search?q=${encodeURIComponent(id)}`)
-                  if (!searchResponse.ok) throw new Error(`Could not resolve restaurant (${searchResponse.status})`)
-                  const value: unknown = await searchResponse.json()
-                  if (!Array.isArray(value)) throw new Error('Restaurant lookup returned an invalid response')
-                  const restaurant = value.filter(isRestaurant).find((result) => result.id === id && result.vendor === vendor)
-                  if (!restaurant) throw new Error(`Restaurant ${id} not found`)
-
+                  const restaurant = resolvedRestaurants.get(`${vendor}:${id}`)
+                  if (!restaurant) throw new Error(`Restaurant ${id} was not verified. Call welplan.search-restaurants first.`)
+                  if (name && name !== restaurant.name) throw new Error(`Restaurant name does not match the verified result for ${id}`)
                   const target = date
                     ? restaurantDatedPath(restaurant, date)
                     : restaurantDetailPath(restaurant)
-                  await goto(target)
-                  return { ok: true, url: new URL(target, window.location.origin).toString() }
+                  void goto(target).catch((error) => console.warn('WebMCP navigation failed', error))
+                  return {
+                    ok: true,
+                    status: 'navigation-requested',
+                    url: new URL(target, window.location.origin).toString()
+                  }
                 }
                 case 'welplan.get-current-page':
                   return pageSummary()
@@ -1210,11 +1227,15 @@
       }
     }
 
-    registerWebMcpTools().catch((error) => {
-      if (controller.signal.aborted) return
-      controller.abort()
-      console.warn('WebMCP tool registration failed', error)
-    })
+    registerWebMcpTools()
+      .then(() => {
+        if (!controller.signal.aborted) webMcpReady = true
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return
+        controller.abort()
+        console.warn('WebMCP tool registration failed', error)
+      })
 
     return () => {
       controller.abort()
@@ -1238,6 +1259,7 @@
     !page.url.pathname.startsWith('/restaurants') &&
     !page.url.pathname.startsWith('/webhooks')
   )
+  const showAiAgent = $derived(webMcpReady && !isAdminPage && !hideGlobalNav && !showFirstVisitDialog)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
   const noticeHref = $derived(isRestaurantDetailPage ? '/notice?nonav' : '/notice')
@@ -1513,6 +1535,10 @@
       </p>
     </footer>
   </main>
+
+  {#if showAiAgent}
+    <AiAgent />
+  {/if}
 </div>
 
 <style>

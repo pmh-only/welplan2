@@ -56,6 +56,12 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
           maxLength: 256,
           description: 'Restaurant identifier returned by search-restaurants.'
         },
+        name: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 200,
+          description: 'Restaurant name returned by search-restaurants. Include it when available.'
+        },
         date: {
           type: 'string',
           pattern: '^\\d{8}$',

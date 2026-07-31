@@ -23,8 +23,31 @@ declare global {
       exposedTo?: string[]
     }
 
+    interface ModelContextClientTool {
+      annotations?: ToolAnnotations
+      description: string
+      inputSchema: string
+      name: string
+      origin: string
+      window: Window
+    }
+
+    interface ModelContextGetToolsOptions {
+      fromOrigins?: string[]
+    }
+
+    interface ModelContextExecuteToolOptions {
+      signal?: AbortSignal
+    }
+
     interface ModelContext extends EventTarget {
       registerTool(tool: ModelContextTool, options?: ModelContextRegisterToolOptions): Promise<void>
+      getTools(options?: ModelContextGetToolsOptions): Promise<ModelContextClientTool[]>
+      executeTool(
+        tool: ModelContextClientTool,
+        input: string,
+        options?: ModelContextExecuteToolOptions
+      ): Promise<unknown | null>
     }
   }
 
