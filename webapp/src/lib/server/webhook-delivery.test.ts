@@ -2,6 +2,13 @@ import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
 import type { MealTime, Menu, Restaurant } from '@pmh-only/welplan2-model'
+import {
+  activeTermsVersion,
+  PRIVACY_VERSION,
+  TERMS_EFFECTIVE_AT,
+  TERMS_PRIOR_VERSION,
+  TERMS_VERSION
+} from '../legal.js'
 import { DEFAULT_WEBHOOK_CONFIG, WEBHOOK_PLATFORMS, type WebhookSubscription } from '../webhook-types.js'
 import type { CafeteriaService } from './service.js'
 import {
@@ -13,6 +20,8 @@ import {
   webhookMenuDate
 } from './webhook-delivery.js'
 import {
+  assertWebhookRegistrationRequest,
+  normalizeWebhookLegalAcceptance,
   normalizeWebhookSubscriptionConfig,
   normalizeWebhookSubscriptionUpdate
 } from './webhook-subscriptions.js'
@@ -118,6 +127,51 @@ test('forces webhook subscriptions enabled', () => {
   assert.equal(normalized.timezone, 'Asia/Seoul')
   assert.equal(normalized.targetDateOffset, 0)
   assert.equal(normalized.menuFilter, 'take-in')
+})
+
+test('requires explicit legal acceptance for webhook registration', () => {
+  const acceptedAt = TERMS_EFFECTIVE_AT - 1
+  const currentAcceptance = {
+    legalAcceptance: { accepted: true, termsVersion: TERMS_PRIOR_VERSION, privacyVersion: PRIVACY_VERSION }
+  }
+  assert.deepEqual(normalizeWebhookLegalAcceptance(currentAcceptance, acceptedAt), {
+    termsVersion: TERMS_PRIOR_VERSION,
+    privacyVersion: PRIVACY_VERSION,
+    acceptedAt
+  })
+  assert.throws(() => normalizeWebhookLegalAcceptance({}), /이용약관에 동의/)
+  assert.throws(() => normalizeWebhookLegalAcceptance({
+    legalAcceptance: { ...currentAcceptance.legalAcceptance, termsVersion: 'outdated' }
+  }), /변경되었습니다/)
+})
+
+test('activates the amended terms on their announced effective date', () => {
+  assert.equal(activeTermsVersion(TERMS_EFFECTIVE_AT - 1), TERMS_PRIOR_VERSION)
+  assert.equal(activeTermsVersion(TERMS_EFFECTIVE_AT), TERMS_VERSION)
+})
+
+test('accepts webhook registrations only from same-origin JSON requests', () => {
+  const request = (contentType: string, origin?: string) => new Request('https://welplan.example.com/api/webhooks/subscriptions', {
+    method: 'POST',
+    headers: { 'Content-Type': contentType, ...(origin ? { Origin: origin } : {}) },
+    body: '{}'
+  })
+  assert.doesNotThrow(() => assertWebhookRegistrationRequest(
+    request('application/json; charset=utf-8', 'https://welplan.example.com'),
+    'https://welplan.example.com'
+  ))
+  assert.doesNotThrow(() => assertWebhookRegistrationRequest(
+    request('application/json'),
+    'https://welplan.example.com'
+  ))
+  assert.throws(() => assertWebhookRegistrationRequest(
+    request('text/plain', 'https://attacker.example.com'),
+    'https://welplan.example.com'
+  ), /JSON 요청/)
+  assert.throws(() => assertWebhookRegistrationRequest(
+    request('application/json', 'https://attacker.example.com'),
+    'https://welplan.example.com'
+  ), /다른 사이트/)
 })
 
 test('normalizes enabled meal schedules into delivery meal types', () => {

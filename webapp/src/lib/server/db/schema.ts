@@ -61,6 +61,9 @@ export const webhookSubscriptions = pgTable('webhook_subscriptions', {
   platform: text('platform').notNull(),
   enabled: boolean('enabled').notNull(),
   data: text('data').notNull(), // JSON: WebhookSubscriptionConfig
+  termsVersion: text('terms_version'), // Null for subscriptions created before explicit acceptance records.
+  privacyVersion: text('privacy_version'),
+  legalAcceptedAt: bigint('legal_accepted_at', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
 })

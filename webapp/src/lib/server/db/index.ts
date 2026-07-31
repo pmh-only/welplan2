@@ -77,9 +77,15 @@ const createSchemaSql = `
     platform TEXT NOT NULL,
     enabled BOOLEAN NOT NULL,
     data TEXT NOT NULL,
+    terms_version TEXT,
+    privacy_version TEXT,
+    legal_accepted_at BIGINT,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
   );
+  ALTER TABLE webhook_subscriptions ADD COLUMN IF NOT EXISTS terms_version TEXT;
+  ALTER TABLE webhook_subscriptions ADD COLUMN IF NOT EXISTS privacy_version TEXT;
+  ALTER TABLE webhook_subscriptions ADD COLUMN IF NOT EXISTS legal_accepted_at BIGINT;
   UPDATE webhook_subscriptions SET enabled = TRUE WHERE enabled = FALSE;
   CREATE TABLE IF NOT EXISTS webhook_deliveries (
     key TEXT PRIMARY KEY,

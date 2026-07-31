@@ -3,8 +3,10 @@ import type { RequestHandler } from './$types'
 import { service } from '$lib/server/service'
 import { deliverWebhookTest, WebhookDeliveryError } from '$lib/server/webhook-delivery'
 import {
+  assertWebhookRegistrationRequest,
   createWebhookSubscription,
   consumeWebhookRegistrationLimit,
+  normalizeWebhookLegalAcceptance,
   normalizeWebhookSubscriptionConfig,
   WebhookValidationError
 } from '$lib/server/webhook-subscriptions'
@@ -35,16 +37,18 @@ async function validateRestaurants(value: unknown): Promise<void> {
   if (unknownIds.length > 0) throw new WebhookValidationError('선택한 식당을 찾을 수 없습니다. 식당을 다시 선택해 주세요.')
 }
 
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-  if (!await consumeWebhookRegistrationLimit(getClientAddress())) {
-    return json({ error: '웹훅을 너무 많이 등록했습니다. 잠시 후 다시 시도해 주세요.' }, 429)
-  }
+export const POST: RequestHandler = async ({ request, getClientAddress, url }) => {
   try {
+    assertWebhookRegistrationRequest(request, url.origin)
+    if (!await consumeWebhookRegistrationLimit(getClientAddress())) {
+      return json({ error: '웹훅을 너무 많이 등록했습니다. 잠시 후 다시 시도해 주세요.' }, 429)
+    }
     const input = await requestJson(request)
+    const legalAcceptance = normalizeWebhookLegalAcceptance(input)
     const config = normalizeWebhookSubscriptionConfig(input)
     await validateRestaurants(config)
     const testResult = await deliverWebhookTest(config, `registration:${randomUUID()}`)
-    return json({ ...await createWebhookSubscription(config), testResult }, 201)
+    return json({ ...await createWebhookSubscription(config, legalAcceptance), testResult }, 201)
   } catch (error) {
     if (error instanceof WebhookValidationError) return json({ error: error.message }, 400)
     if (error instanceof WebhookDeliveryError) {

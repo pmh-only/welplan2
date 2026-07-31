@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation'
   import { onMount, untrack } from 'svelte'
   import { Check, ChevronRight, FlaskConical, Plus, Search, Send, Trash2, Utensils } from '@lucide/svelte'
+  import { PRIVACY_VERSION, type TermsVersion } from '$lib/legal'
   import type { Restaurant } from '$lib/types'
   import {
     DEFAULT_WEBHOOK_CONFIG,
@@ -16,7 +17,7 @@
 
   type CreationTestStatus = 'sent' | 'skipped' | 'failed'
   type SlackOAuthResult = { configured: boolean; webhookUrl?: string; channel?: string; teamName?: string; error?: string }
-  type PageData = { restaurants?: Restaurant[]; internalId?: string; creationTest?: CreationTestStatus; slackOAuth?: SlackOAuthResult }
+  type PageData = { restaurants?: Restaurant[]; internalId?: string; creationTest?: CreationTestStatus; slackOAuth?: SlackOAuthResult; termsVersion: TermsVersion }
   type Feedback = { kind: 'success' | 'error' | 'info'; text: string }
 
   const weekdays = [
@@ -77,6 +78,7 @@
   let loadingEditor = $state(Boolean(untrack(() => data.internalId)))
   let editorUnavailable = $state(false)
   let showGuide = $state(false)
+  let legalAccepted = $state(false)
   let feedback = $state<Feedback | null>(untrack(() => creationTestFeedback(data.creationTest)))
   let searchSequence = 0
 
@@ -84,6 +86,8 @@
   const visibleRestaurantResults = $derived(restaurantResults.filter((restaurant) => !selectedIds.has(restaurant.id)))
   const selectedPlatform = $derived(platformMeta[draft.platform])
   const slackInstallPath = $derived(`/webhooks/slack/install?returnTo=${encodeURIComponent(editingId ? `/webhooks/${editingId}` : '/webhooks')}`)
+  const termsVersion = untrack(() => data.termsVersion)
+  const termsPath = `/terms/${termsVersion}`
 
   function freshDraft(): WebhookSubscriptionConfig {
     return {
@@ -202,10 +206,24 @@
       feedback = { kind: 'error', text: '요일과 식사 시간을 하나 이상 선택해 주세요.' }
       return
     }
+    if (!editingId && !legalAccepted) {
+      feedback = { kind: 'error', text: '서비스 이용약관에 동의하고 개인정보 처리방침을 확인해 주세요.' }
+      return
+    }
 
     saving = true
     feedback = null
-    const body = { ...draft, restaurantIds: selectedRestaurants.map((restaurant) => restaurant.id) }
+    const body = {
+      ...draft,
+      restaurantIds: selectedRestaurants.map((restaurant) => restaurant.id),
+      ...(editingId ? {} : {
+        legalAcceptance: {
+          accepted: legalAccepted,
+          termsVersion,
+          privacyVersion: PRIVACY_VERSION
+        }
+      })
+    }
     try {
       if (editingId) {
         const response = await fetch(`/api/webhooks/subscriptions/${editingId}`, {
@@ -218,7 +236,7 @@
         currentSubscription = updated
         feedback = { kind: 'success', text: '웹훅 설정을 저장했습니다.' }
       } else {
-        const response = await fetch('/api/webhooks/subscriptions', {
+        const response = await fetch('/api/webhooks/subscriptions/v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -444,6 +462,15 @@
     </section>
 
     <div class="form-footer">
+      {#if !editingId}
+        <div class="legal-consent">
+          <input id="legal-acceptance" type="checkbox" required bind:checked={legalAccepted} />
+          <label for="legal-acceptance">
+            <a href={termsPath} target="_blank" rel="noreferrer">서비스 이용약관</a>에 동의하고
+            <a href="/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a>을 확인했습니다.
+          </label>
+        </div>
+      {/if}
       {#if feedback}
         <div class="feedback feedback-{feedback.kind}" role="status">{feedback.text}</div>
       {/if}
@@ -570,6 +597,10 @@
   .number-option { justify-content: space-between; }
   .number-option input { width: 66px; min-height: 34px; }
   .form-footer { background: var(--surface); }
+  .legal-consent { display: flex; align-items: flex-start; gap: 9px; margin: 14px clamp(18px, 4vw, 42px) 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); background: #fff; font-size: 11px; line-height: 1.6; }
+  .legal-consent input { width: 16px; min-height: 16px; margin-top: 1px; flex: 0 0 16px; accent-color: #10b981; }
+  .legal-consent label { cursor: pointer; }
+  .legal-consent a { color: #047857; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
   .form-footer .feedback { margin: 14px clamp(18px, 4vw, 42px) 0; }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px clamp(18px, 4vw, 42px) 18px; }
   .delete-btn, .test-btn, .submit-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 9px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; }

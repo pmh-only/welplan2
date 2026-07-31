@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { and, desc, eq, lt, sql } from 'drizzle-orm'
 import type { MealTypeName } from '@pmh-only/welplan2-model'
+import { activeTermsVersion, PRIVACY_VERSION } from '../legal.js'
 import {
   DEFAULT_WEBHOOK_CONFIG,
   WEBHOOK_MEAL_TYPES,
@@ -24,6 +25,46 @@ const MAX_REGISTRATIONS_PER_WINDOW = 5
 const mealTypes = new Set<MealTypeName>(WEBHOOK_MEAL_TYPES.map((mealType) => mealType.value))
 
 export class WebhookValidationError extends Error {}
+
+export type WebhookLegalAcceptance = {
+  termsVersion: string
+  privacyVersion: string
+  acceptedAt: number
+}
+
+export function assertWebhookRegistrationRequest(request: Request, expectedOrigin: string): void {
+  const contentType = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+  if (contentType !== 'application/json') {
+    throw new WebhookValidationError('웹훅 등록은 JSON 요청으로만 처리할 수 있습니다.')
+  }
+  const origin = request.headers.get('origin')
+  if (origin && origin !== expectedOrigin) {
+    throw new WebhookValidationError('다른 사이트에서는 웹훅을 등록할 수 없습니다.')
+  }
+}
+
+export function normalizeWebhookLegalAcceptance(
+  value: unknown,
+  acceptedAt = Date.now()
+): WebhookLegalAcceptance {
+  const legalAcceptance = value && typeof value === 'object'
+    ? (value as Record<string, unknown>).legalAcceptance
+    : null
+  if (!legalAcceptance || typeof legalAcceptance !== 'object' ||
+    (legalAcceptance as Record<string, unknown>).accepted !== true) {
+    throw new WebhookValidationError(
+      '서비스 이용약관에 동의하고 개인정보 처리방침을 확인해 주세요. 이전 화면을 사용 중이면 페이지를 새로고침해 주세요.'
+    )
+  }
+  const input = legalAcceptance as Record<string, unknown>
+  const termsVersion = activeTermsVersion(acceptedAt)
+  if (input.termsVersion !== termsVersion || input.privacyVersion !== PRIVACY_VERSION) {
+    throw new WebhookValidationError(
+      '이용약관 또는 개인정보 처리방침이 변경되었습니다. 페이지를 새로고침한 뒤 내용을 다시 확인해 주세요.'
+    )
+  }
+  return { termsVersion, privacyVersion: PRIVACY_VERSION, acceptedAt }
+}
 
 function normalizedString(value: unknown, field: string, maxLength: number, required = false): string {
   if (typeof value !== 'string') {
@@ -264,7 +305,10 @@ export async function consumeWebhookRegistrationLimit(address: string, now = Dat
   return (rows[0]?.attempts ?? MAX_REGISTRATIONS_PER_WINDOW + 1) <= MAX_REGISTRATIONS_PER_WINDOW
 }
 
-export async function createWebhookSubscription(value: unknown): Promise<WebhookSubscriptionCreated> {
+export async function createWebhookSubscription(
+  value: unknown,
+  legalAcceptance: WebhookLegalAcceptance
+): Promise<WebhookSubscriptionCreated> {
   const config = normalizeWebhookSubscriptionConfig(value)
   const id = randomUUID()
   const now = Date.now()
@@ -275,6 +319,9 @@ export async function createWebhookSubscription(value: unknown): Promise<Webhook
     platform: config.platform,
     enabled: config.enabled,
     data: JSON.stringify(config),
+    termsVersion: legalAcceptance.termsVersion,
+    privacyVersion: legalAcceptance.privacyVersion,
+    legalAcceptedAt: legalAcceptance.acceptedAt,
     createdAt: now,
     updatedAt: now
   }).execute()
