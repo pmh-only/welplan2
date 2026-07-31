@@ -2,7 +2,7 @@ import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
 import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
-import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, restaurantPathTags, todayStr } from '../utils.js'
+import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, formatKoreanDate, restaurantPathItems, todayStr } from '../utils.js'
 
 type ParentData = {
   restaurants: Restaurant[]
@@ -466,14 +466,14 @@ export async function redirectToCurrentMenuRoute(
 
 export function buildRestaurantPageDescription(
   restaurant: Restaurant,
-  vendorLabel: string
+  vendorLabel: string,
+  date?: string
 ): string {
-  const pathText = restaurantPathTags(restaurant)
-  const locationText = pathText ? ` ${pathText}` : ''
+  const dateLabel = date && /^\d{8}$/.test(date) ? formatKoreanDate(date) : '오늘'
+  const locations = restaurantPathItems(restaurant)
+    .filter((item) => item !== restaurant.name && item !== vendorLabel)
+    .slice(0, 3)
+  const locationText = locations.length > 0 ? ` ${locations.join(' · ')} 관련 식당입니다.` : ''
 
-  if (restaurant.vendor === 'welstory') {
-    return `${vendorLabel} ${restaurant.name} 식단표를 Welplan에서 조회하세요.${locationText} 웰스토리 식단 조회, 메뉴 사진, 날짜별 식단표, 칼로리와 영양정보를 한눈에 확인할 수 있습니다.`
-  }
-
-  return `${vendorLabel} ${restaurant.name} 식단표를 Welplan에서 조회하세요.${locationText} 신세계푸드 메뉴 조회, 날짜별 식단표, 메뉴 사진과 영양정보를 한눈에 확인할 수 있습니다.`
+  return `${restaurant.name} ${vendorLabel} 구내식당의 ${dateLabel} 메뉴를 확인하세요. 아침·점심·저녁 식단표와 메뉴 사진, 칼로리 및 영양정보를 제공합니다.${locationText}`
 }

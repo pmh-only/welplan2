@@ -9,6 +9,11 @@
 </script>
 
 <div class="docs-page">
+  <header class="docs-intro">
+    <p class="docs-eyebrow">DEVELOPER API</p>
+    <h1>Welplan 구내식당 메뉴 API</h1>
+    <p>삼성웰스토리·신세계푸드 식당 검색과 날짜별 메뉴 조회를 위한 API 및 피드 문서입니다.</p>
+  </header>
 
   <section class="section">
     <div class="section-head">
@@ -172,6 +177,35 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+
+  .docs-intro {
+    padding: 22px 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 72%);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .docs-eyebrow {
+    margin-bottom: 6px;
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .docs-intro h1 {
+    color: var(--text);
+    font-size: clamp(1.35rem, 3vw, 1.8rem);
+    line-height: 1.3;
+  }
+
+  .docs-intro > p:last-child {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
   }
 
   .section {

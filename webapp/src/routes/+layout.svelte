@@ -30,7 +30,6 @@
     ogTitle: string
     description: string
     robots: string
-    keywords: string
   }
 
   type JsonLdValue = Record<string, unknown>
@@ -70,9 +69,8 @@
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const CONTACT_EMAIL = 'pmh_only@pmh.codes'
-  const MAX_JSON_LD_MENUS = 80
+  const MAX_JSON_LD_MENUS = 24
   const MAX_JSON_LD_RESTAURANTS = 30
-  const MAX_JSON_LD_COMPONENTS = 12
   const MAX_WEB_MCP_SEARCH_RESULTS = 10
   const MAX_WEB_MCP_RESOLVED_RESTAURANTS = 100
   const MAX_WEB_MCP_PAGE_HEADINGS = 12
@@ -98,31 +96,6 @@
     { path: '/docs/api', name: 'API 문서' },
     { path: '/notice', name: '공지사항' }
   ]
-  const DEFAULT_KEYWORDS = [
-    '웰스토리 식단 조회',
-    '웰스토리 식단표',
-    '웰스토리 식단',
-    '웰스토리 메뉴',
-    '삼성웰스토리 메뉴',
-    '웰스토리 메뉴 조회',
-    '삼성웰스토리 식단',
-    '삼성웰스토리 식단 조회',
-    '삼성웰스토리 식단표',
-    '웰스토리 api',
-    '웰스토리 식단 조회 api',
-    '웰스토리 식단 조회 어플',
-    '삼성전자 식단 조회',
-    '삼성전자 식단표',
-    '삼성전자 웰스토리 메뉴',
-    '신세계푸드 식단 조회',
-    '신세계푸드 메뉴 조회',
-    '신세계푸드 식단표'
-  ].join(', ')
-  function mergeKeywords (...groups: string[]): string {
-    const keywords = groups.flatMap((group) => group.split(',').map((keyword) => keyword.trim()))
-    return [...new Set(keywords.filter(Boolean))].join(', ')
-  }
-
   function mealTimeName (mealTimes: MealTime[], id: string): string {
     if (id === ALL_MEAL_TIME_ID) return '전체'
     return mealTimes.find((mealTime) => mealTime.id === id)?.name ?? fallbackMealTime(id).name
@@ -204,10 +177,6 @@
 
   function restaurantJsonLdId (restaurant: Restaurant, origin: string): string {
     return `${restaurantEntityUrl(restaurant, origin)}#restaurant`
-  }
-
-  function restaurantDatedUrl (restaurant: Restaurant, date: string | undefined, origin: string): string {
-    return new URL(date && /^\d{8}$/.test(date) ? restaurantDatedPath(restaurant, date) : restaurantDetailPath(restaurant), origin).toString()
   }
 
   function uniqueRestaurants (restaurants: Restaurant[] | undefined): Restaurant[] {
@@ -343,7 +312,7 @@
         }
       ]
 
-      if (pageData?.date && /^\d{8}$/.test(pageData.date)) {
+      if (pageData?.date && /^\d{8}$/.test(pageData.date) && pathname.endsWith(`/${pageData.date}`)) {
         itemListElement.push({
           '@type': 'ListItem',
           position: 4,
@@ -405,23 +374,8 @@
   }
 
   function menuDescription (menu: Menu): string | undefined {
-    const components = menu.components.map((component) => component.name).filter(Boolean)
+    const components = menu.components.map((component) => component.name).filter(Boolean).slice(0, 6)
     return components.length > 0 ? components.join(', ') : undefined
-  }
-
-  function menuComponentProperties (menu: Menu): JsonLdValue[] | undefined {
-    const properties = menu.components
-      .map((component) => component.name.trim()
-        ? {
-            '@type': 'PropertyValue',
-            name: component.isMain === true ? '주요 구성' : '구성',
-            value: component.name.trim()
-          }
-        : undefined)
-      .filter((item): item is JsonLdValue => item !== undefined)
-      .slice(0, MAX_JSON_LD_COMPONENTS)
-
-    return properties.length > 0 ? properties : undefined
   }
 
   function menuItemJsonLdId (menu: Menu, canonicalUrl: string): string {
@@ -447,27 +401,8 @@
       image: menuImageUrl(menu, origin),
       nutrition: nutritionJsonLd(menu),
       category: menu.isTakeOut ? '테이크아웃' : '테이크인',
-      additionalProperty: menuComponentProperties(menu),
       isPartOf: { '@id': sectionId },
       provider: restaurant ? { '@id': restaurantJsonLdId(restaurant, origin) } : undefined
-    }
-  }
-
-  function menuItemListJsonLd (menus: Menu[], canonicalUrl: string): JsonLdValue | undefined {
-    const visibleMenus = menus.slice(0, MAX_JSON_LD_MENUS)
-    if (visibleMenus.length === 0) return undefined
-
-    return {
-      '@type': 'ItemList',
-      '@id': `${canonicalUrl}#menu-items`,
-      name: '식단 메뉴 항목 목록',
-      numberOfItems: menus.length,
-      itemListOrder: 'https://schema.org/ItemListOrderAscending',
-      itemListElement: visibleMenus.map((menu, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        item: { '@id': menuItemJsonLdId(menu, canonicalUrl) }
-      }))
     }
   }
 
@@ -628,7 +563,6 @@
     const menu = typedData?.menus?.length
       ? menuJsonLd(typedData.menus, typedData.mealTimes ?? [], canonicalUrl, origin, typedData.date, typedData.restaurants ?? [], restaurant)
       : undefined
-    const menuItemList = typedData?.menus?.length ? menuItemListJsonLd(typedData.menus, canonicalUrl) : undefined
     const noticeArticle = noticeArticleJsonLd(pathname, canonicalUrl, routeMeta, organizationId, typedData)
     const apiDocs = apiDocumentationJsonLd(pathname, origin, canonicalUrl, routeMeta, organizationId)
     const webPage: JsonLdValue = {
@@ -757,14 +691,12 @@
       graph.push(...selectedRestaurantsJsonLd(typedData.restaurants, origin, canonicalUrl))
       webPage.mainEntity = { '@id': `${canonicalUrl}#menu` }
       graph.push(menu)
-      if (menuItemList) graph.push(menuItemList)
     }
 
     if (restaurant && typedData) {
       const vendorLabel = vendorName(restaurant.vendor)
       const restaurantId = restaurantJsonLdId(restaurant, origin)
       const restaurantUrl = restaurantEntityUrl(restaurant, origin)
-      const datedMenuUrl = restaurantDatedUrl(restaurant, typedData.date, origin)
       const image = firstMenuImageUrl(typedData.menus, origin)
       webPage.mainEntity = { '@id': restaurantId }
       webPage.about = { '@id': restaurantId }
@@ -785,16 +717,10 @@
         image,
         additionalProperty: restaurantAdditionalProperties(restaurant),
         subjectOf: { '@id': `${canonicalUrl}#webpage` },
-        potentialAction: {
-          '@type': 'ViewAction',
-          name: '날짜별 식단표 보기',
-          target: datedMenuUrl
-        },
         mainEntityOfPage: { '@id': `${canonicalUrl}#webpage` }
       })
 
       if (menu) graph.push(menu)
-      if (menuItemList) graph.push(menuItemList)
     }
 
     if (noticeArticle) {
@@ -812,19 +738,18 @@
 
   function routeMetaFor (pathname: string, mealTimes: MealTime[], restaurant?: Restaurant): RouteMeta {
     const baseMeta: RouteMeta = {
-      title: 'Welplan | 웰스토리 식단 조회와 신세계푸드 메뉴 조회',
-      ogTitle: 'Welplan | 웰스토리·신세계푸드 메뉴 조회',
-      description: '웰스토리·신세계푸드 식단 조회를 한 곳에서. 메뉴 사진과 영양정보를 빠르게.',
-      robots: INDEXABLE_ROBOTS,
-      keywords: DEFAULT_KEYWORDS
+      title: '웰스토리·신세계푸드 구내식당 오늘 메뉴 | Welplan',
+      ogTitle: '웰스토리·신세계푸드 오늘 메뉴 | Welplan',
+      description: '삼성웰스토리와 신세계푸드 구내식당의 오늘 메뉴를 확인하세요. 식당별 식단표, 메뉴 사진, 칼로리와 영양정보를 날짜별로 제공합니다.',
+      robots: INDEXABLE_ROBOTS
     }
 
     if (pathname === '/' || pathname.startsWith('/gallery')) {
       return {
         ...baseMeta,
-        title: '웰스토리 식단 조회 | 웰스토리 식단표·메뉴 조회 | Welplan',
-        ogTitle: '웰스토리 식단 조회와 메뉴 갤러리 | Welplan',
-        description: '웰스토리 식단 조회와 삼성웰스토리 식단표를 한 곳에서 확인하세요. 날짜·식사 시간별 메뉴 사진, 칼로리, 상세 영양정보를 빠르게 볼 수 있습니다.'
+        title: '웰스토리·신세계푸드 구내식당 오늘 메뉴 | Welplan',
+        ogTitle: '웰스토리·신세계푸드 오늘 메뉴 | Welplan',
+        description: '삼성웰스토리와 신세계푸드 구내식당의 오늘 메뉴를 확인하세요. 식당별 식단표, 메뉴 사진, 칼로리와 영양정보를 날짜별로 제공합니다.'
       }
     }
 
@@ -833,8 +758,7 @@
         ...baseMeta,
         title: '공지사항 | Welplan',
         ogTitle: 'Welplan 공지사항',
-        description: 'Welplan 서비스 공지사항과 업데이트 안내입니다.',
-        keywords: mergeKeywords('Welplan 공지사항', '웰플랜 공지', DEFAULT_KEYWORDS)
+        description: 'Welplan 서비스 공지사항과 업데이트 안내입니다.'
       }
     }
 
@@ -844,8 +768,7 @@
         title: '메뉴 웹훅 | Slack·Discord·Teams 메뉴 알림 | Welplan',
         ogTitle: 'Welplan 팀 채널 메뉴 알림',
         description: 'Slack, Discord, Google Chat, Microsoft Teams 등 팀 채널로 원하는 식당의 메뉴를 예약 전송합니다.',
-        robots: NOINDEX_ROBOTS,
-        keywords: mergeKeywords('구내식당 메뉴 알림', 'Slack 메뉴 웹훅', 'Discord 메뉴 봇', DEFAULT_KEYWORDS)
+        robots: NOINDEX_ROBOTS
       }
     }
 
@@ -854,8 +777,7 @@
         ...baseMeta,
         title: '개인정보 처리방침 | Welplan',
         ogTitle: 'Welplan 개인정보 처리방침',
-        description: 'Welplan 웹사이트와 Android 앱의 개인정보 처리방침입니다. 식당 선택 저장, 쿠키, 로컬 저장소, 문의 처리 방식을 안내합니다.',
-        keywords: mergeKeywords('Welplan 개인정보 처리방침', '개인정보 처리방침', '구내식당 메뉴 앱 개인정보', DEFAULT_KEYWORDS)
+        description: 'Welplan 웹사이트와 Android 앱의 개인정보 처리방침입니다. 식당 선택 저장, 쿠키, 로컬 저장소, 문의 처리 방식을 안내합니다.'
       }
     }
 
@@ -864,8 +786,7 @@
         ...baseMeta,
         title: '서비스 이용약관 | Welplan',
         ogTitle: 'Welplan 서비스 이용약관',
-        description: 'Welplan의 비상업적 이용 범위, 상업적 이용 및 메뉴 이미지 재배포 금지, 서비스 중단과 책임 제한을 설명합니다.',
-        keywords: mergeKeywords('Welplan 이용약관', '메뉴 이미지 이용 조건', '상업적 이용 금지', '서비스 이용약관', DEFAULT_KEYWORDS)
+        description: 'Welplan의 비상업적 이용 범위, 상업적 이용 및 메뉴 이미지 재배포 금지, 서비스 중단과 책임 제한을 설명합니다.'
       }
     }
 
@@ -874,8 +795,7 @@
         ...baseMeta,
         title: '데이터 삭제 요청 | Welplan',
         ogTitle: 'Welplan 데이터 삭제 요청 안내',
-        description: 'Welplan 사용자가 이메일로 데이터 삭제를 요청하는 방법을 안내합니다.',
-        keywords: mergeKeywords('Welplan 데이터 삭제', '데이터 삭제 요청', '앱 데이터 삭제 요청', '개인정보 삭제 요청', DEFAULT_KEYWORDS)
+        description: 'Welplan 사용자가 이메일로 데이터 삭제를 요청하는 방법을 안내합니다.'
       }
     }
 
@@ -896,27 +816,20 @@
       const vendorLabel = vendorName(restaurant.vendor)
       const lastSegment = pathname.split('/').filter(Boolean).pop() ?? ''
       const dateLabel = /^\d{8}$/.test(lastSegment) ? ` ${formatKoreanDate(lastSegment)}` : ''
-      const restaurantKeywords = restaurant.vendor === 'welstory'
-        ? ['웰스토리 식단 조회', '웰스토리 식단표', '삼성웰스토리 식단 조회', '웰스토리 메뉴 조회']
-        : ['신세계푸드 식단 조회', '신세계푸드 메뉴 조회', '신세계푸드 식단표']
-      const pathKeywords = restaurantPathTexts(restaurant)
-
       return {
         ...baseMeta,
-        title: `${restaurant.name} ${vendorLabel}${dateLabel} 식단표 조회 | Welplan`,
-        ogTitle: `${restaurant.name} ${vendorLabel} 식단표 조회`,
-        description: `${vendorLabel} ${restaurant.name} 식단표. 메뉴 사진과 영양정보를 한눈에.`,
-        keywords: mergeKeywords(restaurant.name, vendorLabel, ...pathKeywords, ...restaurantKeywords, '하루 전체 메뉴', '메뉴 갤러리', '식단 사진', DEFAULT_KEYWORDS)
+        title: `${restaurant.name}${dateLabel} 오늘의 메뉴 | ${vendorLabel} | Welplan`,
+        ogTitle: `${restaurant.name} 오늘의 구내식당 메뉴`,
+        description: `${restaurant.name} ${vendorLabel} 구내식당의 오늘 식단표와 메뉴 사진, 칼로리 및 영양정보를 확인하세요.`
       }
     }
 
     if (pathname.startsWith('/docs/api')) {
       return {
         ...baseMeta,
-        title: '웰스토리 API | 웰스토리 식단 조회 API 문서 | Welplan',
-        ogTitle: '웰스토리 식단 조회 API 문서 | Welplan',
-        description: '웰스토리 API와 웰스토리 식단 조회 API 사용법을 확인하세요. 식당 검색, 날짜별 메뉴 조회, RSS, OpenAPI 문서를 Welplan에서 제공합니다.',
-        keywords: mergeKeywords('웰스토리 api', '웰스토리 식단 조회 api', '웰스토리 메뉴 조회 api', '삼성웰스토리 api', DEFAULT_KEYWORDS)
+        title: '구내식당 메뉴 API 문서 | Welplan',
+        ogTitle: 'Welplan 구내식당 메뉴 API',
+        description: '삼성웰스토리·신세계푸드 식당 검색과 날짜별 메뉴 조회, RSS 및 OpenAPI 사용법을 안내합니다.'
       }
     }
 
@@ -1245,9 +1158,11 @@
   const restaurantMeta = $derived(restaurantFromPageData(page.data))
   const isAdminPage = $derived(page.url.pathname.startsWith('/admin'))
   const routeMeta = $derived.by(() => {
-    const base = routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta)
-    const pageDescription = (page.data as { pageDescription?: string }).pageDescription
-    return pageDescription ? { ...base, description: pageDescription } : base
+    let meta = routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta)
+    const pageData = page.data as { pageDescription?: string, indexable?: boolean }
+    if (pageData.pageDescription) meta = { ...meta, description: pageData.pageDescription }
+    if (pageData.indexable === false) meta = { ...meta, robots: NOINDEX_ROBOTS }
+    return meta
   })
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
@@ -1276,7 +1191,6 @@
   <meta name="creator" content="Welplan" />
   <meta name="publisher" content="Welplan" />
   <meta name="description" content={routeMeta.description} />
-  <meta name="keywords" content={routeMeta.keywords} />
   <meta name="robots" content={routeMeta.robots} />
   <meta name="googlebot" content={routeMeta.robots} />
   <meta name="bingbot" content={routeMeta.robots} />

@@ -279,7 +279,11 @@
   {/each}
 </svelte:head>
 
-<h1 class="sr-only">웰스토리·신세계푸드 메뉴 갤러리</h1>
+<header class="gallery-intro">
+  <p class="gallery-eyebrow">오늘의 구내식당</p>
+  <h1>웰스토리·신세계푸드 오늘 메뉴</h1>
+  <p>선택한 식당의 날짜별 식단표와 메뉴 사진, 칼로리 및 영양정보를 한눈에 확인하세요.</p>
+</header>
 
 <div class="section">
   <div class="section-head">
@@ -544,16 +548,31 @@
 {/if}
 
 <style>
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  .gallery-intro {
+    margin-bottom: 14px;
+    padding: 22px 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 70%);
+    box-shadow: var(--shadow-sm);
+  }
+  .gallery-eyebrow {
+    margin-bottom: 6px;
+    color: var(--green-dark);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+  .gallery-intro h1 {
+    color: var(--text);
+    font-size: clamp(1.35rem, 3vw, 1.8rem);
+    line-height: 1.3;
+  }
+  .gallery-intro > p:last-child {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
   }
 
   .section {

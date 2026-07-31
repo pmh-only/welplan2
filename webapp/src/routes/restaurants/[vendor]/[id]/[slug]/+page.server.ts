@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit'
-import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
+import { restaurantDetailPath } from '$lib/restaurant-routes'
 import {
   buildRestaurantPageDescription,
   loadGalleryMenusForRestaurantDate,
@@ -7,6 +7,7 @@ import {
   refreshGalleryMenusForRestaurantDate
 } from '$lib/server/menu-page'
 import { resolveRestaurantForRoute } from '$lib/server/restaurant-resolver'
+import { isIndexableRestaurant } from '$lib/restaurant-indexing'
 import { createService, service as cachedService } from '$lib/server/service'
 import { todayStr } from '$lib/utils'
 import type { PageServerLoad } from './$types'
@@ -65,8 +66,9 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
     galleryData,
     date,
     routeMode: 'plural' as const,
-    canonicalPath: restaurantDatedPath(restaurant, date),
+    canonicalPath: detailPath,
     detailPath,
-    pageDescription: buildRestaurantPageDescription(restaurant, vendorLabel)
+    indexable: isIndexableRestaurant(restaurant),
+    pageDescription: buildRestaurantPageDescription(restaurant, vendorLabel, date)
   }
 }

@@ -1,5 +1,6 @@
 import { service } from '$lib/server/service'
 import { restaurantDetailPath } from '$lib/restaurant-routes'
+import { isIndexableRestaurant } from '$lib/restaurant-indexing'
 import type { RequestHandler } from './$types'
 
 const STATIC_ENTRIES = [
@@ -23,6 +24,7 @@ function xmlEscape(value: string): string {
 export const GET: RequestHandler = async ({ url }) => {
   const restaurantEntries = await service.getRestaurants()
     .then((restaurants) => restaurants
+      .filter(isIndexableRestaurant)
       .map((restaurant) => ({
         path: restaurantDetailPath(restaurant),
         changefreq: 'weekly' as const,
@@ -32,14 +34,12 @@ export const GET: RequestHandler = async ({ url }) => {
     .catch(() => [])
   const entries = [...STATIC_ENTRIES, ...restaurantEntries]
 
-  const lastmod = new Date().toISOString()
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries
   .map(
     (entry) => `  <url>
     <loc>${xmlEscape(`${url.origin}${entry.path}`)}</loc>
-    <lastmod>${lastmod}</lastmod>
     <changefreq>${entry.changefreq}</changefreq>
     <priority>${entry.priority}</priority>
   </url>`
