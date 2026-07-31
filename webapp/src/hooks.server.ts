@@ -1,3 +1,4 @@
+import '$lib/server/env'
 import type { Handle } from '@sveltejs/kit'
 import { API_DOC_PATH } from '$lib/agent'
 import { createServerLogger } from '$lib/server/log'
@@ -10,6 +11,7 @@ import {
 import { renderMarkdownPage } from '$lib/server/markdown'
 
 const trafficLog = createServerLogger('traffic')
+const webMcpOriginTrialToken = process.env.WEBMCP_ORIGIN_TRIAL_TOKEN?.trim()
 
 let requestSequence = 0
 
@@ -78,6 +80,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       const headers = new Headers(response.headers)
       appendVaryValue(headers, 'Accept')
       applyContentSignal(headers)
+      if (webMcpOriginTrialToken) headers.append('Origin-Trial', webMcpOriginTrialToken)
 
       if (shouldAdvertiseDiscovery(event.url.pathname)) {
         headers.append('Link', buildDiscoveryLinkHeader(path))

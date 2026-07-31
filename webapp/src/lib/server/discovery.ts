@@ -275,7 +275,8 @@ export function getMcpServerCard(origin: string) {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
-        readOnlyHint: tool.readOnlyHint
+        readOnlyHint: tool.readOnlyHint,
+        untrustedContentHint: tool.untrustedContentHint
       })),
       markdown: {
         endpoint: `${origin}/`,

@@ -100,7 +100,16 @@
       </div>
     </div>
     <div class="section-body">
-      <p class="lead">브라우저 내 AI 어시스턴트가 WebMCP를 지원하면 아래 도구를 직접 호출할 수 있습니다.</p>
+      <p class="lead">
+        브라우저 내 AI 어시스턴트가 WebMCP를 지원하면 아래 도구를
+        <code>document.modelContext</code>의
+        <a href="https://developer.chrome.com/docs/ai/webmcp/imperative-api" target="_blank" rel="noreferrer">Imperative API</a>로
+        직접 호출할 수 있습니다.
+      </p>
+      <p class="lead">
+        Chrome 149 이상에서는 Origin Trial 토큰을 <code>WEBMCP_ORIGIN_TRIAL_TOKEN</code>으로 설정하거나,
+        로컬 Chrome의 <code>chrome://flags/#enable-webmcp-testing</code>을 활성화해 테스트할 수 있습니다.
+      </p>
       <ul class="tool-list">
         {#each WEB_MCP_TOOLS as tool (tool.name)}
           <li class="tool-item">

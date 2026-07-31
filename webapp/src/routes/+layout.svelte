@@ -72,6 +72,9 @@
   const MAX_JSON_LD_MENUS = 80
   const MAX_JSON_LD_RESTAURANTS = 30
   const MAX_JSON_LD_COMPONENTS = 12
+  const MAX_WEB_MCP_SEARCH_RESULTS = 10
+  const MAX_WEB_MCP_PAGE_HEADINGS = 12
+  const MAX_WEB_MCP_PAGE_TEXT = 1000
   const APP_FEATURES = [
     '웰스토리 식단 조회',
     '삼성웰스토리 식단표 조회',
@@ -127,8 +130,13 @@
     if (!value || typeof value !== 'object') return false
     const restaurant = value as Partial<Restaurant>
     return typeof restaurant.id === 'string' &&
+      restaurant.id.trim().length > 0 &&
       typeof restaurant.name === 'string' &&
-      typeof restaurant.vendor === 'string'
+      restaurant.name.trim().length > 0 &&
+      (restaurant.vendor === 'welstory' || restaurant.vendor === 'shinsegae') &&
+      (restaurant.path === undefined || (
+        Array.isArray(restaurant.path) && restaurant.path.every((part) => typeof part === 'string')
+      ))
   }
 
   function restaurantFromPageData (value: unknown): Restaurant | undefined {
@@ -1113,26 +1121,8 @@
     requestPersistentStorage()
 
     registerServiceWorker().catch(() => {})
-    const navigatorWithModelContext = navigator as Navigator & {
-      modelContext?: {
-        registerTool?: (
-          tool: {
-            name: string
-            title?: string
-            description: string
-            inputSchema?: Record<string, unknown>
-            execute: (input: Record<string, unknown>) => Promise<unknown>
-            annotations?: { readOnlyHint?: boolean }
-          },
-          options?: { signal?: AbortSignal }
-        ) => void
-      }
-    }
-
-    const modelContext = navigatorWithModelContext.modelContext
-    if (!modelContext?.registerTool) {
-      return
-    }
+    const modelContext = document.modelContext
+    if (!modelContext) return
 
     const controller = new AbortController()
 
@@ -1140,6 +1130,8 @@
       const headings = [...document.querySelectorAll('h1, h2, h3')]
         .map((heading) => heading.textContent?.trim())
         .filter(Boolean)
+        .slice(0, MAX_WEB_MCP_PAGE_HEADINGS)
+        .map((heading) => heading?.slice(0, 100))
       const bodyText = document.querySelector('.content')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
 
       return {
@@ -1147,59 +1139,82 @@
         path: window.location.pathname,
         title: document.title,
         headings,
-        text: bodyText.slice(0, 4000)
+        text: bodyText.slice(0, MAX_WEB_MCP_PAGE_TEXT)
       }
     }
 
-    for (const tool of WEB_MCP_TOOLS) {
-      modelContext.registerTool(
-        {
-          name: tool.name,
-          title: tool.title,
-          description: tool.description,
-          inputSchema: tool.inputSchema,
-          annotations: { readOnlyHint: tool.readOnlyHint },
-          execute: async (input: Record<string, unknown>) => {
-            switch (tool.name) {
-              case 'welplan.search-restaurants': {
-                const query = typeof input.query === 'string' ? input.query.trim() : ''
-                if (!query) throw new Error('query is required')
+    async function registerWebMcpTools () {
+      for (const tool of WEB_MCP_TOOLS) {
+        await modelContext.registerTool(
+          {
+            name: tool.name,
+            title: tool.title,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: {
+              readOnlyHint: tool.readOnlyHint,
+              untrustedContentHint: tool.untrustedContentHint
+            },
+            execute: async (input: Record<string, unknown>) => {
+              switch (tool.name) {
+                case 'welplan.search-restaurants': {
+                  const query = typeof input.query === 'string' ? input.query.trim() : ''
+                  if (!query || query.length > 100) throw new Error('query must be between 1 and 100 characters')
 
-                const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
-                if (!response.ok) throw new Error(`Search failed with status ${response.status}`)
-                return { query, results: await response.json() }
+                  const response = await fetch(`/proxy/search?q=${encodeURIComponent(query)}`)
+                  if (!response.ok) throw new Error(`Search failed with status ${response.status}`)
+                  const value: unknown = await response.json()
+                  if (!Array.isArray(value)) throw new Error('Search returned an invalid response')
+                  const results = value.filter(isRestaurant)
+                  return {
+                    query,
+                    resultCount: results.length,
+                    truncated: results.length > MAX_WEB_MCP_SEARCH_RESULTS,
+                    results: results.slice(0, MAX_WEB_MCP_SEARCH_RESULTS).map((restaurant) => ({
+                      id: restaurant.id,
+                      name: restaurant.name,
+                      vendor: restaurant.vendor,
+                      path: restaurant.path?.slice(0, 8)
+                    }))
+                  }
+                }
+                case 'welplan.open-restaurant': {
+                  const vendor = input.vendor === 'welstory' || input.vendor === 'shinsegae' ? input.vendor : ''
+                  const id = typeof input.id === 'string' ? input.id.trim() : ''
+                  const date = typeof input.date === 'string' ? input.date.trim() : ''
+                  if (!vendor || !id || id.length > 256) throw new Error('vendor and a valid id are required')
+                  if (date && !/^\d{8}$/.test(date)) throw new Error('date must use YYYYMMDD format')
+
+                  const searchResponse = await fetch(`/proxy/search?q=${encodeURIComponent(id)}`)
+                  if (!searchResponse.ok) throw new Error(`Could not resolve restaurant (${searchResponse.status})`)
+                  const value: unknown = await searchResponse.json()
+                  if (!Array.isArray(value)) throw new Error('Restaurant lookup returned an invalid response')
+                  const restaurant = value.filter(isRestaurant).find((result) => result.id === id && result.vendor === vendor)
+                  if (!restaurant) throw new Error(`Restaurant ${id} not found`)
+
+                  const target = date
+                    ? restaurantDatedPath(restaurant, date)
+                    : restaurantDetailPath(restaurant)
+                  await goto(target)
+                  return { ok: true, url: new URL(target, window.location.origin).toString() }
+                }
+                case 'welplan.get-current-page':
+                  return pageSummary()
+                default:
+                  throw new Error(`Unsupported tool '${tool.name}'`)
               }
-              case 'welplan.open-restaurant': {
-                const vendor = typeof input.vendor === 'string' ? input.vendor : ''
-                const id = typeof input.id === 'string' ? input.id : ''
-                if (!vendor || !id) throw new Error('vendor and id are required')
-
-                const searchResponse = await fetch(`/proxy/search?q=${encodeURIComponent(id)}`)
-                if (!searchResponse.ok) throw new Error('Could not resolve restaurant')
-                const results: { id: string; name: string; vendor: string }[] = await searchResponse.json()
-                const restaurant = results.find((r) => r.id === id && r.vendor === vendor)
-                if (!restaurant) throw new Error(`Restaurant ${id} not found`)
-
-                const slug = restaurant.name
-                  .normalize('NFKC').trim().toLowerCase()
-                  .replace(/[^\p{Letter}\p{Number}]+/gu, '-').replace(/^-+|-+$/g, '') || 'restaurant'
-                const date = typeof input.date === 'string' ? input.date : ''
-                const target = date
-                  ? `/restaurants/${vendor}/${id}/${slug}/${date}`
-                  : `/restaurants/${vendor}/${id}/${slug}`
-                await goto(target)
-                return { ok: true, url: new URL(target, window.location.origin).toString() }
-              }
-              case 'welplan.get-current-page':
-                return pageSummary()
-              default:
-                throw new Error(`Unsupported tool '${tool.name}'`)
             }
-          }
-        },
-        { signal: controller.signal }
-      )
+          },
+          { signal: controller.signal }
+        )
+      }
     }
+
+    registerWebMcpTools().catch((error) => {
+      if (controller.signal.aborted) return
+      controller.abort()
+      console.warn('WebMCP tool registration failed', error)
+    })
 
     return () => {
       controller.abort()

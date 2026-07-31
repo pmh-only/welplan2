@@ -84,6 +84,7 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `INDEXNOW_ENDPOINT`            | No                       | IndexNow API   | IndexNow submission endpoint. Defaults to `https://api.indexnow.org/indexnow`.                                     |
 | `WEBHOOK_ALLOW_HTTP`           | No                       | off            | Allow non-HTTPS webhook URLs. Intended only for trusted local development.                                         |
 | `WEBHOOK_ALLOW_PRIVATE_NETWORKS` | No                     | off            | Allow webhook delivery to private or loopback IP addresses. Intended for trusted self-hosted deployments.          |
+| `WEBMCP_ORIGIN_TRIAL_TOKEN`    | No                       | none           | Chrome WebMCP origin trial token added to HTML responses. Local testing can use `chrome://flags/#enable-webmcp-testing`. |
 
 ### Worker Environment Variables
 

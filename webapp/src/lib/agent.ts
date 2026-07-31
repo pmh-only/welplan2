@@ -14,6 +14,7 @@ export type WebMcpToolDefinition = {
   description: string
   inputSchema: Record<string, unknown>
   readOnlyHint: boolean
+  untrustedContentHint: boolean
 }
 
 export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
@@ -26,13 +27,16 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
       properties: {
         query: {
           type: 'string',
+          minLength: 1,
+          maxLength: 100,
           description: 'Restaurant name or keyword to search for.'
         }
       },
       required: ['query'],
       additionalProperties: false
     },
-    readOnlyHint: true
+    readOnlyHint: true,
+    untrustedContentHint: true
   },
   {
     name: 'welplan.open-restaurant',
@@ -48,17 +52,21 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
         },
         id: {
           type: 'string',
+          minLength: 1,
+          maxLength: 256,
           description: 'Restaurant identifier returned by search-restaurants.'
         },
         date: {
           type: 'string',
+          pattern: '^\\d{8}$',
           description: 'Date in YYYYMMDD format. Defaults to today when omitted.'
         }
       },
       required: ['vendor', 'id'],
       additionalProperties: false
     },
-    readOnlyHint: true
+    readOnlyHint: false,
+    untrustedContentHint: true
   },
   {
     name: 'welplan.get-current-page',
@@ -68,6 +76,7 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
       type: 'object',
       additionalProperties: false
     },
-    readOnlyHint: true
+    readOnlyHint: true,
+    untrustedContentHint: true
   }
 ]
