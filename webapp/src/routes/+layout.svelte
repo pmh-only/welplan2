@@ -13,7 +13,6 @@
   import { readRestaurantSelectionFromClient, restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import AiAgent from '$lib/components/AiAgent.svelte'
   import { BellRing, Braces, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
@@ -871,7 +870,6 @@
 
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
-  let webMcpReady = $state(false)
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let firstVisitDialogOpen = $state(untrack(() => data.isFirstVisit))
   let dialogRestaurants = $state<Restaurant[]>(untrack(() => data.isFirstVisit ? [] : data.restaurants ?? []))
@@ -1141,9 +1139,6 @@
     }
 
     registerWebMcpTools()
-      .then(() => {
-        if (!controller.signal.aborted) webMcpReady = true
-      })
       .catch((error) => {
         if (controller.signal.aborted) return
         controller.abort()
@@ -1197,7 +1192,6 @@
     !page.url.pathname.startsWith('/restaurants') &&
     !page.url.pathname.startsWith('/webhooks')
   )
-  const showAiAgent = $derived(webMcpReady && !isAdminPage && !hideGlobalNav && !showFirstVisitDialog)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
   const noticeHref = $derived(hideGlobalNav ? '/notice?nonav' : '/notice')
@@ -1482,10 +1476,6 @@
       </nav>
     </footer>
   </main>
-
-  {#if showAiAgent}
-    <AiAgent />
-  {/if}
 </div>
 
 <style>
