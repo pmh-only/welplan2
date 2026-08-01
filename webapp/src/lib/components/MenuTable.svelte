@@ -65,6 +65,7 @@
       groupByMealTime ? [autoSelectMealTime(mealTimes)].filter((id): id is string => id != null) : []
     )
   )
+  let previousExpansionDate = untrack(() => date)
   type SortKey =
     | 'restaurant'
     | 'name'
@@ -162,8 +163,12 @@
 
   $effect(() => {
     const _context = expansionContext
+    const dateChanged = date !== previousExpansionDate
     untrack(() => {
-      expandedMealTimeIds = groupByMealTime ? defaultExpandedMealTimeIds() : []
+      previousExpansionDate = date
+      if (!groupByMealTime) expandedMealTimeIds = []
+      else if (dateChanged) expandedMealTimeIds = visibleMealTimes.map((mealTime) => mealTime.id)
+      else expandedMealTimeIds = defaultExpandedMealTimeIds()
     })
   })
 

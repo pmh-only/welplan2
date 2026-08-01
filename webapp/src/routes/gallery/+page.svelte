@@ -137,6 +137,7 @@
   const selectedDate = $derived((data as typeof data & { date: string }).date)
   const selectedTime = $derived((data as typeof data & { time: string }).time)
   const isAllMealTime = $derived(selectedTime === ALL_MEAL_TIME_ID)
+  let previousExpansionDate = untrack(() => selectedDate)
   const expansionContext = $derived(
     `${selectedDate}:${selectedTime}:${data.restaurants.map((restaurant) => restaurant.id).join(',')}`
   )
@@ -172,8 +173,12 @@
   $effect(() => {
     const _context = expansionContext
     const expandDefault = isAllMealTime
+    const dateChanged = selectedDate !== previousExpansionDate
     untrack(() => {
-      expandedMealTimeIds = expandDefault ? defaultExpandedMealTimeIds() : []
+      previousExpansionDate = selectedDate
+      if (!expandDefault) expandedMealTimeIds = []
+      else if (dateChanged) expandedMealTimeIds = gallerySections.map((section) => section.mealTime.id)
+      else expandedMealTimeIds = defaultExpandedMealTimeIds()
     })
   })
 
