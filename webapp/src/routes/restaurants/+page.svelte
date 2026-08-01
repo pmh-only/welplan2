@@ -316,6 +316,12 @@
   }
   .search-spinner { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 
+  @media (max-width: 360px) {
+    .rest-list,
+    .rest-search-list { padding: 0; }
+    .vendor-badge { display: none; }
+  }
+
   @media (min-width: 900px) {
     .restaurants-layout {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
