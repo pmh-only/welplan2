@@ -10,7 +10,7 @@
   import { onMount, untrack } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
-  import { restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
+  import { readRestaurantSelectionFromClient, restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import AiAgent from '$lib/components/AiAgent.svelte'
@@ -1157,6 +1157,29 @@
 
   const restaurantMeta = $derived(restaurantFromPageData(page.data))
   const isAdminPage = $derived(page.url.pathname.startsWith('/admin'))
+
+  $effect(() => {
+    if (!browser || !restaurantMeta) return
+
+    const selectedRestaurants = readRestaurantSelectionFromClient()
+    const isSelected = selectedRestaurants.some((restaurant) =>
+      restaurant.vendor === restaurantMeta.vendor && restaurant.id === restaurantMeta.id
+    )
+    if (isSelected) return
+
+    const next = [...selectedRestaurants, restaurantMeta]
+    dialogRestaurants = next
+    firstVisitDialogOpen = false
+    saveRestaurantSelection(next)
+    trackEvent('Restaurant Added', {
+      vendor: restaurantMeta.vendor,
+      restaurantId: restaurantMeta.id,
+      source: 'restaurant_detail'
+    })
+    void recordRestaurantSelection(restaurantMeta).catch(() => undefined)
+    void invalidateAll()
+  })
+
   const routeMeta = $derived.by(() => {
     let meta = routeMetaFor(page.url.pathname, data.mealTimes ?? [], restaurantMeta)
     const pageData = page.data as { pageDescription?: string, indexable?: boolean }
@@ -1167,7 +1190,7 @@
   const pageCanonicalPath = $derived(canonicalPathFromPageData(page.data))
   const isRestaurantDetailPage = $derived((page.url.pathname.startsWith('/restaurant/') || page.url.pathname.startsWith('/restaurants/')) && restaurantMeta !== undefined)
   const hideGlobalNav = $derived(page.url.searchParams.has('nonav'))
-  const showGlobalChrome = $derived(!isRestaurantDetailPage && !hideGlobalNav)
+  const showGlobalChrome = $derived(!hideGlobalNav)
   const showFirstVisitDialog = $derived(
     firstVisitDialogOpen &&
     !isAdminPage &&
@@ -1177,7 +1200,7 @@
   const showAiAgent = $derived(webMcpReady && !isAdminPage && !hideGlobalNav && !showFirstVisitDialog)
   const notice = $derived(data.notice)
   const showNotice = $derived(notice?.enabled === true && ((notice.summary?.length ?? 0) > 0 || (notice.detail?.length ?? 0) > 0 || (notice.contentHtml?.length ?? 0) > 0))
-  const noticeHref = $derived(isRestaurantDetailPage ? '/notice?nonav' : '/notice')
+  const noticeHref = $derived(hideGlobalNav ? '/notice?nonav' : '/notice')
   const canonicalUrl = $derived(new URL(pageCanonicalPath ?? page.url.pathname, page.url.origin).toString())
   const rssUrl = $derived(new URL('/rss.xml', page.url.origin).toString())
   const ogImageWebpUrl = $derived(new URL('/og-image.webp', page.url.origin).toString())
@@ -1240,7 +1263,7 @@
 <div class="app">
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
-      <a class="notice-bar" href={noticeHref} onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar', nonav: isRestaurantDetailPage ? 1 : 0 })}>
+      <a class="notice-bar" href={noticeHref} onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar', nonav: hideGlobalNav ? 1 : 0 })}>
         <span class="notice-bar-badge">
           <Megaphone class="notice-icon" aria-hidden="true" />
           공지
@@ -1391,7 +1414,7 @@
     </header>
   {/if}
 
-  {#if showLoading && isRestaurantDetailPage}
+  {#if showLoading && isRestaurantDetailPage && !showGlobalChrome}
     <div class="route-progress route-progress-floating" role="status" aria-label="페이지 불러오는 중">
       <div class="route-progress-bar route-progress-bar-secondary" aria-hidden="true"></div>
       <div class="route-progress-bar route-progress-bar-primary" aria-hidden="true"></div>

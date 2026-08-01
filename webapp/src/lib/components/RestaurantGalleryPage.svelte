@@ -77,28 +77,6 @@
     restaurantSearchHistory.destroy()
   })
 
-  function savedRestaurants (): Restaurant[] {
-    if (typeof document === 'undefined') return []
-    return readRestaurantSelectionFromClient()
-  }
-
-  function isRestaurantSaved (): boolean {
-    return savedRestaurants().some((r) => r.id === data.restaurant.id)
-  }
-
-  let registered = $state(false)
-  $effect(() => { registered = isRestaurantSaved() })
-
-  function registerRestaurant () {
-    if (registered) return
-    trackEvent('Restaurant Added', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id, source: 'detail_page' })
-    const next = [...savedRestaurants(), data.restaurant]
-    saveRestaurantSelection(next)
-    registered = true
-    void recordRestaurantSelection(data.restaurant).catch(() => undefined)
-    invalidateAll()
-  }
-
   const selectedDate = $derived(data.date)
   const visibleRestaurantSearchResults = $derived(restaurantQuery.trim() ? restaurantSearchResults : allRestaurants)
 
@@ -241,8 +219,15 @@
 
   async function openRestaurant (restaurant: Restaurant) {
     trackEvent('Restaurant Switch Selected', { vendor: restaurant.vendor, restaurantId: restaurant.id, sourceVendor: data.restaurant.vendor, sourceRestaurantId: data.restaurant.id })
+    const next = readRestaurantSelectionFromClient().filter((selected) =>
+      !(selected.vendor === data.restaurant.vendor && selected.id === data.restaurant.id) &&
+      !(selected.vendor === restaurant.vendor && selected.id === restaurant.id)
+    )
+    saveRestaurantSelection([...next, restaurant])
+    void recordRestaurantSelection(restaurant).catch(() => undefined)
     await restaurantSearchHistory.close()
     await goto(restaurantDatedPath(restaurant, selectedDate))
+    await invalidateAll()
   }
 
   async function openZoom (menu: Menu) {
@@ -428,31 +413,6 @@
   </section>
   {/if}
 
-  <section class="cta-panel" aria-label="Welplan 식당 등록 안내">
-    <div class="promo-bg-circle" aria-hidden="true"></div>
-    <div class="promo-content">
-      <p class="promo-eyebrow">
-        <span class="promo-dot" aria-hidden="true"></span>Welplan
-      </p>
-      <p class="promo-headline">내 회사 식당을 등록하고<br />손쉽게 확인해 보세요</p>
-      <p class="promo-desc">웰스토리·신세계푸드 식당을 등록하면 오늘의 메뉴와 영양 정보를 한눈에 볼 수 있습니다.</p>
-    </div>
-    {#if registered}
-      <a class="register-button register-button-done" href="/restaurants">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="register-icon">
-          <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        등록됨 · 내 식당 보기
-      </a>
-    {:else}
-      <button class="register-button" type="button" onclick={registerRestaurant}>
-        식당 등록하기
-        <svg class="register-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    {/if}
-  </section>
 </article>
 
 {#if zoomedMenu}
@@ -582,7 +542,7 @@
       <div class="restaurant-search-head">
         <div>
           <h2 id="restaurant-search-title">다른 식당 보기</h2>
-          <p>식당을 선택하면 해당 식당의 {selectedDate} 메뉴 페이지로 이동합니다.</p>
+          <p>식당을 선택하면 현재 식당을 교체하고 해당 식당의 {selectedDate} 메뉴 페이지로 이동합니다.</p>
         </div>
         <button type="button" class="restaurant-search-close" aria-label="닫기" onclick={closeRestaurantSearch}>
           <X class="restaurant-search-close-icon" aria-hidden="true" />
@@ -632,8 +592,7 @@
   }
 
   .hero-panel,
-  .gallery-panel,
-  .cta-panel {
+  .gallery-panel {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg);
@@ -1041,117 +1000,6 @@
 
   @keyframes gallery-loading-spin {
     to { transform: rotate(360deg); }
-  }
-
-  .cta-panel {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-    padding: 28px 28px;
-    overflow: hidden;
-    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #f8fafc 100%);
-    border-color: #86efac;
-  }
-
-  .promo-bg-circle {
-    position: absolute;
-    top: -60px;
-    right: -60px;
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .promo-content {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .promo-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #059669;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .promo-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    flex-shrink: 0;
-  }
-
-  .promo-headline {
-    color: #064e3b;
-    font-size: 1.1rem;
-    font-weight: 700;
-    line-height: 1.4;
-    letter-spacing: -0.02em;
-  }
-
-  .promo-desc {
-    color: #065f46;
-    font-size: 12px;
-    line-height: 1.6;
-    opacity: 0.75;
-  }
-
-  .register-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-    flex-shrink: 0;
-    min-height: 42px;
-    padding: 0 20px;
-    border-radius: 999px;
-    background: #059669;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
-    transition: background 0.12s, box-shadow 0.12s, transform 0.12s;
-  }
-
-  .register-button:hover {
-    background: #047857;
-    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
-    transform: translateY(-1px);
-  }
-
-  .register-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
-  .register-button-done {
-    background: #047857;
-    box-shadow: none;
-    cursor: default;
-  }
-
-  .register-button-done:hover {
-    background: #065f46;
-    transform: none;
-    box-shadow: none;
   }
 
   .lightbox {
@@ -1588,7 +1436,6 @@
   @media (prefers-reduced-motion: reduce) {
     .gallery-card,
     .image-wrap img,
-    .register-button,
     .lightbox-close {
       transition: none;
       transform: none;
@@ -1631,14 +1478,6 @@
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       gap: 8px;
       padding: 12px;
-    }
-
-    .cta-panel {
-      flex-direction: column;
-    }
-
-    .register-button {
-      width: 100%;
     }
 
     .lightbox {
