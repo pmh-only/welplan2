@@ -6,7 +6,7 @@ import type {
   MenuComponent,
   Restaurant
 } from '@pmh-only/welplan2-model'
-import { AuthManager, WelstoryAuthError } from './AuthManager.js'
+import { AuthManager, WelstoryAuthError, type AuthManagerOptions } from './AuthManager.js'
 import { createLogger } from './log.js'
 import { welstoryFetch } from './proxy.js'
 import type {
@@ -36,8 +36,19 @@ export class WelstoryPlusError extends Error {
   }
 }
 
+class WelstoryEmptyResponseError extends WelstoryPlusError {
+  constructor() {
+    super('Empty response body')
+    this.name = 'WelstoryEmptyResponseError'
+  }
+}
+
 const trafficLog = createLogger('traffic')
 const authLog = createLogger('auth')
+const DEFAULT_REQUEST_MAX_ATTEMPTS = 4
+const DEFAULT_REQUEST_RETRY_DELAY_MS = 250
+const EMPTY_RESPONSES_BEFORE_RELOGIN = 3
+const processDeviceId = process.env.WELSTORY_DEVICE_ID ?? randomUUID()
 
 export interface WelstoryPlusClientOptions {
   username?: string
@@ -84,17 +95,51 @@ class Semaphore {
   }
 }
 
+type SharedSession = {
+  auth: AuthManager
+  sem: Semaphore
+}
+
+const sharedSessions = new Map<string, SharedSession>()
+
+function getSharedSession(options: AuthManagerOptions): SharedSession {
+  const key = JSON.stringify([options.baseUrl, options.username, options.password, options.deviceId])
+  const existing = sharedSessions.get(key)
+  if (existing) return existing
+
+  const session = {
+    auth: new AuthManager(options),
+    sem: new Semaphore(1)
+  }
+  sharedSessions.set(key, session)
+  return session
+}
+
+function positiveIntegerEnv(name: string, fallback: number, maximum: number): number {
+  const parsed = Number(process.env[name])
+  return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback
+}
+
+function waitBeforeRetry(attempt: number): Promise<void> {
+  const baseDelayMs = positiveIntegerEnv(
+    'WELSTORY_REQUEST_RETRY_DELAY_MS',
+    DEFAULT_REQUEST_RETRY_DELAY_MS,
+    30_000
+  )
+  return new Promise((resolve) => setTimeout(resolve, Math.min(baseDelayMs * attempt, 30_000)))
+}
+
 export class WelstoryPlusClient implements CafeteriaClient {
   private readonly baseUrl: string
   private readonly auth: AuthManager
-  private readonly sem = new Semaphore(1)
+  private readonly sem: Semaphore
 
   constructor(options: WelstoryPlusClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? 'https://welplus.welstory.com'
 
     const username = options.username ?? process.env.WELSTORY_USERNAME ?? ''
     const password = options.password ?? process.env.WELSTORY_PASSWORD ?? ''
-    const deviceId = options.deviceId ?? process.env.WELSTORY_DEVICE_ID ?? randomUUID()
+    const deviceId = options.deviceId ?? processDeviceId
 
     if (!username || !password) {
       throw new WelstoryPlusError(
@@ -102,7 +147,9 @@ export class WelstoryPlusClient implements CafeteriaClient {
       )
     }
 
-    this.auth = new AuthManager({ username, password, deviceId, baseUrl: this.baseUrl })
+    const session = getSharedSession({ username, password, deviceId, baseUrl: this.baseUrl })
+    this.auth = session.auth
+    this.sem = session.sem
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -116,15 +163,23 @@ export class WelstoryPlusClient implements CafeteriaClient {
     await this.sem.acquire()
     try {
       let lastError: unknown
+      let forceLogin = false
+      let emptyResponseCount = 0
+      const maxAttempts = positiveIntegerEnv(
+        'WELSTORY_REQUEST_MAX_ATTEMPTS',
+        DEFAULT_REQUEST_MAX_ATTEMPTS,
+        10
+      )
 
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const startedAt = Date.now()
         const method = init.method ?? 'GET'
         const attemptNo = attempt + 1
         const requestBodyBytes = typeof init.body === 'string' ? init.body.length : undefined
 
         try {
-          const token = attempt === 0 ? await this.auth.getToken() : await this.auth.forceLogin()
+          const token = forceLogin ? await this.auth.forceLogin() : await this.auth.getToken()
+          forceLogin = false
 
           trafficLog.info('outbound request started', {
             vendor: 'welstory',
@@ -153,8 +208,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
 
           const isAuthStatus = response.status === 401 || response.status === 403
           const isHtmlSessionResponse = response.ok && looksLikeHtmlResponse(response, text)
-          const isEmptySessionResponse = response.ok && !text.trim()
-          const shouldRelogin = isAuthStatus || isHtmlSessionResponse || isEmptySessionResponse
+          const shouldRelogin = isAuthStatus || isHtmlSessionResponse
 
           if (shouldRelogin) {
             authLog.warn('request requires new login', {
@@ -165,19 +219,14 @@ export class WelstoryPlusClient implements CafeteriaClient {
               reason:
                 isAuthStatus
                   ? 'auth_status'
-                  : isEmptySessionResponse
-                    ? 'empty_session_response'
-                    : 'html_session_response'
+                  : 'html_session_response'
             })
-            const error = new WelstoryAuthError(
+            throw new WelstoryAuthError(
               isAuthStatus
                 ? `Auth failed: ${response.status} ${response.statusText}`
                 : 'Auth failed: session expired',
               isAuthStatus ? response.status : undefined
             )
-            lastError = error
-            if (attempt === 0) continue
-            throw error
           }
 
           if (!response.ok) {
@@ -187,7 +236,7 @@ export class WelstoryPlusClient implements CafeteriaClient {
             )
           }
 
-          if (!text.trim()) throw new WelstoryPlusError('Empty response body')
+          if (!text.trim()) throw new WelstoryEmptyResponseError()
 
           try {
             return JSON.parse(text) as T
@@ -204,8 +253,15 @@ export class WelstoryPlusClient implements CafeteriaClient {
             durationMs: Date.now() - startedAt,
             error
           })
-          if (attempt === 0 && error instanceof WelstoryAuthError) continue
-          throw error
+          const retryable = error instanceof WelstoryAuthError || error instanceof WelstoryEmptyResponseError
+          if (!retryable || attemptNo >= maxAttempts) throw error
+          if (error instanceof WelstoryAuthError) {
+            forceLogin = true
+          } else {
+            emptyResponseCount++
+            forceLogin = emptyResponseCount >= EMPTY_RESPONSES_BEFORE_RELOGIN
+          }
+          await waitBeforeRetry(attemptNo)
         }
       }
 
