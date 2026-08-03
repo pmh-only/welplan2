@@ -63,7 +63,7 @@ COPY --from=build --chown=node:node /app/worker/dist /app/worker/dist
 
 WORKDIR /app
 
-COPY --chown=node:node docker/entrypoint.mjs /app/docker/entrypoint.mjs
+COPY --chown=node:node docker/entrypoint.mjs docker/image-indexing.mjs /app/docker/
 
 USER node
 

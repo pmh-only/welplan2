@@ -12,6 +12,8 @@ import { renderMarkdownPage } from '$lib/server/markdown'
 
 const trafficLog = createServerLogger('traffic')
 const webMcpOriginTrialToken = process.env.WEBMCP_ORIGIN_TRIAL_TOKEN?.trim()
+const IMAGE_ROBOTS_DIRECTIVES = 'noindex, noimageindex, nosnippet'
+const IMAGE_EXTENSION = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i
 
 let requestSequence = 0
 
@@ -47,6 +49,15 @@ function isProtectedAdminRoute(pathname: string): boolean {
   return pathname === '/admin' || (pathname.startsWith('/admin/') && !isAdminAuthRoute(pathname))
 }
 
+function isImageRequest(pathname: string, contentType: string): boolean {
+  return (
+    pathname === '/img' ||
+    pathname.startsWith('/img/') ||
+    IMAGE_EXTENSION.test(pathname) ||
+    contentType.toLowerCase().startsWith('image/')
+  )
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now()
   const requestId = nextRequestId()
@@ -75,6 +86,16 @@ export const handle: Handle = async ({ event, resolve }) => {
     const response = await resolve(event)
     const contentType = response.headers.get('content-type') ?? ''
     let finalResponse = response
+
+    if (isImageRequest(event.url.pathname, contentType)) {
+      const headers = new Headers(response.headers)
+      headers.set('X-Robots-Tag', IMAGE_ROBOTS_DIRECTIVES)
+      finalResponse = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      })
+    }
 
     if (contentType.startsWith('text/html')) {
       const headers = new Headers(response.headers)

@@ -15,12 +15,28 @@ const AI_CRAWLERS = [
   'Amazonbot'
 ]
 
+const IMAGE_DISALLOWS = [
+  'Disallow: /img/',
+  'Disallow: /*.avif$',
+  'Disallow: /*.bmp$',
+  'Disallow: /*.gif$',
+  'Disallow: /*.ico$',
+  'Disallow: /*.jpeg$',
+  'Disallow: /*.jpg$',
+  'Disallow: /*.png$',
+  'Disallow: /*.svg$',
+  'Disallow: /*.tif$',
+  'Disallow: /*.tiff$',
+  'Disallow: /*.webp$'
+]
+
 export const GET: RequestHandler = ({ url }) => {
   const aiRules = AI_CRAWLERS.flatMap((agent) => [
     `User-agent: ${agent}`,
     'Allow: /',
     'Disallow: /api/',
     'Disallow: /proxy/',
+    ...IMAGE_DISALLOWS,
     ''
   ])
 
@@ -30,6 +46,7 @@ export const GET: RequestHandler = ({ url }) => {
     'Allow: /',
     'Disallow: /api/',
     'Disallow: /proxy/',
+    ...IMAGE_DISALLOWS,
     '',
     `Content-Signal: ${CONTENT_SIGNAL}`,
     `Sitemap: ${url.origin}/sitemap.xml`,

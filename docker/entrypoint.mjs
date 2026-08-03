@@ -5,7 +5,11 @@ let exitTimer = null
 let shutdownStatus = 0
 
 const children = [
-  ['webapp', 'node', ['/app/webapp/build/index.js']],
+  [
+    'webapp',
+    'node',
+    ['--import', '/app/docker/image-indexing.mjs', '/app/webapp/build/index.js']
+  ],
   ['worker', 'node', ['/app/worker/dist/worker/src/index.js']]
 ].map(([name, command, args]) => {
   const child = spawn(command, args, {

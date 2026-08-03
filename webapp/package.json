@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node build/index.js"
+    "start": "node --import ../docker/image-indexing.mjs build/index.js"
   },
   "dependencies": {
     "@pmh-only/welplan2-model": "workspace:*",
