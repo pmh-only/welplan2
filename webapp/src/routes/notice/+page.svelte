@@ -100,7 +100,7 @@
 
   .eyebrow {
     margin: 0 0 8px;
-    color: #0f766e;
+    color: var(--green-dark);
     font-size: 12px;
     font-weight: 900;
     letter-spacing: 0.12em;
@@ -131,7 +131,7 @@
 
   .notice-content {
     padding: clamp(22px, 4vw, 36px);
-    color: #1e293b;
+    color: var(--text);
     line-height: 1.75;
     overflow-wrap: anywhere;
   }
@@ -161,7 +161,7 @@
   }
 
   .notice-content :global(a) {
-    color: #0f766e;
+    color: var(--green-dark);
     font-weight: 800;
     text-decoration: underline;
     text-underline-offset: 3px;
