@@ -949,7 +949,7 @@
     padding: 12px;
     border: 1px solid #fde68a;
     border-radius: 12px;
-    background: linear-gradient(180deg, #fffbeb 0%, #fff7ed 100%);
+    background: linear-gradient(180deg, var(--warning-bg) 0%, var(--surface) 100%);
   }
   .modal-coin-label {
     display: block;
@@ -1140,7 +1140,7 @@
   .quantity-button:active:not(:disabled) { box-shadow: inset 0 2px 5px rgba(4, 120, 87, 0.35); }
   .quantity-button:focus-visible { outline: 2px solid #34d399; outline-offset: -2px; }
   .quantity-button:disabled {
-    background: #d1fae5;
+    background: var(--green-dim);
     color: #6ee7b7;
     opacity: 1;
     cursor: not-allowed;
@@ -1156,7 +1156,7 @@
     border-left: 1px solid #059669;
     border-right: 1px solid #059669;
     background: var(--card);
-    color: #065f46;
+    color: var(--success-text);
     font-family: var(--font-sans);
     font-size: 13px;
     font-weight: 700;

@@ -32,9 +32,9 @@
 
 <style>
   .terms-change-notice { max-width: 920px; margin: 0 auto 14px; padding: 16px 18px; border: 1px solid #93c5fd; border-radius: var(--radius); color: var(--info-text); background: var(--info-bg); box-shadow: var(--shadow-sm); }
-  .terms-change-notice strong { display: block; margin-bottom: 6px; color: #1e40af; font-size: 14px; }
+  .terms-change-notice strong { display: block; margin-bottom: 6px; color: var(--info-text); font-size: 14px; }
   .terms-change-notice p { font-size: 13px; line-height: 1.7; }
   .terms-change-notice p + p { margin-top: 6px; }
-  .terms-change-notice a { color: #1d4ed8; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+  .terms-change-notice a { color: var(--info-text); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
   @media (max-width: 640px) { .terms-change-notice { padding: 14px 16px; } }
 </style>

@@ -88,7 +88,7 @@
   .notice-hero,
   .notice-content,
   .empty-state {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     border-radius: 20px;
     background: var(--card);
     box-shadow: var(--shadow-sm);

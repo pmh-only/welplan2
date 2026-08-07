@@ -564,7 +564,7 @@
     padding: 22px 24px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 70%);
+    background: linear-gradient(135deg, var(--hero-green-start) 0%, var(--card) 70%);
     box-shadow: var(--shadow-sm);
   }
   .gallery-eyebrow {
@@ -866,7 +866,7 @@
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--card);
-    color: #059669;
+    color: var(--success-text);
   }
   :global(.placeholder-icon-svg) { width: 22px; height: 22px; }
   .lightbox-placeholder {

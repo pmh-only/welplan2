@@ -463,7 +463,7 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
   }
-  .empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 999px; background: rgba(16, 185, 129, 0.12); color: #059669; }
+  .empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 999px; background: var(--success-bg); color: var(--success-text); }
   .empty-icon :global(svg) { width: 26px; height: 26px; }
   .empty-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
   .empty-sub { font-size: 13px; color: var(--text-muted); }
@@ -516,14 +516,14 @@
     border: 1px solid #cbd5e1;
     border-radius: 3px;
     background: var(--card);
-    color: #047857;
+    color: var(--success-text);
     line-height: 1;
     flex-shrink: 0;
   }
   :global(.chip-check-icon) { width: 11px; height: 11px; }
   .chip-active .chip-checkbox {
     border-color: var(--green);
-    background: #dcfce7;
+    background: var(--success-bg);
   }
   .chip:hover { border-color: var(--green); color: var(--success-text); background: var(--success-bg); }
   .chip-active { border-color: var(--green); color: var(--success-text); background: var(--success-bg); font-weight: 600; }

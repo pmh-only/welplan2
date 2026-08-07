@@ -21,6 +21,7 @@
   --text-muted: #475569;
   --text-dim: #5b677a;
   --green: #10b981;
+  --green-dark: #047857;
   --green-dim: #d1fae5;
   --success-bg: #ecfdf5;
   --success-text: #047857;
@@ -32,6 +33,8 @@
   --warning-text: #92400e;
   --pink-bg: #fce7f3;
   --pink-text: #be185d;
+  --hero-green-start: #f0fdf4;
+  --hero-info-start: #eff6ff;
   --carb: #3b82f6;
   --protein: #f97316;
   --fat: #ef4444;
@@ -59,6 +62,7 @@
   --text-muted: #cbd5e1;
   --text-dim: #94a3b8;
   --green: #34d399;
+  --green-dark: #6ee7b7;
   --green-dim: #064e3b;
   --success-bg: #052e25;
   --success-text: #6ee7b7;
@@ -70,6 +74,8 @@
   --warning-text: #fcd34d;
   --pink-bg: #3b102b;
   --pink-text: #f9a8d4;
+  --hero-green-start: #052e25;
+  --hero-info-start: #172554;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.2);
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.22);
   --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.38), 0 4px 8px rgba(0, 0, 0, 0.28);

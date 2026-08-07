@@ -280,7 +280,7 @@
   .rest-link:hover { color: var(--accent); text-decoration: underline; }
   .rest-path { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vendor-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
-  .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
+  .vendor-welstory { background: var(--info-bg); color: var(--info-text); }
   .vendor-shinsegae { background: var(--pink-bg); color: var(--pink-text); }
 
   .rest-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -289,7 +289,7 @@
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #6ee7b7; border-radius: 20px;
     background: var(--success-bg); color: var(--success-text); font-size: 12px; font-weight: 500; text-decoration: none; transition: all 0.12s;
   }
-  .move-btn:hover { background: #d1fae5; border-color: #34d399; }
+  .move-btn:hover { background: var(--green-dim); border-color: var(--green); }
 
   .remove-btn {
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 20px;
@@ -301,9 +301,9 @@
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #6ee7b7; border-radius: 20px;
     background: var(--success-bg); color: var(--success-text); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s;
   }
-  .add-btn:hover { background: #d1fae5; border-color: #34d399; }
+  .add-btn:hover { background: var(--green-dim); border-color: var(--green); }
 
-  .added-tag { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 12px; color: #059669; font-weight: 600; }
+  .added-tag { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 12px; color: var(--success-text); font-weight: 600; }
   .added-tag-icon { width: 13px; height: 13px; }
 
   .search-area { padding: 14px 16px 8px; }

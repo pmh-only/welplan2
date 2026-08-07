@@ -1887,7 +1887,7 @@
   }
 
   .first-visit-add:hover {
-    background: #d1fae5;
+    background: var(--green-dim);
   }
 
   .first-visit-added {
@@ -2431,7 +2431,7 @@
     }
 
     .mobile-footer-action a {
-      color: #047857;
+      color: var(--success-text);
       font-size: 12px;
       font-weight: 700;
     }

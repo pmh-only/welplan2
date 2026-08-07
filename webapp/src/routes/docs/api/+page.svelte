@@ -183,13 +183,13 @@
     padding: 22px 24px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 72%);
+    background: linear-gradient(135deg, var(--hero-info-start) 0%, var(--card) 72%);
     box-shadow: var(--shadow-sm);
   }
 
   .docs-eyebrow {
     margin-bottom: 6px;
-    color: #2563eb;
+    color: var(--info-text);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -285,7 +285,7 @@
     border-radius: var(--radius-sm);
     background: var(--green-dim);
     border: 1px solid #86efac;
-    color: #065f46;
+    color: var(--success-text);
     font-size: 12px;
   }
 
@@ -351,8 +351,8 @@
   }
 
   .method.get {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--success-bg);
+    color: var(--success-text);
   }
 
   .prose-block p {

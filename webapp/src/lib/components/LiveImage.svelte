@@ -109,7 +109,7 @@
     z-index: 0;
     background:
       radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.9), transparent 28%),
-      linear-gradient(135deg, #fff 0%, #f8fafc 48%, #fff 100%);
+      linear-gradient(135deg, var(--card) 0%, var(--surface) 48%, var(--card) 100%);
     filter: blur(10px);
     transform: scale(1.08);
     opacity: 1;

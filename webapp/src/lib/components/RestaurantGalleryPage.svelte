@@ -1412,6 +1412,16 @@
     font-weight: 700;
   }
 
+  .restaurant-search-vendor.vendor-welstory {
+    background: var(--info-bg);
+    color: var(--info-text);
+  }
+
+  .restaurant-search-vendor.vendor-shinsegae {
+    background: var(--pink-bg);
+    color: var(--pink-text);
+  }
+
   .restaurant-search-empty,
   .restaurant-search-error {
     margin: 0;

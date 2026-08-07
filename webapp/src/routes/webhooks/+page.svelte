@@ -514,7 +514,7 @@
   .internal-id { display: block; margin-top: 5px; color: #94a3b8; font-size: 9px; font-weight: 500; letter-spacing: .02em; }
   .form-section { padding: clamp(22px, 3vw, 32px) clamp(18px, 4vw, 42px); border-bottom: 1px solid var(--border); }
   .form-section-title { display: flex; gap: 12px; margin-bottom: 22px; }
-  .form-section-title > span { display: grid; place-items: center; width: 29px; height: 29px; flex: 0 0 29px; border-radius: 50%; color: #047857; background: #d1fae5; font-size: 10px; font-weight: 800; }
+  .form-section-title > span { display: grid; place-items: center; width: 29px; height: 29px; flex: 0 0 29px; border-radius: 50%; color: var(--success-text); background: var(--success-bg); font-size: 10px; font-weight: 800; }
   .form-section-title h3 { font-size: 1rem; letter-spacing: -.02em; }
   .form-section-title p { margin-top: 2px; color: var(--text-dim); font-size: 11px; }
   .platform-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-bottom: 20px; }
@@ -528,17 +528,17 @@
   .wide-field { grid-column: 1 / -1; }
   .field-grid label, .webhook-url-field { display: grid; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 600; }
   .field-grid label > span, .field-label { display: flex; justify-content: space-between; align-items: center; }
-  .field-label button { display: inline-flex; align-items: center; gap: 2px; color: #047857; font-size: 11px; font-weight: 700; }
+  .field-label button { display: inline-flex; align-items: center; gap: 2px; color: var(--success-text); font-size: 11px; font-weight: 700; }
   :global(.field-label .guide-open) { transform: rotate(90deg); }
   .webhook-guide { margin-top: 4px; padding: 14px 16px; border: 1px solid #a7f3d0; border-radius: 8px; color: var(--text-muted); background: var(--green-dim); font-weight: 400; }
-  .webhook-guide > strong { color: #047857; font-size: 12px; }
+  .webhook-guide > strong { color: var(--success-text); font-size: 12px; }
   .webhook-guide ol { display: grid; gap: 6px; margin: 10px 0 0; padding-left: 20px; line-height: 1.55; }
   .webhook-guide p { margin-top: 10px; padding-top: 9px; border-top: 1px solid #bbf7d0; color: #b45309; }
   .slack-connect-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-height: 39px; }
   .slack-connect-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 39px; padding: 8px 15px; border-radius: 7px; color: #fff; background: #4a154b; font-size: 12px; font-weight: 700; text-decoration: none; }
   .slack-connect-btn:hover { background: #611f69; }
   .slack-connect-btn:disabled { cursor: not-allowed; opacity: .5; }
-  .connection-status { display: inline-flex; align-items: center; gap: 5px; color: #047857; font-size: 11px; font-weight: 700; }
+  .connection-status { display: inline-flex; align-items: center; gap: 5px; color: var(--success-text); font-size: 11px; font-weight: 700; }
   input:not([type='checkbox']):not([type='radio']), select { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; color: var(--text); background: var(--card); outline: none; font: inherit; font-weight: 400; }
   input:not([type='checkbox']):not([type='radio']):focus, select:focus { border-color: #34d399; box-shadow: 0 0 0 3px #ecfdf5; }
   .field-grid small { color: #b45309; font-size: 10px; font-weight: 400; }
@@ -572,7 +572,7 @@
   .schedule-field { display: grid; min-width: 0; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 600; }
   .weekday-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 39px)); gap: 6px; }
   .weekday-picker button { width: 100%; max-width: 39px; aspect-ratio: 1; min-width: 0; border: 1px solid var(--border); border-radius: 50%; color: var(--text-muted); background: var(--surface); font-size: 11px; }
-  .weekday-picker button.chosen { border-color: #10b981; color: #047857; background: #d1fae5; font-weight: 700; }
+  .weekday-picker button.chosen { border-color: var(--green); color: var(--success-text); background: var(--success-bg); font-weight: 700; }
   .meal-schedule-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
   .meal-schedule { display: grid; gap: 5px; min-width: 0; }
   .meal-schedule > span { display: flex; align-items: center; gap: 5px; }
@@ -587,7 +587,7 @@
   .segmented input { position: absolute; opacity: 0; }
   .segmented span { display: block; padding: 7px 16px; border-right: 1px solid var(--border); color: var(--text-muted); background: var(--surface); font-size: 11px; }
   .segmented label:last-child span { border-right: 0; }
-  .segmented input:checked + span { color: #047857; background: #d1fae5; font-weight: 700; }
+  .segmented input:checked + span { color: var(--success-text); background: var(--success-bg); font-weight: 700; }
   .option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
   .check-option, .number-option { display: flex; align-items: center; gap: 9px; min-height: 60px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
   .check-option input { width: 16px; min-height: 16px; accent-color: #10b981; }
@@ -600,7 +600,7 @@
   .legal-consent { display: flex; align-items: flex-start; gap: 9px; margin: 14px clamp(18px, 4vw, 42px) 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); background: var(--card); font-size: 11px; line-height: 1.6; }
   .legal-consent input { width: 16px; min-height: 16px; margin-top: 1px; flex: 0 0 16px; accent-color: #10b981; }
   .legal-consent label { cursor: pointer; }
-  .legal-consent a { color: #047857; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+  .legal-consent a { color: var(--success-text); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
   .form-footer .feedback { margin: 14px clamp(18px, 4vw, 42px) 0; }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px clamp(18px, 4vw, 42px) 18px; }
   .delete-btn, .test-btn, .submit-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 9px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; }
