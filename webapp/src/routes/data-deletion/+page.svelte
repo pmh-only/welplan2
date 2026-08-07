@@ -85,7 +85,7 @@
 
   .deletion-hero,
   .request-card {
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
@@ -125,7 +125,7 @@
 
   .primary-card {
     border-color: #bbf7d0;
-    background: #f0fdf4;
+    background: var(--success-bg);
   }
 
   .request-card h2 {

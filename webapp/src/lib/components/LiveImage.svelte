@@ -96,7 +96,7 @@
     position: relative;
     display: block;
     overflow: hidden;
-    background: #fff;
+    background: var(--card);
   }
 
   .live-image-stack img {
@@ -147,7 +147,7 @@
   .live-image-stack.lightbox {
     width: 100%;
     aspect-ratio: 1;
-    background: #fff;
+    background: var(--card);
   }
 
   .live-image-stack.lightbox img {

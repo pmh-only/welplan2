@@ -73,8 +73,8 @@
     padding: 0 16px;
     border: 1px solid #cbd5e1;
     border-radius: 999px;
-    background: #fff;
-    color: #0f172a;
+    background: var(--card);
+    color: var(--text);
     font-weight: 900;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
@@ -82,7 +82,7 @@
 
   .close-button:hover {
     border-color: #94a3b8;
-    background: #f8fafc;
+    background: var(--surface);
   }
 
   .notice-hero,
@@ -90,7 +90,7 @@
   .empty-state {
     border: 1px solid #e2e8f0;
     border-radius: 20px;
-    background: #fff;
+    background: var(--card);
     box-shadow: var(--shadow-sm);
   }
 
@@ -109,7 +109,7 @@
 
   h1 {
     margin: 0;
-    color: #0f172a;
+    color: var(--text);
     font-size: clamp(1.8rem, 5vw, 3rem);
     letter-spacing: -0.05em;
   }
@@ -117,14 +117,14 @@
   .summary {
     max-width: 760px;
     margin: 12px 0 0;
-    color: #475569;
+    color: var(--text-muted);
     font-size: 1.05rem;
     line-height: 1.65;
   }
 
   .updated {
     margin: 16px 0 0;
-    color: #64748b;
+    color: var(--text-dim);
     font-size: 13px;
     font-weight: 700;
   }
@@ -144,7 +144,7 @@
   .notice-content :global(h2),
   .notice-content :global(h3) {
     margin: 1.2em 0 0.45em;
-    color: #0f172a;
+    color: var(--text);
     letter-spacing: -0.03em;
     line-height: 1.25;
   }
@@ -184,13 +184,13 @@
     padding: 14px 18px;
     border-left: 4px solid #14b8a6;
     border-radius: 12px;
-    background: #f0fdfa;
-    color: #334155;
+    background: var(--success-bg);
+    color: var(--text-muted);
   }
 
   .empty-state {
     padding: 28px;
-    color: #64748b;
+    color: var(--text-dim);
     font-weight: 800;
     text-align: center;
   }

@@ -13,7 +13,7 @@
   import { readRestaurantSelectionFromClient, restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
-  import { BellRing, Braces, Camera, Check, FileText, Megaphone, Package, Search, Store, Utensils, X } from '@lucide/svelte'
+  import { BellRing, Braces, Camera, Check, FileText, Megaphone, Moon, Package, Search, Store, Sun, Utensils, X } from '@lucide/svelte'
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
@@ -68,6 +68,7 @@
   const SITE_DESCRIPTION = '웰스토리·신세계푸드 사내 식당 메뉴 조회 서비스'
   const GITHUB_URL = 'https://github.com/pmh-only/welplan2'
   const CONTACT_EMAIL = 'pmh_only@pmh.codes'
+  const THEME_STORAGE_KEY = 'welplan-theme'
   const MAX_JSON_LD_MENUS = 24
   const MAX_JSON_LD_RESTAURANTS = 30
   const MAX_WEB_MCP_SEARCH_RESULTS = 10
@@ -870,6 +871,7 @@
 
   const isNavigating = $derived(navigating.to !== null)
   let showLoading = $state(false)
+  let theme = $state<'light' | 'dark'>('light')
   let loadingTimer: ReturnType<typeof setTimeout> | undefined
   let firstVisitDialogOpen = $state(untrack(() => data.isFirstVisit))
   let dialogRestaurants = $state<Restaurant[]>(untrack(() => data.isFirstVisit ? [] : data.restaurants ?? []))
@@ -883,6 +885,21 @@
 
   function restaurantKey (restaurant: Restaurant): string {
     return `${restaurant.vendor}:${restaurant.id}:${restaurant.name}:${restaurantPathText(restaurant)}`
+  }
+
+  function setTheme (nextTheme: 'light' | 'dark') {
+    theme = nextTheme
+    document.documentElement.dataset.theme = nextTheme
+    document.querySelector<HTMLMetaElement>('#theme-color')?.setAttribute('content', nextTheme === 'dark' ? '#020617' : '#0f172a')
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+    } catch {}
+  }
+
+  function toggleTheme () {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    trackEvent('Theme Changed', { theme: nextTheme, source: 'footer' })
   }
 
   $effect(() => {
@@ -1021,6 +1038,7 @@
   })
 
   onMount(() => {
+    theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
     const restoredRestaurants = data.isFirstVisit ? restoreRestaurantCookieFromStorage() : []
     if (restoredRestaurants.length > 0) {
       dialogRestaurants = restoredRestaurants
@@ -1211,7 +1229,6 @@
   <meta name="robots" content={routeMeta.robots} />
   <meta name="googlebot" content={routeMeta.robots} />
   <meta name="bingbot" content={routeMeta.robots} />
-  <meta name="theme-color" content="#0f172a" />
   <meta property="og:locale" content="ko_KR" />
   <meta property="og:site_name" content="Welplan" />
   <meta property="og:type" content="website" />
@@ -1474,6 +1491,23 @@
           이용약관
         </a>
       </nav>
+      <div class="footer-theme-row">
+        <button
+          type="button"
+          class="theme-toggle"
+          aria-pressed={theme === 'dark'}
+          aria-label={theme === 'dark' ? '라이트 테마로 전환' : '다크 테마로 전환'}
+          onclick={toggleTheme}
+        >
+          {#if theme === 'dark'}
+            <Sun class="theme-toggle-icon" aria-hidden="true" />
+            <span>라이트 모드</span>
+          {:else}
+            <Moon class="theme-toggle-icon" aria-hidden="true" />
+            <span>다크 모드</span>
+          {/if}
+        </button>
+      </div>
     </footer>
   </main>
 </div>
@@ -1512,6 +1546,44 @@
 
   .legal-notice .mobile-footer-links {
     display: none;
+  }
+
+  .footer-theme-row {
+    display: flex;
+    justify-content: center;
+    max-width: 980px;
+    margin: 14px auto 0;
+  }
+
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    background: var(--surface);
+    font-size: 11px;
+    font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--border-focus);
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  :global(.theme-toggle-icon) {
+    width: 14px;
+    height: 14px;
   }
 
   .legal-notice a:hover { color: var(--text); }
@@ -1599,7 +1671,7 @@
     overflow: hidden;
     border: 0;
     border-radius: 14px;
-    background: #f8fafc;
+    background: var(--surface);
     box-shadow: 0 30px 80px rgba(15, 23, 42, 0.34);
   }
 
@@ -1671,7 +1743,7 @@
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: #fff;
+    background: var(--card);
     box-shadow: var(--shadow-sm);
   }
 
@@ -1744,7 +1816,7 @@
 
   .first-visit-item-button:hover {
     border-color: #6ee7b7;
-    background: #ecfdf5;
+    background: var(--success-bg);
   }
 
   .first-visit-restaurant {
@@ -1780,13 +1852,13 @@
   }
 
   .vendor-welstory {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: var(--info-bg);
+    color: var(--info-text);
   }
 
   .vendor-shinsegae {
-    background: #fce7f3;
-    color: #be185d;
+    background: var(--pink-bg);
+    color: var(--pink-text);
   }
 
   .first-visit-remove,
@@ -1800,18 +1872,18 @@
 
   .first-visit-remove {
     border: 1px solid #fca5a5;
-    background: #fff1f2;
-    color: #dc2626;
+    background: var(--danger-bg);
+    color: var(--danger-text);
   }
 
   .first-visit-remove:hover {
-    background: #fee2e2;
+    background: var(--danger-bg);
   }
 
   .first-visit-add {
     border: 1px solid #6ee7b7;
-    background: #ecfdf5;
-    color: #059669;
+    background: var(--success-bg);
+    color: var(--success-text);
   }
 
   .first-visit-add:hover {
@@ -1846,7 +1918,7 @@
 
   .first-visit-search-row:focus-within {
     border-color: var(--border-focus);
-    background: #fff;
+    background: var(--card);
   }
 
   .first-visit-search-row input {
@@ -1911,7 +1983,7 @@
     gap: 10px;
     padding: 14px 16px 16px;
     border-top: 1px solid var(--border);
-    background: #fff;
+    background: var(--card);
   }
 
   .first-visit-actions button {
@@ -1938,7 +2010,7 @@
 
   .first-visit-actions button:disabled {
     background: #cbd5e1;
-    color: #64748b;
+    color: var(--text-dim);
     cursor: not-allowed;
   }
 
@@ -2385,13 +2457,13 @@
     }
     .legal-notice .mobile-footer-api {
       border-color: #bfdbfe;
-      background: #eff6ff;
-      color: #1d4ed8;
+      background: var(--info-bg);
+      color: var(--info-text);
     }
     .legal-notice .mobile-footer-terms {
       border-color: #cbd5e1;
-      background: #f8fafc;
-      color: #475569;
+      background: var(--surface);
+      color: var(--text-muted);
     }
     :global(.mobile-footer-link-icon) {
       width: 14px;

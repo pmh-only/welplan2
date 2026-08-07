@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/png" sizes="192x192" href="%sveltekit.assets%/manifest-icon-192.png" />
@@ -7,9 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0f172a" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <meta id="theme-color" name="theme-color" content="#0f172a" />
+    <script>
+      try {
+        const theme = localStorage.getItem('welplan-theme') === 'dark' ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.querySelector('#theme-color')?.setAttribute('content', theme === 'dark' ? '#020617' : '#0f172a')
+      } catch {}
+    </script>
     <meta name="application-name" content="Welplan" />
     <meta name="msapplication-TileColor" content="#0f172a" />
     <meta name="format-detection" content="telephone=no" />

@@ -446,7 +446,7 @@
 
 <style>
   .section {
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
@@ -458,7 +458,7 @@
   .empty-page {
     text-align: center;
     padding: 64px 24px;
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
@@ -515,7 +515,7 @@
     height: 13px;
     border: 1px solid #cbd5e1;
     border-radius: 3px;
-    background: #fff;
+    background: var(--card);
     color: #047857;
     line-height: 1;
     flex-shrink: 0;
@@ -525,8 +525,8 @@
     border-color: var(--green);
     background: #dcfce7;
   }
-  .chip:hover { border-color: var(--green); color: #059669; background: #f0fdf4; }
-  .chip-active { border-color: var(--green); color: #059669; background: #f0fdf4; font-weight: 600; }
+  .chip:hover { border-color: var(--green); color: var(--success-text); background: var(--success-bg); }
+  .chip-active { border-color: var(--green); color: var(--success-text); background: var(--success-bg); font-weight: 600; }
 
   .takein-restaurant-group,
   .takeout-restaurant-group { min-width: min(100%, 260px); }

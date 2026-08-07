@@ -188,7 +188,7 @@
 
   .privacy-hero,
   .policy-section {
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
@@ -271,7 +271,7 @@
 
   .contact-section {
     border-color: #bbf7d0;
-    background: #f0fdf4;
+    background: var(--success-bg);
   }
 
   @media (max-width: 640px) {

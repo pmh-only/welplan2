@@ -220,7 +220,7 @@
   }
 
   .section {
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -272,7 +272,7 @@
     text-align: left;
     cursor: pointer;
   }
-  .rest-item-button:hover { border-color: #6ee7b7; background: #ecfdf5; }
+  .rest-item-button:hover { border-color: #6ee7b7; background: var(--success-bg); }
   .rest-info { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
   .rest-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .rest-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -281,25 +281,25 @@
   .rest-path { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vendor-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
   .vendor-welstory { background: #dbeafe; color: #1d4ed8; }
-  .vendor-shinsegae { background: #fce7f3; color: #be185d; }
+  .vendor-shinsegae { background: var(--pink-bg); color: var(--pink-text); }
 
   .rest-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
   .move-btn {
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #6ee7b7; border-radius: 20px;
-    background: #ecfdf5; color: #059669; font-size: 12px; font-weight: 500; text-decoration: none; transition: all 0.12s;
+    background: var(--success-bg); color: var(--success-text); font-size: 12px; font-weight: 500; text-decoration: none; transition: all 0.12s;
   }
   .move-btn:hover { background: #d1fae5; border-color: #34d399; }
 
   .remove-btn {
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 20px;
-    background: #fff1f2; color: #dc2626; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s;
+    background: var(--danger-bg); color: var(--danger-text); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s;
   }
-  .remove-btn:hover { background: #fee2e2; border-color: #f87171; }
+  .remove-btn:hover { background: var(--danger-bg); border-color: #f87171; }
 
   .add-btn {
     flex-shrink: 0; padding: 5px 12px; border: 1px solid #6ee7b7; border-radius: 20px;
-    background: #ecfdf5; color: #059669; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s;
+    background: var(--success-bg); color: var(--success-text); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s;
   }
   .add-btn:hover { background: #d1fae5; border-color: #34d399; }
 
@@ -308,7 +308,7 @@
 
   .search-area { padding: 14px 16px 8px; }
   .search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px; transition: border-color 0.12s; }
-  .search-row:focus-within { border-color: var(--border-focus); background: #fff; }
+  .search-row:focus-within { border-color: var(--border-focus); background: var(--card); }
   .search-icon { width: 14px; height: 14px; color: var(--text-dim); flex-shrink: 0; }
   .search-input {
     flex: 1; padding: 9px 4px; border: none;

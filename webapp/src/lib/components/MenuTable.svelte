@@ -842,7 +842,7 @@
   .menu-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
   .meal-time-row th {
     padding: 0;
-    background: #f8fafc;
+    background: var(--surface);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     color: var(--text);
@@ -877,7 +877,7 @@
     right: 20px;
     bottom: 20px;
     width: min(340px, calc(100vw - 32px));
-    background: #fff;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: var(--shadow-lg), 0 0 0 1px rgba(15,23,42,0.04);
@@ -920,8 +920,8 @@
     margin-bottom: 10px;
     padding: 8px 12px;
     border-radius: 8px;
-    background: #fef9c3;
-    color: #92400e;
+    background: var(--warning-bg);
+    color: var(--warning-text);
     font-size: 14px;
     font-weight: 700;
     text-align: center;
@@ -941,8 +941,8 @@
   :global(.coin-icon) { width: 16px; height: 16px; flex-shrink: 0; }
   :global(.warning-icon) { width: 15px; height: 15px; flex-shrink: 0; }
   .coin-over {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--danger-bg);
+    color: var(--danger-text);
   }
   .modal-coin-panel {
     margin: 16px 18px 0;
@@ -1024,7 +1024,7 @@
     width: min(920px, 100%);
     max-height: min(85vh, 900px);
     overflow: auto;
-    background: #fff;
+    background: var(--card);
     border-radius: 14px;
     border: 1px solid var(--border);
     box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
@@ -1097,7 +1097,7 @@
   }
 
   .menu-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-  .menu-row.selected { background: #f0fdf4; }
+  .menu-row.selected { background: var(--success-bg); }
   .menu-row.clickable { cursor: pointer; }
   .menu-row.clickable:not(.selected):hover { background: var(--surface-hover); }
   .menu-row.expanded { background: var(--surface); border-bottom-color: transparent; }
@@ -1105,8 +1105,8 @@
   .menu-row .col-img { padding: 6px 8px; }
 
   .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; display: block; }
-  .thumb-placeholder { border: 1px solid var(--border); background: #fff; }
-  .thumb-btn { display: block; padding: 0; border: 0; background: #fff; border-radius: 6px; }
+  .thumb-placeholder { border: 1px solid var(--border); background: var(--card); }
+  .thumb-btn { display: block; padding: 0; border: 0; background: var(--card); border-radius: 6px; }
   .rest-tag { font-size: 11px; color: var(--text-dim); }
   .rest-tag-mobile { display: none; margin-bottom: 4px; }
   .menu-parent { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
@@ -1119,7 +1119,7 @@
     border: 1px solid #059669;
     border-radius: 9px;
     overflow: hidden;
-    background: #fff;
+    background: var(--card);
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
   }
   .quantity-button {
@@ -1155,7 +1155,7 @@
     padding: 0 9px;
     border-left: 1px solid #059669;
     border-right: 1px solid #059669;
-    background: #fff;
+    background: var(--card);
     color: #065f46;
     font-family: var(--font-sans);
     font-size: 13px;
@@ -1227,7 +1227,7 @@
       background: var(--bg);
       cursor: pointer;
     }
-    .menu-table.selection-mode .menu-row.selected { background: #f0fdf4; border-color: #bbf7d0; }
+    .menu-table.selection-mode .menu-row.selected { background: var(--success-bg); border-color: #bbf7d0; }
     .menu-table.selection-mode .menu-row.expanded { margin-bottom: 0; border-radius: 12px 12px 0 0; }
     .menu-table.selection-mode .meal-time-row {
       display: block;
@@ -1349,7 +1349,7 @@
       right: 0;
       bottom: calc(62px + env(safe-area-inset-bottom, 0px));
       z-index: 45;
-      background: #fff;
+      background: var(--card);
       border-top: 1px solid var(--border);
       box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.15);
       padding: 12px 16px;
@@ -1448,7 +1448,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
+    background: var(--card);
     color: var(--text-dim);
     font-size: 13px;
     box-shadow: none;

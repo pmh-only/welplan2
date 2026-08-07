@@ -849,7 +849,7 @@
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
-    background: #fff;
+    background: var(--card);
   }
 
   .image-wrap img {
@@ -895,7 +895,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
+    background: var(--card);
   }
 
   .no-image-placeholder svg {
@@ -961,9 +961,9 @@
     align-self: flex-start;
     padding: 2px 7px;
     border-radius: 999px;
-    background: #fff7ed;
+    background: var(--warning-bg);
     border: 1px solid #fed7aa;
-    color: #c2410c;
+    color: var(--warning-text);
     font-size: 10px;
     font-weight: 700;
     line-height: 1.4;
@@ -1045,12 +1045,12 @@
     width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
-    background: #fff;
+    background: var(--card);
   }
 
   .lightbox-image-frame {
     position: relative;
-    background: #fff;
+    background: var(--card);
   }
 
   .lightbox-open-link {
@@ -1320,7 +1320,7 @@
 
   .restaurant-search-row:focus-within {
     border-color: var(--border-focus);
-    background: #fff;
+    background: var(--card);
   }
 
   .restaurant-search-row input {
@@ -1377,7 +1377,7 @@
 
   .restaurant-search-item:hover {
     border-color: #6ee7b7;
-    background: #ecfdf5;
+    background: var(--success-bg);
   }
 
   .restaurant-search-copy {
