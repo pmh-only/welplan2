@@ -78,10 +78,6 @@ async function selectedRestaurantMealTimes(
   time: string,
   cafeteriaService: CafeteriaService = service
 ): Promise<MealTime[]> {
-  if (restaurant.vendor === 'shinsegae' && time === ALL_MEAL_TIME_ID) {
-    return [{ id: '6', name: '전체' }]
-  }
-
   const mealTimes = mealTimesForRestaurant(
     restaurant,
     await cafeteriaService.getMealTimes(restaurant.id).catch(() => fallbackMealTimes)
