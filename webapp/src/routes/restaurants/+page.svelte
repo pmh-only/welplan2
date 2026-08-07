@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
-  import { saveRestaurantSelection } from '$lib/restaurant-cookie'
+  import { readRestaurantSelectionFromClient, restaurantSelectionsEqual, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath } from '$lib/restaurant-routes'
   import type { Restaurant } from '$lib/types'
@@ -15,9 +15,14 @@
 
   let { data }: { data: RestaurantsPageData } = $props()
 
-  // Local copy for immediate UI updates; syncs from server data when it changes
-  let restaurants = $state<Restaurant[]>([])
-  $effect(() => { restaurants = data.restaurants })
+  // Ignore stale invalidation responses that were started before the latest selection was saved.
+  let restaurants = $state<Restaurant[]>(data.restaurants)
+  $effect(() => {
+    const serverRestaurants = data.restaurants
+    if (restaurantSelectionsEqual(serverRestaurants, readRestaurantSelectionFromClient())) {
+      restaurants = serverRestaurants
+    }
+  })
 
   let query = $state('')
   let allRestaurants = $state<Restaurant[]>([])

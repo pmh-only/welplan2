@@ -46,6 +46,12 @@ export function decodeRestaurantCookie(raw: string | undefined): Restaurant[] {
   return []
 }
 
+export function restaurantSelectionsEqual(a: Restaurant[], b: Restaurant[]): boolean {
+  return a.length === b.length && a.every((restaurant, index) => (
+    restaurant.vendor === b[index]?.vendor && restaurant.id === b[index]?.id
+  ))
+}
+
 function restaurantCookieString(restaurants: Restaurant[]): string {
   return `${RESTAURANT_COOKIE}=${encodeRestaurantCookie(restaurants)}; path=/; max-age=${RESTAURANT_COOKIE_MAX_AGE}; SameSite=Lax`
 }

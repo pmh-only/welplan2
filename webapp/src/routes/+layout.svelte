@@ -10,7 +10,7 @@
   import { onMount, untrack } from 'svelte'
   import { navigating, page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
-  import { readRestaurantSelectionFromClient, restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
+  import { readRestaurantSelectionFromClient, restaurantSelectionsEqual, restoreRestaurantCookieFromStorage, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { BellRing, Braces, Camera, Check, FileText, Megaphone, Moon, Package, Search, Store, Sun, Utensils, X } from '@lucide/svelte'
@@ -903,7 +903,14 @@
   }
 
   $effect(() => {
-    if (!firstVisitDialogOpen && !data.isFirstVisit) dialogRestaurants = data.restaurants ?? []
+    const serverRestaurants = data.restaurants ?? []
+    if (
+      !firstVisitDialogOpen &&
+      !data.isFirstVisit &&
+      restaurantSelectionsEqual(serverRestaurants, readRestaurantSelectionFromClient())
+    ) {
+      dialogRestaurants = serverRestaurants
+    }
   })
 
   $effect(() => {
