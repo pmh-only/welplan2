@@ -106,6 +106,11 @@
   }
 
   onMount(() => {
+    const clientRestaurants = readRestaurantSelectionFromClient()
+    if (!restaurantSelectionsEqual(data.restaurants, clientRestaurants)) {
+      // An older invalidation can arrive after a newer selection was saved.
+      restaurants = clientRestaurants
+    }
     loadAllRestaurants()
   })
 </script>
