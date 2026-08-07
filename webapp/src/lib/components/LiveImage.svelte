@@ -96,7 +96,7 @@
     position: relative;
     display: block;
     overflow: hidden;
-    background: var(--card);
+    background: #fff;
   }
 
   .live-image-stack img {
