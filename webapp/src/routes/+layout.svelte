@@ -955,6 +955,22 @@
     persistDialogRestaurants(dialogRestaurants.filter((item) => restaurantKey(item) !== restaurantKey(restaurant)))
   }
 
+  async function navigateWithCurrentRestaurantSelection(event: MouseEvent, href: string) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      restaurantSelectionsEqual(data.restaurants ?? [], readRestaurantSelectionFromClient())
+    ) return
+
+    event.preventDefault()
+    await invalidateAll()
+    await goto(href)
+  }
+
   async function searchDialogRestaurants () {
     const query = restaurantQuery.trim()
     if (!query) {
@@ -1415,7 +1431,7 @@
         <nav class="header-nav">
           {#each visibleNavLinks as link}
             {@const Icon = link.icon}
-            <a href={link.href} class="tab-btn" class:active={(page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')) || (link.href === '/takein' && page.url.pathname === '/' && data.hasGalleryMenuPictures !== true)} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
+            <a href={link.href} class="tab-btn" class:active={(page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')) || (link.href === '/takein' && page.url.pathname === '/' && data.hasGalleryMenuPictures !== true)} onclick={(event) => { trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label }); if (link.href !== '/restaurants') void navigateWithCurrentRestaurantSelection(event, link.href) }}>
               <Icon class="tab-icon" aria-hidden="true" />
               <span class="tab-label">{link.label}</span>
             </a>
