@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation'
+  import { afterNavigate, goto, invalidateAll } from '$app/navigation'
   import { onDestroy } from 'svelte'
   import { trackEvent } from '$lib/analytics'
   import { createDialogHistory } from '$lib/dialog-history'
   import LiveImage from '$lib/components/LiveImage.svelte'
   import MenuTable from '$lib/components/MenuTable.svelte'
+  import { isPhotoOlderThanRetention } from '$lib/image-retention'
+  import { replaceMenuImages } from '$lib/live-menu-images'
   import { readRestaurantSelectionFromClient, saveRestaurantSelection } from '$lib/restaurant-cookie'
   import { recordRestaurantSelection } from '$lib/restaurant-selection'
   import { restaurantDatedPath, restaurantDetailPath } from '$lib/restaurant-routes'
@@ -66,6 +68,8 @@
   let restaurantSearchResults = $state<Restaurant[]>([])
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
+  let imageRefreshKey = $state('')
+  let liveRefreshKey = ''
   const zoomHistory = createDialogHistory(() => {
     zoomedMenu = null
     detail = []
@@ -107,7 +111,7 @@
   }
 
   function availableImageSrc (menu: Menu): string | undefined {
-    const src = proxyImg(menu.imageUrl, '', menu.date)
+    const src = proxyImg(menu.imageUrl, imageRefreshKey, menu.date)
     return isImageAvailable(src) ? src : undefined
   }
 
@@ -168,6 +172,36 @@
     const params = new URLSearchParams({ date })
     goto(`${data.detailPath ?? restaurantDetailPath(data.restaurant)}?${params}`)
   }
+
+  async function refreshLiveImages(): Promise<void> {
+    if (isPhotoOlderThanRetention(selectedDate)) return
+
+    const key = `${data.restaurant.id}:${selectedDate}`
+    if (liveRefreshKey === key) return
+    liveRefreshKey = key
+
+    try {
+      const params = new URLSearchParams({
+        kind: 'gallery',
+        date: selectedDate,
+        time: 'all',
+        restaurantId: data.restaurant.id
+      })
+      const response = await fetch(`/api/menu/live?${params}`, { cache: 'no-store', credentials: 'same-origin' })
+      const liveData: RestaurantGalleryData | null = response.ok ? await response.json() : null
+      if (!liveData?.menus.length) return
+
+      const menus = replaceMenuImages(data.menus, liveData.menus)
+      if (menus !== data.menus) data = { ...data, menus }
+      imageRefreshKey = String(Date.now())
+    } catch {
+      // Keep the persisted images visible when the upstream refresh fails.
+    }
+  }
+
+  afterNavigate(() => {
+    void refreshLiveImages()
+  })
 
   async function loadAllRestaurants () {
     restaurantSearching = true
@@ -270,7 +304,7 @@
 <svelte:head>
   {#each galleryMenus.slice(0, 1) as menu}
     {#if menu.imageUrl}
-      <link rel="preload" as="image" href={proxyImg(menu.imageUrl, '', menu.date)} fetchpriority="high" />
+      <link rel="preload" as="image" href={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)} fetchpriority="high" />
     {/if}
   {/each}
 </svelte:head>
@@ -375,8 +409,8 @@
               {#each section.menus as menu, index (`${section.mealTime.id}:${menu.id}`)}
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
-                    {#if isImageAvailable(proxyImg(menu.imageUrl, '', menu.date))}
-                      <LiveImage fill src={proxyImg(menu.imageUrl, '', menu.date)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
+                    {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
+                      <LiveImage fill src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                       <span class="zoom-indicator" aria-hidden="true">
                         <ZoomIn class="zoom-indicator-icon" />
                       </span>
@@ -431,10 +465,10 @@
       onkeydown={(event) => event.stopPropagation()}
     >
       <div class="lightbox-left">
-        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date))}
+        {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date))}
           <div class="lightbox-image-frame">
-            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, '', zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
+            <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
               더 크게 보기
             </a>
           </div>

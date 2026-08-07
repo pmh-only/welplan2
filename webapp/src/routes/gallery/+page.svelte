@@ -4,6 +4,7 @@
   import { trackEvent } from '$lib/analytics'
   import { createDialogHistory } from '$lib/dialog-history'
   import LiveImage from '$lib/components/LiveImage.svelte'
+  import { isPhotoOlderThanRetention } from '$lib/image-retention'
   import { replaceMenuImages } from '$lib/live-menu-images'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
@@ -151,7 +152,7 @@
   }
 
   async function refreshLiveImages(): Promise<void> {
-    if (data.restaurants.length === 0) return
+    if (data.restaurants.length === 0 || isPhotoOlderThanRetention(selectedDate)) return
 
     const key = `gallery:${selectedDate}:${selectedTime}`
     if (liveRefreshKey === key) return

@@ -4,6 +4,7 @@
   import { page } from '$app/state'
   import { trackEvent } from '$lib/analytics'
   import MenuTable from '$lib/components/MenuTable.svelte'
+  import { isPhotoOlderThanRetention } from '$lib/image-retention'
   import { replaceMenuImages } from '$lib/live-menu-images'
   import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, fallbackMealTime, toInputDate, fromInputDate, formatKoreanDate, shiftDate } from '$lib/utils'
@@ -49,7 +50,7 @@
   }
 
   async function refreshLiveImages(): Promise<void> {
-    if (data.restaurants.length === 0) return
+    if (data.restaurants.length === 0 || isPhotoOlderThanRetention(data.date)) return
 
     const key = `${kind}:${data.date}:${data.time}`
     if (liveRefreshKey === key) return

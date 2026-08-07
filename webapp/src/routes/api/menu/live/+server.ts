@@ -36,17 +36,28 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 
   const layoutData = await loadLayoutData(cookies)
   const menuService = createService({ allowRemoteFetch: true })
+  const restaurantId = url.searchParams.get('restaurantId')
+  const restaurants = restaurantId
+    ? [
+        layoutData.restaurants.find((restaurant) => restaurant.id === restaurantId) ??
+        await menuService.getRestaurant(restaurantId)
+      ].filter((restaurant): restaurant is NonNullable<typeof restaurant> => restaurant !== null && restaurant !== undefined)
+    : layoutData.restaurants
 
-  await Promise.all(layoutData.restaurants.map((restaurant) => menuService.registerRestaurant(restaurant).catch(() => undefined)))
+  if (restaurantId && restaurants.length === 0) {
+    return Response.json({ error: 'Restaurant not found' }, { status: 404 })
+  }
+
+  await Promise.all(restaurants.map((restaurant) => menuService.registerRestaurant(restaurant).catch(() => undefined)))
 
   const mealTimes = await menuService
-    .getMealTimesForRestaurants(layoutData.restaurants)
+    .getMealTimesForRestaurants(restaurants)
     .catch(() => layoutData.mealTimes)
-  const parentData = { ...layoutData, mealTimes }
+  const parentData = { ...layoutData, restaurants, mealTimes }
   const parent = async () => parentData
 
   const data = kind === 'gallery'
-    ? await computeGalleryMenusForRestaurants(layoutData.restaurants, mealTimes, date, time, menuService)
+    ? await computeGalleryMenusForRestaurants(restaurants, mealTimes, date, time, menuService)
     : kind === 'takeout'
       ? await loadTakeOutMenusForRoute(parent, date, time, { service: menuService })
       : await loadTakeInMenusForRoute(parent, date, time, { service: menuService })

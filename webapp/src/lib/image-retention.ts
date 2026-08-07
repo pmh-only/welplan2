@@ -1,4 +1,4 @@
-export const IMAGE_RETENTION_MS = 20 * 24 * 60 * 60 * 1000
+export const IMAGE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000
 
 const KOREA_UTC_OFFSET_MS = 9 * 60 * 60 * 1000
 

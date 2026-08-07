@@ -119,7 +119,7 @@ export function autoSelectMealTime(times: MealTime[]): string | null {
 
 export function proxyImg(url: string | undefined, refreshKey = '', photoDate?: string): string | undefined {
   if (!url) return undefined
-  if (photoDate && isPhotoOlderThanRetention(photoDate)) return url
+  if (photoDate && isPhotoOlderThanRetention(photoDate)) return url.replace(/^http:\/\//, 'https://')
   const search = new URLSearchParams()
   if (refreshKey) search.set('v', refreshKey)
   if (photoDate) search.set('date', photoDate)
