@@ -986,10 +986,7 @@
     ) return
 
     event.preventDefault()
-    void (async () => {
-      await invalidateAll()
-      await goto(destination.href)
-    })()
+    void goto(destination.href, { invalidateAll: true })
   }
 
   async function searchDialogRestaurants () {
