@@ -880,6 +880,7 @@
   let restaurantSearchResults = $state<Restaurant[]>([])
   let restaurantSearching = $state(false)
   let restaurantSearchError = $state('')
+  let lastSelectionRefresh = $state('')
   const dialogRestaurantIds = $derived(new Set(dialogRestaurants.map((restaurant) => restaurantKey(restaurant))))
   const visibleRestaurantSearchResults = $derived(restaurantQuery.trim() ? restaurantSearchResults : allDialogRestaurants)
 
@@ -904,12 +905,19 @@
 
   $effect(() => {
     const serverRestaurants = data.restaurants ?? []
-    if (
-      !firstVisitDialogOpen &&
-      !data.isFirstVisit &&
-      restaurantSelectionsEqual(serverRestaurants, readRestaurantSelectionFromClient())
-    ) {
+    const clientRestaurants = readRestaurantSelectionFromClient()
+    if (!firstVisitDialogOpen && !data.isFirstVisit && restaurantSelectionsEqual(serverRestaurants, clientRestaurants)) {
       dialogRestaurants = serverRestaurants
+      lastSelectionRefresh = ''
+      return
+    }
+
+    // A previous invalidation can complete after the cookie has changed. Reload
+    // the layout once so navigation visibility uses the current selection.
+    const selectionKey = clientRestaurants.map((restaurant) => `${restaurant.vendor}:${restaurant.id}`).join(',') || 'empty'
+    if (!firstVisitDialogOpen && lastSelectionRefresh !== selectionKey) {
+      lastSelectionRefresh = selectionKey
+      void invalidateAll()
     }
   })
 
@@ -937,38 +945,51 @@
     }
   }
 
-  function persistDialogRestaurants (next: Restaurant[]) {
+  async function persistDialogRestaurants (next: Restaurant[]) {
     dialogRestaurants = next
     saveRestaurantSelection(next)
-    invalidateAll()
+    await invalidateAll()
   }
 
   function addDialogRestaurant (restaurant: Restaurant) {
     if (dialogRestaurantIds.has(restaurantKey(restaurant))) return
     trackEvent('Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
-    persistDialogRestaurants([...dialogRestaurants, restaurant])
+    void persistDialogRestaurants([...dialogRestaurants, restaurant])
     void recordRestaurantSelection(restaurant).catch(() => undefined)
   }
 
   function removeDialogRestaurant (restaurant: Restaurant) {
     trackEvent('Restaurant Removed', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
-    persistDialogRestaurants(dialogRestaurants.filter((item) => restaurantKey(item) !== restaurantKey(restaurant)))
+    void persistDialogRestaurants(dialogRestaurants.filter((item) => restaurantKey(item) !== restaurantKey(restaurant)))
   }
 
-  async function navigateWithCurrentRestaurantSelection(event: MouseEvent, href: string) {
+  function navigateWithCurrentRestaurantSelection(event: MouseEvent) {
     if (
       event.defaultPrevented ||
       event.button !== 0 ||
       event.metaKey ||
       event.ctrlKey ||
       event.shiftKey ||
-      event.altKey ||
+      event.altKey
+    ) return
+
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const link = target.closest<HTMLAnchorElement>('a[href]')
+    if (!link || link.target || link.hasAttribute('download') || link.dataset.sveltekitReload !== undefined) return
+
+    const destination = new URL(link.href)
+    if (
+      destination.origin !== window.location.origin ||
+      (destination.pathname === window.location.pathname && destination.search === window.location.search) ||
       restaurantSelectionsEqual(data.restaurants ?? [], readRestaurantSelectionFromClient())
     ) return
 
     event.preventDefault()
-    await invalidateAll()
-    await goto(href)
+    void (async () => {
+      await invalidateAll()
+      await goto(destination.href)
+    })()
   }
 
   async function searchDialogRestaurants () {
@@ -995,7 +1016,7 @@
   function closeFirstVisitDialog () {
     if (dialogRestaurants.length === 0) return
     trackEvent('First Visit Dialog Closed', { restaurantCount: dialogRestaurants.length })
-    persistDialogRestaurants(dialogRestaurants)
+    void persistDialogRestaurants(dialogRestaurants)
     firstVisitDialogOpen = false
   }
 
@@ -1294,7 +1315,7 @@
   {/each}
 </svelte:head>
 
-<div class="app">
+<div class="app" onclickcapture={navigateWithCurrentRestaurantSelection}>
   {#if showNotice && notice}
     <section class="notice-shell" aria-label="공지사항">
       <a class="notice-bar" href={noticeHref} onclick={() => trackEvent('Notice Bar Clicked', { source: 'global_bar', nonav: hideGlobalNav ? 1 : 0 })}>
@@ -1431,7 +1452,7 @@
         <nav class="header-nav">
           {#each visibleNavLinks as link}
             {@const Icon = link.icon}
-            <a href={link.href} class="tab-btn" class:active={(page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')) || (link.href === '/takein' && page.url.pathname === '/' && data.hasGalleryMenuPictures !== true)} onclick={(event) => { trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label }); if (link.href !== '/restaurants') void navigateWithCurrentRestaurantSelection(event, link.href) }}>
+            <a href={link.href} class="tab-btn" class:active={(page.url.pathname.startsWith(link.href) && (link.href !== '/' || page.url.pathname === '/')) || (link.href === '/takein' && page.url.pathname === '/' && data.hasGalleryMenuPictures !== true)} onclick={() => trackEvent('Navigation Tab Clicked', { href: link.href, label: link.label })}>
               <Icon class="tab-icon" aria-hidden="true" />
               <span class="tab-label">{link.label}</span>
             </a>

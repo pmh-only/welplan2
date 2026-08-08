@@ -50,23 +50,23 @@
     return `/takein/${todayStr()}/${ALL_MEAL_TIME_ID}?${params}`
   }
 
-  function saveRestaurants (next: Restaurant[]) {
+  async function saveRestaurants (next: Restaurant[]) {
     restaurants = next
     saveRestaurantSelection(next)
-    invalidateAll()
+    await invalidateAll()
   }
 
   function addRestaurant (r: Restaurant) {
     if (!myIds.has(restaurantKey(r))) {
       trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id })
-      saveRestaurants([...restaurants, r])
+      void saveRestaurants([...restaurants, r])
       void recordRestaurantSelection(r).catch(() => undefined)
     }
   }
 
   function removeRestaurant (r: Restaurant) {
     trackEvent('Restaurant Removed', { vendor: r.vendor, restaurantId: r.id })
-    saveRestaurants(restaurants.filter((x: Restaurant) => restaurantKey(x) !== restaurantKey(r)))
+    void saveRestaurants(restaurants.filter((x: Restaurant) => restaurantKey(x) !== restaurantKey(r)))
   }
 
   async function loadAllRestaurants () {
