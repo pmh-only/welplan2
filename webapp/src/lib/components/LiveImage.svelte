@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
 
   let {
     src,
@@ -19,7 +19,7 @@
     onerror?: (src: string) => void
   } = $props()
 
-  let baseSrc = $state(src)
+  let baseSrc = $state(untrack(() => src))
   let pendingSrc = $state<string | null>(null)
   let overlaySrc = $state<string | null>(null)
   let baseLoaded = $state(false)

@@ -819,8 +819,8 @@
   .lightbox-close:hover { background: rgba(0,0,0,0.75); }
 
   .gallery-img-wrap { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--card); }
-  .gallery-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.2s; }
-  .gallery-card:hover .gallery-img { transform: scale(1.04); }
+  .gallery-img-wrap :global(.gallery-img) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.2s; }
+  .gallery-card:hover :global(.gallery-img) { transform: scale(1.04); }
   .zoom-indicator {
     position: absolute;
     right: 8px;

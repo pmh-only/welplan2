@@ -7,7 +7,7 @@
   import type { Restaurant } from '$lib/types'
   import { ALL_MEAL_TIME_ID, restaurantPathTags, todayStr } from '$lib/utils'
   import { Check, Search, Store } from '@lucide/svelte'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
 
   type RestaurantsPageData = {
     restaurants: Restaurant[]
@@ -16,7 +16,7 @@
   let { data }: { data: RestaurantsPageData } = $props()
 
   // Ignore stale invalidation responses that were started before the latest selection was saved.
-  let restaurants = $state<Restaurant[]>(data.restaurants)
+  let restaurants = $state<Restaurant[]>(untrack(() => data.restaurants))
   $effect(() => {
     const serverRestaurants = data.restaurants
     if (restaurantSelectionsEqual(serverRestaurants, readRestaurantSelectionFromClient())) {

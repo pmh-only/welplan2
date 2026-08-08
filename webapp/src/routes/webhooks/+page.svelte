@@ -527,7 +527,7 @@
   .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .wide-field { grid-column: 1 / -1; }
   .field-grid label, .webhook-url-field { display: grid; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 600; }
-  .field-grid label > span, .field-label { display: flex; justify-content: space-between; align-items: center; }
+  .field-label { display: flex; justify-content: space-between; align-items: center; }
   .field-label button { display: inline-flex; align-items: center; gap: 2px; color: var(--success-text); font-size: 11px; font-weight: 700; }
   :global(.field-label .guide-open) { transform: rotate(90deg); }
   .webhook-guide { margin-top: 4px; padding: 14px 16px; border: 1px solid #a7f3d0; border-radius: 8px; color: var(--text-muted); background: var(--green-dim); font-weight: 400; }
@@ -539,8 +539,8 @@
   .slack-connect-btn:hover { background: #611f69; }
   .slack-connect-btn:disabled { cursor: not-allowed; opacity: .5; }
   .connection-status { display: inline-flex; align-items: center; gap: 5px; color: var(--success-text); font-size: 11px; font-weight: 700; }
-  input:not([type='checkbox']):not([type='radio']), select { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; color: var(--text); background: var(--card); outline: none; font: inherit; font-weight: 400; }
-  input:not([type='checkbox']):not([type='radio']):focus, select:focus { border-color: #34d399; box-shadow: 0 0 0 3px #ecfdf5; }
+  input:not([type='checkbox']):not([type='radio']) { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; color: var(--text); background: var(--card); outline: none; font: inherit; font-weight: 400; }
+  input:not([type='checkbox']):not([type='radio']):focus { border-color: #34d399; box-shadow: 0 0 0 3px #ecfdf5; }
   .field-grid small { color: #b45309; font-size: 10px; font-weight: 400; }
   .restaurant-builder { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); overflow: hidden; min-height: 260px; border: 1px solid var(--border); border-radius: 9px; }
   .restaurant-search-panel, .selected-panel { min-width: 0; padding: 12px; }

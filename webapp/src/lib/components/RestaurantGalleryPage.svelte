@@ -410,7 +410,7 @@
                 <button class="gallery-card" type="button" onclick={() => openZoom(menu)} aria-label={`${section.mealTime.name} ${menu.name} 크게 보기`}>
                   <span class="image-wrap">
                     {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
-                      <LiveImage fill src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
+                      <LiveImage fill imageClass="gallery-image" src={proxyImg(menu.imageUrl, imageRefreshKey, menu.date)!} alt={menu.name} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onerror={markImageBroken} />
                       <span class="zoom-indicator" aria-hidden="true">
                         <ZoomIn class="zoom-indicator-icon" />
                       </span>
@@ -568,6 +568,7 @@
     <div
       class="restaurant-search-dialog"
       role="dialog"
+      tabindex="-1"
       aria-modal="true"
       aria-labelledby="restaurant-search-title"
       onclick={(event) => event.stopPropagation()}
@@ -886,7 +887,7 @@
     background: var(--card);
   }
 
-  .image-wrap img {
+  .image-wrap :global(.gallery-image) {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -918,8 +919,8 @@
     height: 15px;
   }
 
-  .gallery-card:hover .image-wrap img,
-  .gallery-card:focus-visible .image-wrap img {
+  .gallery-card:hover .image-wrap :global(.gallery-image),
+  .gallery-card:focus-visible .image-wrap :global(.gallery-image) {
     transform: scale(1.04);
   }
 
@@ -1479,7 +1480,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .gallery-card,
-    .image-wrap img,
+    .image-wrap :global(.gallery-image),
     .lightbox-close {
       transition: none;
       transform: none;
