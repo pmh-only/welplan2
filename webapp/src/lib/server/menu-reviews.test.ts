@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { menuReviewKey } from '../menu-reviews.js'
+import { menuReviewKey, menuReviewNormalizedName } from '../menu-reviews.js'
 import {
   issueReviewToken,
   MenuReviewError,
@@ -41,4 +41,22 @@ test('normalizes a review only when its menu key matches its metadata', () => {
     () => normalizeMenuReview({ ...menu, menuKey: `${menuKey}x`, menuName: menu.name, menuDate: menu.date, rating: 5 }),
     MenuReviewError
   )
+})
+
+test('maps date-specific review keys to the same occurrence-normalized menu name', () => {
+  const menuKey = menuReviewKey({
+    name: ' 김치 찌개（돈육: 국내산） ',
+    date: '20260810',
+    mealTimeId: 'lunch:2'
+  })
+  const previousMenuKey = menuReviewKey({
+    name: '김치찌개',
+    date: '20250701',
+    mealTimeId: '1'
+  })
+
+  assert.notEqual(menuKey, previousMenuKey)
+  assert.equal(menuReviewNormalizedName(menuKey), '김치찌개')
+  assert.equal(menuReviewNormalizedName(previousMenuKey), '김치찌개')
+  assert.equal(menuReviewNormalizedName('v1:invalid'), null)
 })

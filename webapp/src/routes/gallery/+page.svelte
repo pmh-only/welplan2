@@ -7,7 +7,7 @@
   import { isPhotoOlderThanRetention } from '$lib/image-retention'
   import { replaceMenuImages } from '$lib/live-menu-images'
   import { normalizeMenuOccurrenceName } from '$lib/menu-occurrences'
-  import { menuReviewKey, type MenuReviewSummary } from '$lib/menu-reviews'
+  import { menuReviewKey, menuReviewNormalizedName, type MenuReviewSummary } from '$lib/menu-reviews'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
@@ -199,6 +199,22 @@
     return data.menuOccurrenceCounts?.[normalizeMenuOccurrenceName(menu.name)]
   }
 
+  function applyReviewSummary(menuKey: string, summary: MenuReviewSummary) {
+    const normalizedName = menuReviewNormalizedName(menuKey)
+    const next = { ...reviewSummaries }
+    for (const menu of galleryMenus) {
+      const key = menuReviewKey(menu)
+      if (menuReviewNormalizedName(key) !== normalizedName) continue
+      const userRating = key === menuKey ? summary.userRating : next[key]?.userRating
+      next[key] = {
+        average: summary.average,
+        count: summary.count,
+        ...(userRating == null ? {} : { userRating })
+      }
+    }
+    reviewSummaries = next
+  }
+
   async function submitReview (menu: GalleryMenu, rating: number) {
     const menuKey = menuReviewKey(menu)
     if (reviewSubmittingKey || reviewSummaries[menuKey]?.userRating) return
@@ -215,7 +231,7 @@
       const result = await response.json().catch(() => ({})) as { token?: string; summary?: MenuReviewSummary; error?: string }
       if (!response.ok || !result.summary || !result.token) throw new Error(result.error ?? '별점을 저장하지 못했습니다.')
       storeReviewToken(result.token)
-      reviewSummaries = { ...reviewSummaries, [menuKey]: result.summary }
+      applyReviewSummary(menuKey, result.summary)
       reviewFeedback = '별점이 등록되었습니다.'
       trackEvent('Gallery Menu Reviewed', { rating, mealTimeId: menu.mealTimeId, vendor: menu.vendor })
     } catch (error) {

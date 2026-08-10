@@ -1,7 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Cookies } from '@sveltejs/kit'
-import { inArray, sql } from 'drizzle-orm'
-import { menuReviewKey, type MenuReviewSummary } from '../menu-reviews.js'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import { menuReviewKey, menuReviewNormalizedName, type MenuReviewSummary } from '../menu-reviews.js'
 import { db, ensureDbInitialized } from './db/index.js'
 import { menuReviewIdentityLimits, menuReviews } from './db/schema.js'
 
@@ -140,7 +140,7 @@ export async function reviewIdentity(
 export function normalizeMenuKeys(value: unknown): string[] {
   if (!Array.isArray(value) || value.length > MAX_MENU_KEYS) throw new MenuReviewError('메뉴 목록이 올바르지 않습니다.')
   const keys = [...new Set(value)]
-  if (keys.some((key) => typeof key !== 'string' || key.length < 8 || key.length > 500 || !key.startsWith('v1:'))) {
+  if (keys.some((key) => typeof key !== 'string' || key.length < 8 || key.length > 500 || menuReviewNormalizedName(key) === null)) {
     throw new MenuReviewError('메뉴 목록이 올바르지 않습니다.')
   }
   return keys as string[]
@@ -149,18 +149,36 @@ export function normalizeMenuKeys(value: unknown): string[] {
 export async function reviewSummaries(menuKeys: string[], sessionId: string): Promise<Record<string, MenuReviewSummary>> {
   if (menuKeys.length === 0) return {}
   await ensureDbInitialized()
+  const normalizedNameByKey = new Map(menuKeys.map((menuKey) => [menuKey, menuReviewNormalizedName(menuKey)!]))
+  const normalizedNames = [...new Set(normalizedNameByKey.values())]
+  const normalizedName = sql<string>`normalize_menu_occurrence_name(${menuReviews.menuName})`
   const rows = await db.select({
-    menuKey: menuReviews.menuKey,
+    normalizedName,
     average: sql<number>`avg(${menuReviews.rating})::float`,
-    count: sql<number>`count(*)::int`,
-    userRating: sql<number | null>`max(CASE WHEN ${menuReviews.sessionId} = ${sessionId} THEN ${menuReviews.rating} END)::int`
-  }).from(menuReviews).where(inArray(menuReviews.menuKey, menuKeys)).groupBy(menuReviews.menuKey)
+    count: sql<number>`count(*)::int`
+  }).from(menuReviews).where(inArray(normalizedName, normalizedNames)).groupBy(normalizedName)
+  const userRows = await db.select({
+    menuKey: menuReviews.menuKey,
+    rating: menuReviews.rating
+  }).from(menuReviews).where(and(
+    inArray(menuReviews.menuKey, menuKeys),
+    eq(menuReviews.sessionId, sessionId)
+  ))
+  const aggregateByName = new Map(rows.map((row) => [row.normalizedName, row]))
+  const userRatingByKey = new Map(userRows.map((row) => [row.menuKey, row.rating]))
+  const summaries: Record<string, MenuReviewSummary> = {}
 
-  return Object.fromEntries(rows.map((row) => [row.menuKey, {
-    average: row.average,
-    count: row.count,
-    ...(row.userRating == null ? {} : { userRating: row.userRating })
-  }]))
+  for (const menuKey of menuKeys) {
+    const aggregate = aggregateByName.get(normalizedNameByKey.get(menuKey)!)
+    if (!aggregate) continue
+    const userRating = userRatingByKey.get(menuKey)
+    summaries[menuKey] = {
+      average: aggregate.average,
+      count: aggregate.count,
+      ...(userRating == null ? {} : { userRating })
+    }
+  }
+  return summaries
 }
 
 type NewMenuReview = {

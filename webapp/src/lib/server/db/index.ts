@@ -198,6 +198,8 @@ const createSchemaSql = `
     PRIMARY KEY (menu_key, session_id)
   );
   CREATE INDEX IF NOT EXISTS menu_reviews_menu_key_idx ON menu_reviews(menu_key);
+  CREATE INDEX IF NOT EXISTS menu_reviews_normalized_name_idx
+    ON menu_reviews(normalize_menu_occurrence_name(menu_name));
   CREATE TABLE IF NOT EXISTS menu_review_identity_limits (
     address_hash TEXT PRIMARY KEY,
     window_started_at BIGINT NOT NULL,
