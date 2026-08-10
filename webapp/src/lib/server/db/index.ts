@@ -42,6 +42,73 @@ const createSchemaSql = `
     data TEXT NOT NULL,
     cached_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS menu_occurrences (
+    cache_key TEXT NOT NULL REFERENCES menus_cache(key) ON DELETE CASCADE,
+    menu_index BIGINT NOT NULL,
+    restaurant_id TEXT NOT NULL,
+    menu_date TEXT NOT NULL,
+    normalized_name TEXT NOT NULL,
+    PRIMARY KEY (cache_key, menu_index)
+  );
+  CREATE OR REPLACE FUNCTION normalize_menu_occurrence_name(input TEXT)
+  RETURNS TEXT
+  IMMUTABLE
+  STRICT
+  LANGUAGE SQL
+  AS $function$
+    SELECT lower(regexp_replace(
+      regexp_replace(normalize(input, NFKC), '[(][^)]*[)]', '', 'g'),
+      '[[:space:]]+',
+      '',
+      'g'
+    ));
+  $function$;
+  CREATE OR REPLACE FUNCTION refresh_menu_occurrences()
+  RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $function$
+  BEGIN
+    DELETE FROM menu_occurrences WHERE cache_key = NEW.key;
+    INSERT INTO menu_occurrences (cache_key, menu_index, restaurant_id, menu_date, normalized_name)
+    SELECT
+      NEW.key,
+      entry.menu_index,
+      entry.menu->>'restaurantId',
+      entry.menu->>'date',
+      normalized.normalized_name
+    FROM jsonb_array_elements(NEW.data::jsonb) WITH ORDINALITY AS entry(menu, menu_index)
+    CROSS JOIN LATERAL (
+      SELECT normalize_menu_occurrence_name(entry.menu->>'name') AS normalized_name
+    ) normalized
+    WHERE entry.menu->>'restaurantId' IS NOT NULL
+      AND entry.menu->>'date' IS NOT NULL
+      AND normalized.normalized_name <> '';
+    RETURN NEW;
+  END;
+  $function$;
+  CREATE OR REPLACE TRIGGER menus_cache_occurrences_trigger
+    AFTER INSERT OR UPDATE OF data ON menus_cache
+    FOR EACH ROW
+    EXECUTE FUNCTION refresh_menu_occurrences();
+  INSERT INTO menu_occurrences (cache_key, menu_index, restaurant_id, menu_date, normalized_name)
+  SELECT
+    cache.key,
+    entry.menu_index,
+    entry.menu->>'restaurantId',
+    entry.menu->>'date',
+    normalized.normalized_name
+  FROM menus_cache cache
+  CROSS JOIN LATERAL jsonb_array_elements(cache.data::jsonb) WITH ORDINALITY AS entry(menu, menu_index)
+  CROSS JOIN LATERAL (
+    SELECT normalize_menu_occurrence_name(entry.menu->>'name') AS normalized_name
+  ) normalized
+  WHERE NOT EXISTS (SELECT 1 FROM menu_occurrences LIMIT 1)
+    AND entry.menu->>'restaurantId' IS NOT NULL
+    AND entry.menu->>'date' >= to_char((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date - 29, 'YYYYMMDD')
+    AND normalized.normalized_name <> ''
+  ON CONFLICT DO NOTHING;
+  CREATE INDEX IF NOT EXISTS menu_occurrences_lookup_idx
+    ON menu_occurrences(normalized_name, restaurant_id, menu_date);
   CREATE TABLE IF NOT EXISTS menu_detail_cache (
     key TEXT PRIMARY KEY,
     data TEXT NOT NULL,

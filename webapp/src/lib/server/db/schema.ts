@@ -1,4 +1,4 @@
-import { bigint, boolean, pgTable, primaryKey, text } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, pgTable, primaryKey, text } from 'drizzle-orm/pg-core'
 
 export const restaurants = pgTable('restaurants', {
   id: text('id').primaryKey(),
@@ -22,6 +22,19 @@ export const menusCache = pgTable('menus_cache', {
   data: text('data').notNull(), // JSON: Menu[]
   cachedAt: bigint('cached_at', { mode: 'number' }).notNull()
 })
+
+export const menuOccurrences = pgTable('menu_occurrences', {
+  cacheKey: text('cache_key')
+    .notNull()
+    .references(() => menusCache.key, { onDelete: 'cascade' }),
+  menuIndex: bigint('menu_index', { mode: 'number' }).notNull(),
+  restaurantId: text('restaurant_id').notNull(),
+  menuDate: text('menu_date').notNull(),
+  normalizedName: text('normalized_name').notNull()
+}, (table) => [
+  primaryKey({ columns: [table.cacheKey, table.menuIndex] }),
+  index('menu_occurrences_lookup_idx').on(table.normalizedName, table.restaurantId, table.menuDate)
+])
 
 export const menuDetailCache = pgTable('menu_detail_cache', {
   key: text('key').primaryKey(), // `${restaurantId}:${date}:${mealTimeId}:${hallNo}:${courseType}`

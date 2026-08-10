@@ -6,6 +6,7 @@
   import LiveImage from '$lib/components/LiveImage.svelte'
   import { isPhotoOlderThanRetention } from '$lib/image-retention'
   import { replaceMenuImages } from '$lib/live-menu-images'
+  import { normalizeMenuOccurrenceName } from '$lib/menu-occurrences'
   import { menuReviewKey, type MenuReviewSummary } from '$lib/menu-reviews'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
@@ -45,7 +46,7 @@
     return nutrientDefs.filter(({ key }) => n[key] != null)
   }
 
-  let { data }: { data: PageData } = $props()
+  let { data }: { data: PageData & { menuOccurrenceCounts?: Record<string, number> } } = $props()
 
   let sortBy = $state<'calories-asc' | 'calories-desc' | 'name-asc' | 'name-desc' | 'restaurant-asc'>('calories-asc')
   let zoomedMenu = $state<GalleryMenu | null>(null)
@@ -188,6 +189,10 @@
 
   function reviewSummary (menu: GalleryMenu): MenuReviewSummary | undefined {
     return reviewSummaries[menuReviewKey(menu)]
+  }
+
+  function menuOccurrenceCount (menu: GalleryMenu): number | undefined {
+    return data.menuOccurrenceCounts?.[normalizeMenuOccurrenceName(menu.name)]
   }
 
   async function submitReview (menu: GalleryMenu, rating: number) {
@@ -458,6 +463,7 @@
             {#if isExpanded}
               <div class="gallery-grid" id={`gallery-meal-panel-${section.mealTime.id}`}>
                 {#each section.menus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
+                  {@const occurrenceCount = menuOccurrenceCount(menu)}
                   <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
                     <div class="gallery-img-wrap">
                       {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
@@ -476,10 +482,13 @@
                     </div>
                     <div class="gallery-info">
                       <span class="gallery-name">{menu.name}</span>
-                      <span class="gallery-rating">
-                        <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
-                        {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
-                      </span>
+                      <div class="gallery-signals">
+                        <span class="gallery-rating">
+                          <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
+                          {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
+                        </span>
+                        {#if occurrenceCount !== undefined}<span class="gallery-occurrences">최근 한 달 {occurrenceCount}회</span>{/if}
+                      </div>
                       {#if menu.components.length > 0}
                         <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
                       {:else if menu.vendor === 'shinsegae'}
@@ -504,6 +513,7 @@
     {:else}
       <div class="gallery-grid">
         {#each galleryMenus as menu, i (`${menu.mealTimeId}:${menu.id}`)}
+          {@const occurrenceCount = menuOccurrenceCount(menu)}
           <div class="gallery-card" role="button" tabindex="0" onclick={() => openZoom(menu)} onkeydown={(e) => e.key === 'Enter' && openZoom(menu)}>
             <div class="gallery-img-wrap">
                 {#if isImageAvailable(proxyImg(menu.imageUrl, imageRefreshKey, menu.date))}
@@ -522,10 +532,13 @@
             </div>
             <div class="gallery-info">
               <span class="gallery-name">{menu.name}</span>
-              <span class="gallery-rating">
-                <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
-                {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
-              </span>
+              <div class="gallery-signals">
+                <span class="gallery-rating">
+                  <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
+                  {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
+                </span>
+                {#if occurrenceCount !== undefined}<span class="gallery-occurrences">최근 한 달 {occurrenceCount}회</span>{/if}
+              </div>
               {#if menu.components.length > 0}
                 <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
               {:else if menu.vendor === 'shinsegae'}
@@ -548,6 +561,7 @@
 </div>
 
 {#if zoomedMenu}
+  {@const occurrenceCount = menuOccurrenceCount(zoomedMenu)}
   <div
     class="lightbox"
     role="button"
@@ -598,9 +612,9 @@
           <div class="review-copy">
             <strong>이 메뉴는 어떠셨나요?</strong>
             {#if reviewSummary(zoomedMenu)?.count}
-              <span>평균 {reviewSummary(zoomedMenu)?.average.toFixed(1)} · {reviewSummary(zoomedMenu)?.count}명 참여</span>
+              <span>평균 {reviewSummary(zoomedMenu)?.average.toFixed(1)} · {reviewSummary(zoomedMenu)?.count}명 참여{occurrenceCount === undefined ? '' : ` · 최근 한 달 ${occurrenceCount}회`}</span>
             {:else}
-              <span>첫 별점을 남겨주세요.</span>
+              <span>첫 별점을 남겨주세요.{occurrenceCount === undefined ? '' : ` · 최근 한 달 ${occurrenceCount}회`}</span>
             {/if}
           </div>
           <div class="review-stars" role="group" aria-label={`${zoomedMenu.name} 별점`}>
@@ -1013,8 +1027,10 @@
 
   .gallery-info { padding: 9px 10px; background: var(--card); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
-  .gallery-rating { display: inline-flex; align-items: center; gap: 3px; margin-bottom: 4px; color: #b45309; font-size: 10px; font-weight: 700; }
+  .gallery-signals { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 8px; margin-bottom: 4px; }
+  .gallery-rating { display: inline-flex; align-items: center; gap: 3px; color: #b45309; font-size: 10px; font-weight: 700; }
   .gallery-rating :global(svg) { width: 12px; height: 12px; }
+  .gallery-occurrences { color: var(--success-text); font-size: 10px; font-weight: 700; white-space: nowrap; }
   .gallery-components { display: block; font-size: 10px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px; }
   .gallery-detail-unavailable { font-style: italic; }
   .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }

@@ -1,5 +1,6 @@
 import { service } from './service.js'
 import type { CafeteriaService } from './service.js'
+import { recentMenuOccurrenceCounts } from './menu-occurrences.js'
 import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
 import type { MealTime, Menu, MenuComponent, NutritionInfo, Restaurant } from '../types.js'
 import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, formatKoreanDate, restaurantPathItems, todayStr } from '../utils.js'
@@ -127,14 +128,20 @@ export async function loadGalleryMenusForRoute(parent: ParentLoad, url: URL) {
 
   const date = url.searchParams.get('date') ?? todayStr()
   const mealTimeId = url.searchParams.get('time') ?? ALL_MEAL_TIME_ID
-  if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '' }
+  if (!mealTimeId || !restaurants.length) return { menus: [], date, time: mealTimeId ?? '', menuOccurrenceCounts: {} }
 
   const cached = await service
     .getPrecomputedPage<GalleryRouteData>(galleryRouteCacheKey(restaurants, date, mealTimeId))
     .catch(() => null)
-  if (cached && cached.menus.length > 0) return cached
+  const gallery = cached && cached.menus.length > 0
+    ? cached
+    : await computeGalleryMenusForRestaurants(restaurants, mealTimes, date, mealTimeId)
+  const menuOccurrenceCounts = await recentMenuOccurrenceCounts(
+    gallery.menus.map((menu) => menu.name),
+    restaurants.map((restaurant) => restaurant.id)
+  ).catch(() => ({}))
 
-  return computeGalleryMenusForRestaurants(restaurants, mealTimes, date, mealTimeId)
+  return { ...gallery, menuOccurrenceCounts }
 }
 
 export async function computeGalleryMenusForRestaurants(
