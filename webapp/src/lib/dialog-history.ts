@@ -3,24 +3,23 @@ import { pushState } from '$app/navigation'
 const DIALOG_STATE_KEY = '__welplanDialog'
 
 type DialogEntry = {
-  id: number
+  id: string
   dismiss: () => void
 }
 
 const entries: DialogEntry[] = []
-let nextId = 1
 let listening = false
 
-function dialogId(state: unknown): number | undefined {
+function dialogId(state: unknown): string | number | undefined {
   if (!state || typeof state !== 'object') return undefined
   const record = state as Record<string, unknown>
   const id = record[DIALOG_STATE_KEY]
-  if (typeof id === 'number') return id
+  if (typeof id === 'string' || typeof id === 'number') return id
 
   const pageState = record['sveltekit:states']
   if (!pageState || typeof pageState !== 'object') return undefined
   const pageStateId = (pageState as Record<string, unknown>)[DIALOG_STATE_KEY]
-  return typeof pageStateId === 'number' ? pageStateId : undefined
+  return typeof pageStateId === 'string' || typeof pageStateId === 'number' ? pageStateId : undefined
 }
 
 function removeEntry(entry: DialogEntry) {
@@ -45,21 +44,29 @@ function ensureListener() {
 export function createDialogHistory(dismiss: () => void) {
   let entry: DialogEntry | undefined
   let closing = false
+  let dismissed = false
   let closePromise: Promise<void> | undefined
   let resolveClose: (() => void) | undefined
+
+  function dismissOnce() {
+    if (dismissed) return
+    dismissed = true
+    dismiss()
+  }
 
   return {
     open() {
       if (entry || typeof window === 'undefined') return
       ensureListener()
       closing = false
+      dismissed = false
       closePromise = new Promise<void>((resolve) => { resolveClose = resolve })
       entry = {
-        id: nextId++,
+        id: window.crypto.randomUUID(),
         dismiss: () => {
           entry = undefined
           closing = false
-          dismiss()
+          dismissOnce()
           resolveClose?.()
           resolveClose = undefined
           closePromise = undefined
@@ -78,6 +85,8 @@ export function createDialogHistory(dismiss: () => void) {
 
       if (entries.at(-1) === entry && dialogId(history.state) === entry.id) {
         closing = true
+        // Explicit controls should close immediately; popstate only cleans up the history entry.
+        dismissOnce()
         history.back()
         return closePromise ?? Promise.resolve()
       }
@@ -85,7 +94,7 @@ export function createDialogHistory(dismiss: () => void) {
       const current = entry
       entry = undefined
       removeEntry(current)
-      dismiss()
+      dismissOnce()
       resolveClose?.()
       resolveClose = undefined
       closePromise = undefined
