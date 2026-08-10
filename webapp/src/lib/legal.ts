@@ -8,8 +8,8 @@ export const TERMS_VERSION = TERMS_2026_08_31_VERSION
 export const TERMS_VERSION_LABEL = TERMS_2026_08_31_VERSION_LABEL
 export const TERMS_NOTICE_DATE_LABEL = '2026년 7월 31일'
 export const TERMS_EFFECTIVE_AT = Date.parse('2026-08-31T00:00:00+09:00')
-export const PRIVACY_VERSION = '2026-07-31'
-export const PRIVACY_VERSION_LABEL = '2026년 7월 31일'
+export const PRIVACY_VERSION = '2026-08-10'
+export const PRIVACY_VERSION_LABEL = '2026년 8월 10일'
 
 export type TermsVersion = typeof TERMS_2026_07_30_VERSION | typeof TERMS_2026_08_31_VERSION
 

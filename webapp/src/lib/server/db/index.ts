@@ -120,6 +120,22 @@ const createSchemaSql = `
     window_started_at BIGINT NOT NULL,
     attempts BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS menu_reviews (
+    menu_key TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    rating BIGINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    menu_name TEXT NOT NULL,
+    menu_date TEXT NOT NULL,
+    meal_time_id TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    PRIMARY KEY (menu_key, session_id)
+  );
+  CREATE INDEX IF NOT EXISTS menu_reviews_menu_key_idx ON menu_reviews(menu_key);
+  CREATE TABLE IF NOT EXISTS menu_review_identity_limits (
+    address_hash TEXT PRIMARY KEY,
+    window_started_at BIGINT NOT NULL,
+    attempts BIGINT NOT NULL
+  );
 `
 
 let initialized: Promise<void> | null = null

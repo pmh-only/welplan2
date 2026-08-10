@@ -6,15 +6,19 @@
   import LiveImage from '$lib/components/LiveImage.svelte'
   import { isPhotoOlderThanRetention } from '$lib/image-retention'
   import { replaceMenuImages } from '$lib/live-menu-images'
+  import { menuReviewKey, type MenuReviewSummary } from '$lib/menu-reviews'
   import { ALL_MEAL_TIME_ID, autoSelectMealTime, fallbackMealTime, hasNutritionInfo, proxyImg, shiftDate, toInputDate, fromInputDate } from '$lib/utils'
   import type { MealTime, Menu, MenuComponent, NutritionInfo } from '$lib/types'
   import type { PageData } from './$types'
-  import { ChevronDown, ChevronLeft, ChevronRight, Utensils, X, ZoomIn } from '@lucide/svelte'
+  import { ChevronDown, ChevronLeft, ChevronRight, Star, Utensils, X, ZoomIn } from '@lucide/svelte'
 
   type NutritionKey = keyof NutritionInfo
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
   type GalleryMenu = Menu & { restaurantIds: string[] }
   type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
+  type ReviewQueryResponse = { token: string; summaries: Record<string, MenuReviewSummary> }
+
+  const REVIEW_STORAGE_KEY = 'welplan.review-session.v1'
 
   const nutrientDefs: NutrientDef[] = [
     { key: 'calories', label: '칼로리', unit: ' kcal' },
@@ -49,7 +53,11 @@
   let loadingDetail = $state(false)
   let brokenImageSrcs = $state<string[]>([])
   let imageRefreshKey = $state('')
+  let reviewSummaries = $state<Record<string, MenuReviewSummary>>({})
+  let reviewSubmittingKey = $state<string | null>(null)
+  let reviewFeedback = $state('')
   let liveRefreshKey = ''
+  let reviewQueryKey = ''
   const zoomHistory = createDialogHistory(() => { zoomedMenu = null; detail = [] })
 
   onDestroy(() => zoomHistory.destroy())
@@ -111,6 +119,7 @@
     zoomHistory.open()
     detail = []
     loadingDetail = false
+    reviewFeedback = ''
 
     if (menu.vendor === 'welstory' && menu.hallNo && menu.courseType) {
       loadingDetail = true
@@ -131,6 +140,81 @@
   }
 
   function closeZoom () { zoomHistory.close() }
+
+  function storedReviewToken (): string {
+    try {
+      return localStorage.getItem(REVIEW_STORAGE_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  }
+
+  function storeReviewToken (token: string) {
+    try {
+      localStorage.setItem(REVIEW_STORAGE_KEY, token)
+    } catch {
+      // The HttpOnly cookie remains the source of truth when storage is unavailable.
+    }
+  }
+
+  async function reviewRequest (path: string, body: unknown): Promise<Response> {
+    const token = storedReviewToken()
+    return fetch(path, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'X-Review-Session': token } : {})
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    })
+  }
+
+  async function loadReviewSummaries (menus: GalleryMenu[]) {
+    const menuKeys = menus.map(menuReviewKey)
+    const queryKey = menuKeys.join('|')
+    if (!queryKey || queryKey === reviewQueryKey) return
+    reviewQueryKey = queryKey
+    try {
+      const response = await reviewRequest('/api/menu-reviews/query', { menuKeys })
+      if (!response.ok) throw new Error()
+      const result = await response.json() as ReviewQueryResponse
+      storeReviewToken(result.token)
+      reviewSummaries = result.summaries
+    } catch {
+      reviewQueryKey = ''
+    }
+  }
+
+  function reviewSummary (menu: GalleryMenu): MenuReviewSummary | undefined {
+    return reviewSummaries[menuReviewKey(menu)]
+  }
+
+  async function submitReview (menu: GalleryMenu, rating: number) {
+    const menuKey = menuReviewKey(menu)
+    if (reviewSubmittingKey || reviewSummaries[menuKey]?.userRating) return
+    reviewSubmittingKey = menuKey
+    reviewFeedback = ''
+    try {
+      const response = await reviewRequest('/api/menu-reviews', {
+        menuKey,
+        menuName: menu.name,
+        menuDate: menu.date,
+        mealTimeId: menu.mealTimeId,
+        rating
+      })
+      const result = await response.json().catch(() => ({})) as { token?: string; summary?: MenuReviewSummary; error?: string }
+      if (!response.ok || !result.summary || !result.token) throw new Error(result.error ?? '별점을 저장하지 못했습니다.')
+      storeReviewToken(result.token)
+      reviewSummaries = { ...reviewSummaries, [menuKey]: result.summary }
+      reviewFeedback = '별점이 등록되었습니다.'
+      trackEvent('Gallery Menu Reviewed', { rating, mealTimeId: menu.mealTimeId, vendor: menu.vendor })
+    } catch (error) {
+      reviewFeedback = error instanceof Error ? error.message : '별점을 저장하지 못했습니다.'
+    } finally {
+      reviewSubmittingKey = null
+    }
+  }
 
   function onKeydown (e: KeyboardEvent) {
     if (zoomedMenu && e.key === 'Escape') closeZoom()
@@ -281,6 +365,11 @@
     return ids.map(restaurantName).join(', ')
   }
 
+  $effect(() => {
+    const menus = galleryMenus
+    untrack(() => void loadReviewSummaries(menus))
+  })
+
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -387,6 +476,10 @@
                     </div>
                     <div class="gallery-info">
                       <span class="gallery-name">{menu.name}</span>
+                      <span class="gallery-rating">
+                        <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
+                        {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
+                      </span>
                       {#if menu.components.length > 0}
                         <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
                       {:else if menu.vendor === 'shinsegae'}
@@ -429,6 +522,10 @@
             </div>
             <div class="gallery-info">
               <span class="gallery-name">{menu.name}</span>
+              <span class="gallery-rating">
+                <Star aria-hidden="true" fill={reviewSummary(menu)?.count ? 'currentColor' : 'none'} />
+                {reviewSummary(menu)?.count ? `${reviewSummary(menu)?.average.toFixed(1)} (${reviewSummary(menu)?.count})` : '별점 없음'}
+              </span>
               {#if menu.components.length > 0}
                 <span class="gallery-components">{sortedByCalories(menu.components).map((c) => c.name).join(' · ')}</span>
               {:else if menu.vendor === 'shinsegae'}
@@ -497,6 +594,35 @@
         </div>
       </div>
       <div class="lightbox-right">
+        <div class="review-panel">
+          <div class="review-copy">
+            <strong>이 메뉴는 어떠셨나요?</strong>
+            {#if reviewSummary(zoomedMenu)?.count}
+              <span>평균 {reviewSummary(zoomedMenu)?.average.toFixed(1)} · {reviewSummary(zoomedMenu)?.count}명 참여</span>
+            {:else}
+              <span>첫 별점을 남겨주세요.</span>
+            {/if}
+          </div>
+          <div class="review-stars" role="group" aria-label={`${zoomedMenu.name} 별점`}>
+            {#each [1, 2, 3, 4, 5] as rating}
+              <button
+                type="button"
+                aria-label={`${rating}점`}
+                aria-pressed={reviewSummary(zoomedMenu)?.userRating === rating}
+                disabled={Boolean(reviewSummary(zoomedMenu)?.userRating) || reviewSubmittingKey === menuReviewKey(zoomedMenu)}
+                class:rated={(reviewSummary(zoomedMenu)?.userRating ?? 0) >= rating}
+                onclick={() => void submitReview(zoomedMenu!, rating)}
+              >
+                <Star aria-hidden="true" fill={(reviewSummary(zoomedMenu)?.userRating ?? 0) >= rating ? 'currentColor' : 'none'} />
+              </button>
+            {/each}
+          </div>
+          {#if reviewSummary(zoomedMenu)?.userRating}
+            <span class="review-status">{reviewSummary(zoomedMenu)?.userRating}점을 남겼습니다.</span>
+          {:else if reviewFeedback}
+            <span class="review-status">{reviewFeedback}</span>
+          {/if}
+        </div>
         {#if activeNutrients(zoomedMenu.nutrition).length > 0}
           <div class="lightbox-nutrition">
             {#each activeNutrients(zoomedMenu.nutrition) as { key, label, unit }}
@@ -720,6 +846,16 @@
     min-width: 0;
     overflow-y: auto;
   }
+  .review-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .review-copy { display: grid; flex: 1; min-width: 160px; }
+  .review-copy strong { color: var(--text); font-size: 13px; }
+  .review-copy span, .review-status { color: var(--text-dim); font-size: 11px; }
+  .review-stars { display: flex; gap: 2px; }
+  .review-stars button { display: grid; place-items: center; width: 30px; height: 30px; padding: 4px; border-radius: 6px; color: #cbd5e1; }
+  .review-stars button:not(:disabled):hover, .review-stars button:not(:disabled):focus-visible, .review-stars button.rated { color: #f59e0b; background: #fffbeb; }
+  .review-stars button:disabled { cursor: default; }
+  .review-stars :global(svg) { width: 19px; height: 19px; }
+  .review-status { width: 100%; color: var(--success-text); }
   .lightbox-img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; background: var(--card); }
   .lightbox-image-frame { position: relative; background: var(--card); }
   .lightbox-open-link {
@@ -877,6 +1013,8 @@
 
   .gallery-info { padding: 9px 10px; background: var(--card); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex: 1; }
   .gallery-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
+  .gallery-rating { display: inline-flex; align-items: center; gap: 3px; margin-bottom: 4px; color: #b45309; font-size: 10px; font-weight: 700; }
+  .gallery-rating :global(svg) { width: 12px; height: 12px; }
   .gallery-components { display: block; font-size: 10px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px; }
   .gallery-detail-unavailable { font-style: italic; }
   .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; }

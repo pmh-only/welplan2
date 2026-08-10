@@ -1,4 +1,4 @@
-import { bigint, boolean, pgTable, text } from 'drizzle-orm/pg-core'
+import { bigint, boolean, pgTable, primaryKey, text } from 'drizzle-orm/pg-core'
 
 export const restaurants = pgTable('restaurants', {
   id: text('id').primaryKey(),
@@ -92,6 +92,22 @@ export const webhookDeliveries = pgTable('webhook_deliveries', {
 })
 
 export const webhookRegistrationLimits = pgTable('webhook_registration_limits', {
+  addressHash: text('address_hash').primaryKey(),
+  windowStartedAt: bigint('window_started_at', { mode: 'number' }).notNull(),
+  attempts: bigint('attempts', { mode: 'number' }).notNull()
+})
+
+export const menuReviews = pgTable('menu_reviews', {
+  menuKey: text('menu_key').notNull(),
+  sessionId: text('session_id').notNull(),
+  rating: bigint('rating', { mode: 'number' }).notNull(),
+  menuName: text('menu_name').notNull(),
+  menuDate: text('menu_date').notNull(),
+  mealTimeId: text('meal_time_id').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull()
+}, (table) => [primaryKey({ columns: [table.menuKey, table.sessionId] })])
+
+export const menuReviewIdentityLimits = pgTable('menu_review_identity_limits', {
   addressHash: text('address_hash').primaryKey(),
   windowStartedAt: bigint('window_started_at', { mode: 'number' }).notNull(),
   attempts: bigint('attempts', { mode: 'number' }).notNull()
