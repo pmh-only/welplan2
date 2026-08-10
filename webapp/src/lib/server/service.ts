@@ -31,7 +31,7 @@ const MAX_ADDITIONAL_PATH_PARTS = 12
 const MAX_ADDITIONAL_PATH_PART_LENGTH = 80
 const redisKeys = {
   restaurants: 'restaurants:all',
-  restaurantSearch: (query: string) => `restaurant-search:${encodeURIComponent(query)}`,
+  restaurantSearch: (query: string) => `restaurant-search:v2:${encodeURIComponent(query)}`,
   restaurant: (id: string) => `restaurant:${id}`,
   mealTimes: (restaurantId: string) => `meal-times:${restaurantId}`,
   menus: (key: string) => `menus:${key}`,
@@ -240,7 +240,7 @@ export class CafeteriaService {
     if (compactField === compactToken) return 180
     if (compactField.startsWith(compactToken)) return 140
     if (compactField.includes(compactToken)) return 100
-    if (compactToken.length >= 2 && this.isSubsequence(compactToken, compactField)) return 60
+    if (compactToken.length >= 3 && this.isSubsequence(compactToken, compactField)) return 60
     return 0
   }
 
@@ -265,7 +265,7 @@ export class CafeteriaService {
       score += bestScore
     }
 
-    score += this.scoreSearchField(this.normalizeSearchText(restaurant.name), normalizedQuery)
+    score += this.scoreSearchField(this.normalizeSearchText(restaurant.name), normalizedQuery) * 2
     score += this.scoreSearchField(this.normalizeSearchText(restaurant.id), normalizedQuery)
 
     return score
@@ -279,9 +279,10 @@ export class CafeteriaService {
         const score = this.scoreRestaurantSearch(restaurant, query)
         if (score === 0) continue
 
-        const existing = merged.get(restaurant.id)
+        const key = `${restaurant.vendor}:${this.normalizeSearchText(restaurant.id)}`
+        const existing = merged.get(key)
         if (!existing || score > existing.score) {
-          merged.set(restaurant.id, { restaurant, score })
+          merged.set(key, { restaurant, score })
         }
       }
     }
@@ -1791,13 +1792,13 @@ export class CafeteriaService {
       return cachedSearch.data
     }
 
-    const selectionRecency = await this.readRestaurantSelectionRecency()
     const fromCache = (await this.readRestaurants()).filter(
       (restaurant) => !this.isClosedRestaurant(restaurant)
     )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
     if (!normalizedQuery) {
+      const selectionRecency = await this.readRestaurantSelectionRecency()
       return this.sortRestaurantsByGlobalSelectionRecency(fromCache, selectionRecency)
     }
 
@@ -1828,10 +1829,7 @@ export class CafeteriaService {
     const fromWelstoryWithAdditionalPaths = fromWelstory.map((restaurant) =>
       this.applyAdditionalPaths(restaurant, additionalPathSettings)
     )
-    const merged = this.sortRestaurantsByGlobalSelectionRecency(
-      this.mergeSearchResults(query, fromCache, fromWelstoryWithAdditionalPaths),
-      selectionRecency
-    )
+    const merged = this.mergeSearchResults(query, fromCache, fromWelstoryWithAdditionalPaths)
     syncLog.info('restaurant search completed', {
       query,
       cachedRestaurantCount: fromCache.length,
