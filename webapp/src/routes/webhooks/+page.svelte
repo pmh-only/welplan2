@@ -322,8 +322,8 @@
           <div class="hero-platform">
             <span class="brand-icon"><img src={platformMeta[platform].icon} alt="" aria-hidden="true" /></span>
             <strong>{WEBHOOK_PLATFORM_LABELS[platform]}</strong>
-            <span class="registration-count" aria-label={`${data.registrationCounts?.[platform] ?? 0}개 등록됨`}>
-              {data.registrationCounts?.[platform] ?? 0}
+            <span class="registration-count" aria-label={`${data.registrationCounts?.[platform] ?? 0}개 팀에서 사용중`}>
+              {data.registrationCounts?.[platform] ?? 0}개 팀에서 사용중
             </span>
           </div>
         {/each}
