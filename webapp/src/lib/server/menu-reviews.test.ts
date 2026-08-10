@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { menuReviewKey, menuReviewNormalizedName } from '../menu-reviews.js'
 import {
+  existingReviewIdentity,
   issueReviewToken,
   MenuReviewError,
   normalizeMenuReview,
@@ -24,6 +25,15 @@ test('issues and verifies a bounded review identity token', () => {
   assert.equal(verifyReviewToken(token, now)?.sub, sessionId)
   assert.equal(verifyReviewToken(`${token.slice(0, -1)}x`, now), null)
   assert.equal(verifyReviewToken(token, now + 366 * 24 * 60 * 60 * 1000), null)
+})
+
+test('does not issue an identity while reading public review summaries', () => {
+  const cookies = {
+    get: () => undefined,
+    set: () => assert.fail('summary reads must not set a review cookie')
+  } as unknown as Parameters<typeof existingReviewIdentity>[1]
+
+  assert.equal(existingReviewIdentity(new Request('https://welplan.example/gallery'), cookies, true), null)
 })
 
 test('normalizes a review only when its menu key matches its metadata', () => {

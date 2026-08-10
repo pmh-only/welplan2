@@ -110,12 +110,11 @@ async function consumeIdentityLimit(address: string, now = Date.now()): Promise<
   return (rows[0]?.attempts ?? MAX_IDENTITIES_PER_WINDOW + 1) <= MAX_IDENTITIES_PER_WINDOW
 }
 
-export async function reviewIdentity(
+export function existingReviewIdentity(
   request: Request,
   cookies: Cookies,
-  clientAddress: string,
   secure: boolean
-): Promise<{ sessionId: string; token: string }> {
+): { sessionId: string; token: string } | null {
   const cookieToken = cookies.get(COOKIE_NAME)
   const cookiePayload = verifyReviewToken(cookieToken)
   if (cookiePayload && cookieToken) return { sessionId: cookiePayload.sub, token: cookieToken }
@@ -126,6 +125,18 @@ export async function reviewIdentity(
     setSessionCookie(cookies, localToken, secure)
     return { sessionId: localPayload.sub, token: localToken }
   }
+
+  return null
+}
+
+export async function reviewIdentity(
+  request: Request,
+  cookies: Cookies,
+  clientAddress: string,
+  secure: boolean
+): Promise<{ sessionId: string; token: string }> {
+  const existingIdentity = existingReviewIdentity(request, cookies, secure)
+  if (existingIdentity) return existingIdentity
 
   if (!await consumeIdentityLimit(clientAddress)) {
     throw new MenuReviewError('새 리뷰 세션을 너무 많이 요청했습니다. 내일 다시 시도해 주세요.', 429)
@@ -146,7 +157,7 @@ export function normalizeMenuKeys(value: unknown): string[] {
   return keys as string[]
 }
 
-export async function reviewSummaries(menuKeys: string[], sessionId: string): Promise<Record<string, MenuReviewSummary>> {
+export async function reviewSummaries(menuKeys: string[], sessionId?: string): Promise<Record<string, MenuReviewSummary>> {
   if (menuKeys.length === 0) return {}
   await ensureDbInitialized()
   const normalizedNameByKey = new Map(menuKeys.map((menuKey) => [menuKey, menuReviewNormalizedName(menuKey)!]))
@@ -157,13 +168,15 @@ export async function reviewSummaries(menuKeys: string[], sessionId: string): Pr
     average: sql<number>`avg(${menuReviews.rating})::float`,
     count: sql<number>`count(*)::int`
   }).from(menuReviews).where(inArray(normalizedName, normalizedNames)).groupBy(normalizedName)
-  const userRows = await db.select({
-    menuKey: menuReviews.menuKey,
-    rating: menuReviews.rating
-  }).from(menuReviews).where(and(
-    inArray(menuReviews.menuKey, menuKeys),
-    eq(menuReviews.sessionId, sessionId)
-  ))
+  const userRows = sessionId
+    ? await db.select({
+      menuKey: menuReviews.menuKey,
+      rating: menuReviews.rating
+    }).from(menuReviews).where(and(
+      inArray(menuReviews.menuKey, menuKeys),
+      eq(menuReviews.sessionId, sessionId)
+    ))
+    : []
   const aggregateByName = new Map(rows.map((row) => [row.normalizedName, row]))
   const userRatingByKey = new Map(userRows.map((row) => [row.menuKey, row.rating]))
   const summaries: Record<string, MenuReviewSummary> = {}

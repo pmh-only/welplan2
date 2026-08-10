@@ -17,7 +17,7 @@
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
   type GalleryMenu = Menu & { restaurantIds: string[] }
   type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
-  type ReviewQueryResponse = { token: string; summaries: Record<string, MenuReviewSummary> }
+  type ReviewQueryResponse = { token?: string; summaries: Record<string, MenuReviewSummary> }
 
   const REVIEW_STORAGE_KEY = 'welplan.review-session.v1'
 
@@ -184,7 +184,7 @@
       const response = await reviewRequest('/api/menu-reviews/query', { menuKeys })
       if (!response.ok) throw new Error()
       const result = await response.json() as ReviewQueryResponse
-      storeReviewToken(result.token)
+      if (result.token) storeReviewToken(result.token)
       reviewSummaries = result.summaries
     } catch {
       reviewQueryKey = ''
@@ -193,6 +193,10 @@
 
   function reviewSummary (menu: GalleryMenu): MenuReviewSummary | undefined {
     return reviewSummaries[menuReviewKey(menu)]
+  }
+
+  function aggregateStarCount (menu: GalleryMenu): number {
+    return Math.round(reviewSummary(menu)?.average ?? 0)
   }
 
   function menuOccurrenceCount (menu: GalleryMenu): number | undefined {
@@ -633,7 +637,7 @@
           <div class="review-copy">
             <strong>이 메뉴는 어떠셨나요?</strong>
             {#if reviewSummary(zoomedMenu)?.count}
-              <span>평균 {reviewSummary(zoomedMenu)?.average.toFixed(1)} · {reviewSummary(zoomedMenu)?.count}명 참여{occurrenceCount === undefined ? '' : ` · 최근 한 달 ${occurrenceCount}회`}</span>
+              <span>전체 평균 {reviewSummary(zoomedMenu)?.average.toFixed(1)} · {reviewSummary(zoomedMenu)?.count}명 참여{occurrenceCount === undefined ? '' : ` · 최근 한 달 ${occurrenceCount}회`}</span>
             {:else}
               <span>첫 별점을 남겨주세요.{occurrenceCount === undefined ? '' : ` · 최근 한 달 ${occurrenceCount}회`}</span>
             {/if}
@@ -645,10 +649,10 @@
                 aria-label={`${rating}점`}
                 aria-pressed={reviewSummary(zoomedMenu)?.userRating === rating}
                 disabled={Boolean(reviewSummary(zoomedMenu)?.userRating) || reviewSubmittingKey === menuReviewKey(zoomedMenu)}
-                class:rated={(reviewSummary(zoomedMenu)?.userRating ?? 0) >= rating}
+                class:rated={aggregateStarCount(zoomedMenu) >= rating}
                 onclick={() => void submitReview(zoomedMenu!, rating)}
               >
-                <Star aria-hidden="true" fill={(reviewSummary(zoomedMenu)?.userRating ?? 0) >= rating ? 'currentColor' : 'none'} />
+                <Star aria-hidden="true" fill={aggregateStarCount(zoomedMenu) >= rating ? 'currentColor' : 'none'} />
               </button>
             {/each}
           </div>
