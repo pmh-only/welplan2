@@ -846,7 +846,7 @@
     min-width: 0;
     overflow-y: auto;
   }
-  .review-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .review-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 14px 58px 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
   .review-copy { display: grid; flex: 1; min-width: 160px; }
   .review-copy strong { color: var(--text); font-size: 13px; }
   .review-copy span, .review-status { color: var(--text-dim); font-size: 11px; }
