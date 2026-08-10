@@ -282,6 +282,16 @@
     goto(routeFor(data.date, data.time, restaurantId), { replaceState: true, noScroll: true, keepFocus: true })
   }
 
+  function selectTakeOutRestaurant (restaurantId: string) {
+    selectedTakeoutRestaurantId = restaurantId
+    trackEvent('Menu Filter Changed', { kind, filter: 'restaurant', restaurantId })
+  }
+
+  function searchTakeOutMenus (query: string) {
+    takeOutSearch = query
+    trackEvent('Menu Search Changed', { kind, queryLength: query.trim().length })
+  }
+
   function toggleTakeOutDrinks () {
     takeOutFilterDrinks = !takeOutFilterDrinks
     trackEvent('Menu Filter Changed', { kind, filter: 'exclude_drinks', enabled: takeOutFilterDrinks ? 1 : 0 })
@@ -381,7 +391,7 @@
           </div>
         {:else if kind === 'takeout'}
           <div class="form-group takeout-restaurant-group">
-            <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId}>
+            <select id="takeout-restaurant-select" class="select-input" bind:value={selectedTakeoutRestaurantId} onchange={(e) => selectTakeOutRestaurant(e.currentTarget.value)}>
               {#each takeOutRestaurants as restaurant (restaurant.id)}
                 <option value={restaurant.id}>{restaurant.name}</option>
               {/each}
@@ -395,6 +405,7 @@
               placeholder="메뉴 검색"
               aria-label="테이크아웃 메뉴 검색"
               bind:value={takeOutSearch}
+              onchange={(e) => searchTakeOutMenus(e.currentTarget.value)}
             />
           </div>
           <div class="chip-group">

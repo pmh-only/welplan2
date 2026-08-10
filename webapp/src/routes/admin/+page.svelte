@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { trackEvent } from '$lib/analytics'
 
   type CacheStatus = Record<string, number | boolean>
   type CachePage = {
@@ -25,6 +26,7 @@
     additionalPaths: string[][]
   }
   type ActionData = {
+    action?: 'cache_clear' | 'notice_update' | 'worker_alert_update' | 'restaurant_paths_update'
     message?: string
     error?: string
     cleared?: Record<string, number>
@@ -85,6 +87,9 @@
 
   onMount(() => {
     syncNoticeEditor()
+    if (form?.action && (form.message || form.error)) {
+      trackEvent('Admin Action Completed', { action: form.action, status: form.error ? 'failed' : 'success' })
+    }
   })
 
   $effect(() => {
@@ -108,6 +113,10 @@
     editorElement?.focus()
     document.execCommand(command, false, value)
     updateEditorState()
+    trackEvent('Admin Notice Editor Command Applied', {
+      command,
+      ...(command === 'formatBlock' && value ? { format: value } : {})
+    })
   }
 
   function createLink(): void {
@@ -126,6 +135,7 @@
     if (!file) return
     if (!file.type.startsWith('image/')) {
       window.alert('이미지 파일만 업로드할 수 있습니다')
+      trackEvent('Admin Notice Image Rejected', { fileType: file.type || 'unknown' })
       input.value = ''
       return
     }
@@ -134,14 +144,48 @@
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         runEditorCommand('insertImage', reader.result)
+        trackEvent('Admin Notice Image Inserted', { fileType: file.type })
       }
       input.value = ''
     }
     reader.readAsDataURL(file)
   }
 
-  function prepareNoticeSubmit(): void {
+  function prepareNoticeSubmit(event: SubmitEvent): void {
     updateEditorState()
+    const form = event.currentTarget as HTMLFormElement
+    trackEvent('Admin Notice Save Submitted', { enabled: new FormData(form).has('enabled') ? 1 : 0 })
+  }
+
+  function trackWorkerAlertSubmit(event: SubmitEvent): void {
+    const form = event.currentTarget as HTMLFormElement
+    const intent = event.submitter instanceof HTMLButtonElement ? event.submitter.value : 'save'
+    trackEvent('Admin Worker Alert Submitted', {
+      intent,
+      enabled: new FormData(form).has('enabled') ? 1 : 0
+    })
+  }
+
+  function selectAdditionalPathRestaurant(value: string): void {
+    selectedAdditionalPathRestaurant = value
+    const restaurant = data.additionalPathRestaurants.find((item) => item.value === value)
+    if (restaurant) trackEvent('Admin Restaurant Paths Selection Changed', { vendor: restaurant.vendor, restaurantId: restaurant.id })
+  }
+
+  function trackAdditionalPathsSubmit(): void {
+    if (!additionalPathRestaurant) return
+    const pathCount = additionalPathsText.split(/\r?\n/).filter((line) => line.trim()).length
+    trackEvent('Admin Restaurant Paths Save Submitted', {
+      vendor: additionalPathRestaurant.vendor,
+      restaurantId: additionalPathRestaurant.id,
+      pathCount
+    })
+  }
+
+  function trackCachePageSizeSubmit(event: SubmitEvent): void {
+    const form = event.currentTarget as HTMLFormElement
+    const pageSize = Number(new FormData(form).get('pageSize')) || cachePage.pageSize
+    trackEvent('Admin Cache Page Size Applied', { table: cachePage.table, pageSize })
   }
 
   function initialAdditionalPathRestaurant(): string {
@@ -217,7 +261,7 @@
       {#if data.user?.email && data.user.email !== displayName}
         <span>{data.user.email}</span>
       {/if}
-      <a href="/admin/logout">로그아웃</a>
+      <a href="/admin/logout" onclick={() => trackEvent('Admin Logout Started')}>로그아웃</a>
     </div>
   </div>
 
@@ -303,7 +347,7 @@
         </div>
       </div>
 
-      <form method="POST" action="?/updateWorkerProblemAlert" class="notice-form">
+      <form method="POST" action="?/updateWorkerProblemAlert" class="notice-form" onsubmit={trackWorkerAlertSubmit}>
         <label class="toggle-row">
           <input type="checkbox" name="enabled" checked={workerProblemAlert.enabled} />
           <span>Worker 문제 알림 사용</span>
@@ -361,10 +405,10 @@
       {#if data.additionalPathRestaurants.length === 0}
         <p class="empty-state">캐시된 식당이 없습니다. 식당 캐시를 먼저 적재해 주세요.</p>
       {:else}
-        <form method="POST" action="?/updateRestaurantAdditionalPaths" class="additional-path-form">
+        <form method="POST" action="?/updateRestaurantAdditionalPaths" class="additional-path-form" onsubmit={trackAdditionalPathsSubmit}>
           <label class="field-row" for="additional-path-restaurant">
             <span>식당</span>
-            <select id="additional-path-restaurant" name="restaurant" bind:value={selectedAdditionalPathRestaurant}>
+            <select id="additional-path-restaurant" name="restaurant" bind:value={selectedAdditionalPathRestaurant} onchange={(event) => selectAdditionalPathRestaurant(event.currentTarget.value)}>
               {#each data.additionalPathRestaurants as restaurant}
                 <option value={restaurant.value}>{restaurant.name} · {restaurant.vendor === 'welstory' ? '삼성웰스토리' : '신세계푸드'} · {restaurant.id}</option>
               {/each}
@@ -411,7 +455,7 @@
           <p class="panel-kicker">Cache</p>
           <h2 id="cache-title">캐시 상태</h2>
         </div>
-        <form method="POST" action="?/clearCaches">
+        <form method="POST" action="?/clearCaches" onsubmit={() => trackEvent('Admin Cache Clear Submitted')}>
           <button type="submit" class="danger-button">캐시 삭제</button>
         </form>
       </div>
@@ -433,7 +477,7 @@
           <h2 id="cache-browser-title">캐시 내용</h2>
           <p class="panel-description">{cachePage.total}개 항목 중 {cachePage.rows.length}개 표시</p>
         </div>
-        <form method="GET" class="page-size-form">
+        <form method="GET" class="page-size-form" onsubmit={trackCachePageSizeSubmit}>
           <input type="hidden" name="cacheTable" value={cachePage.table} />
           <input type="hidden" name="page" value="1" />
           <label for="page-size">페이지 크기</label>
@@ -449,7 +493,7 @@
 
       <nav class="cache-tabs" aria-label="캐시 테이블 선택">
         {#each data.cacheTables as table}
-          <a href={pageHref(1, cachePage.pageSize, table)} class:active={cachePage.table === table}>
+          <a href={pageHref(1, cachePage.pageSize, table)} class:active={cachePage.table === table} onclick={() => { if (cachePage.table !== table) trackEvent('Admin Cache Table Changed', { table }) }}>
             {tableLabel(table)}
           </a>
         {/each}
@@ -488,9 +532,9 @@
       {/if}
 
       <div class="pagination" aria-label="캐시 페이지 이동">
-        <a class:disabled={cachePage.page <= 1} href={cachePage.page <= 1 ? undefined : pageHref(cachePage.page - 1)}>이전</a>
+        <a class:disabled={cachePage.page <= 1} href={cachePage.page <= 1 ? undefined : pageHref(cachePage.page - 1)} onclick={() => { if (cachePage.page > 1) trackEvent('Admin Cache Page Changed', { table: cachePage.table, page: cachePage.page - 1 }) }}>이전</a>
         <span>{cachePage.page} / {cachePage.totalPages}</span>
-        <a class:disabled={cachePage.page >= cachePage.totalPages} href={cachePage.page >= cachePage.totalPages ? undefined : pageHref(cachePage.page + 1)}>다음</a>
+        <a class:disabled={cachePage.page >= cachePage.totalPages} href={cachePage.page >= cachePage.totalPages ? undefined : pageHref(cachePage.page + 1)} onclick={() => { if (cachePage.page < cachePage.totalPages) trackEvent('Admin Cache Page Changed', { table: cachePage.table, page: cachePage.page + 1 }) }}>다음</a>
       </div>
     </section>
 

@@ -71,10 +71,14 @@
   let imageRefreshKey = $state('')
   let liveRefreshKey = ''
   const zoomHistory = createDialogHistory(() => {
+    if (zoomedMenu) trackEvent('Restaurant Gallery Menu Closed', { vendor: zoomedMenu.vendor, restaurantId: zoomedMenu.restaurantId, mealTimeId: zoomedMenu.mealTimeId })
     zoomedMenu = null
     detail = []
   })
-  const restaurantSearchHistory = createDialogHistory(() => { restaurantSearchOpen = false })
+  const restaurantSearchHistory = createDialogHistory(() => {
+    if (restaurantSearchOpen) trackEvent('Restaurant Switch Dialog Closed', { vendor: data.restaurant.vendor, restaurantId: data.restaurant.id })
+    restaurantSearchOpen = false
+  })
 
   onDestroy(() => {
     zoomHistory.destroy()
@@ -246,9 +250,16 @@
     } catch (error) {
       restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
       restaurantSearchResults = []
+      trackEvent('Restaurant Search Failed', { queryLength: query.length, source: 'restaurant_detail_dialog' })
     } finally {
       restaurantSearching = false
     }
+  }
+
+  function changeMenuKind (kind: 'takein' | 'takeout') {
+    if (menuKind === kind) return
+    menuKind = kind
+    trackEvent('Restaurant Gallery Kind Changed', { kind, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id })
   }
 
   async function openRestaurant (restaurant: Restaurant) {
@@ -341,7 +352,7 @@
           type="button"
           class:active={menuKind === 'takein'}
           aria-pressed={menuKind === 'takein'}
-          onclick={() => { menuKind = 'takein'; trackEvent('Restaurant Gallery Kind Changed', { kind: menuKind, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id }) }}
+          onclick={() => changeMenuKind('takein')}
         >
           테이크 인 <span>{takeInMenus.length}</span>
         </button>
@@ -349,7 +360,7 @@
           type="button"
           class:active={menuKind === 'takeout'}
           aria-pressed={menuKind === 'takeout'}
-          onclick={() => { menuKind = 'takeout'; trackEvent('Restaurant Gallery Kind Changed', { kind: menuKind, vendor: data.restaurant.vendor, restaurantId: data.restaurant.id }) }}
+          onclick={() => changeMenuKind('takeout')}
         >
           테이크 아웃 <span>{takeOutMenus.length}</span>
         </button>
@@ -468,7 +479,7 @@
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date))}
           <div class="lightbox-image-frame">
             <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(event) => event.stopPropagation()}>
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(event) => { event.stopPropagation(); trackEvent('Restaurant Gallery Menu Image Opened Externally', { vendor: zoomedMenu!.vendor, restaurantId: zoomedMenu!.restaurantId, mealTimeId: zoomedMenu!.mealTimeId }) }}>
               더 크게 보기
             </a>
           </div>

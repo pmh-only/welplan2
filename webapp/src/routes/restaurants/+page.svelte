@@ -58,14 +58,14 @@
 
   function addRestaurant (r: Restaurant) {
     if (!myIds.has(restaurantKey(r))) {
-      trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id })
+      trackEvent('Restaurant Added', { vendor: r.vendor, restaurantId: r.id, source: 'restaurants_page' })
       void saveRestaurants([...restaurants, r])
       void recordRestaurantSelection(r).catch(() => undefined)
     }
   }
 
   function removeRestaurant (r: Restaurant) {
-    trackEvent('Restaurant Removed', { vendor: r.vendor, restaurantId: r.id })
+    trackEvent('Restaurant Removed', { vendor: r.vendor, restaurantId: r.id, source: 'restaurants_page' })
     void saveRestaurants(restaurants.filter((x: Restaurant) => restaurantKey(x) !== restaurantKey(r)))
   }
 
@@ -96,10 +96,11 @@
       const res = await fetch(`/proxy/search?q=${encodeURIComponent(q)}`)
       if (!res.ok) throw new Error('검색 실패')
       searchResults = await res.json()
-      trackEvent('Restaurant Search', { queryLength: q.length, resultCount: searchResults.length })
+      trackEvent('Restaurant Search', { queryLength: q.length, resultCount: searchResults.length, source: 'restaurants_page' })
     } catch (e) {
       searchError = `검색 중 오류가 발생했습니다: ${e instanceof Error ? e.message : e}`
       searchResults = []
+      trackEvent('Restaurant Search Failed', { queryLength: q.length, source: 'restaurants_page' })
     } finally {
       searching = false
     }

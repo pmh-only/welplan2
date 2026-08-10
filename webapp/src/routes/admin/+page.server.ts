@@ -94,10 +94,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
   clearCaches: async ({ locals }) => {
-    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+    if (!locals.adminUser) return { action: 'cache_clear', error: '로그인이 필요합니다' }
 
     const cleared = await service.clearCaches()
     return {
+      action: 'cache_clear',
       message: '캐시를 삭제했습니다',
       cleared,
       status: await service.getCacheStatus(),
@@ -105,7 +106,7 @@ export const actions: Actions = {
     }
   },
   updateNotice: async ({ locals, request }) => {
-    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+    if (!locals.adminUser) return { action: 'notice_update', error: '로그인이 필요합니다' }
 
     const formData = await request.formData()
     const notice: Partial<NoticeSettings> = {
@@ -118,6 +119,7 @@ export const actions: Actions = {
 
     const savedNotice = await service.setNoticeSettings(notice)
     return {
+      action: 'notice_update',
       message: savedNotice.enabled ? '공지를 게시했습니다' : '공지 표시를 중지했습니다',
       notice: savedNotice,
       status: await service.getCacheStatus(),
@@ -125,7 +127,7 @@ export const actions: Actions = {
     }
   },
   updateWorkerProblemAlert: async ({ locals, request }) => {
-    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+    if (!locals.adminUser) return { action: 'worker_alert_update', error: '로그인이 필요합니다' }
 
     const formData = await request.formData()
     const settings: Partial<WorkerProblemAlertSettings> = {
@@ -147,6 +149,7 @@ export const actions: Actions = {
       }
       const savedSettings = await service.setWorkerProblemAlertSettings(settings)
       return {
+        action: 'worker_alert_update',
         message: formData.get('intent') === 'test'
           ? '설정을 저장하고 Discord 테스트 알림을 전송했습니다'
           : savedSettings.enabled ? 'Worker 문제 알림을 활성화했습니다' : 'Worker 문제 알림을 비활성화했습니다',
@@ -156,6 +159,7 @@ export const actions: Actions = {
       }
     } catch (error) {
       return {
+        action: 'worker_alert_update',
         error: error instanceof Error ? error.message : 'Worker 문제 알림 설정에 실패했습니다',
         status: await service.getCacheStatus(),
         cachePage: await service.getCachePage('restaurants', 1, 20)
@@ -163,16 +167,17 @@ export const actions: Actions = {
     }
   },
   updateRestaurantAdditionalPaths: async ({ locals, request }) => {
-    if (!locals.adminUser) return { error: '로그인이 필요합니다' }
+    if (!locals.adminUser) return { action: 'restaurant_paths_update', error: '로그인이 필요합니다' }
 
     const formData = await request.formData()
     const target = parseRestaurantFormValue(stringFormValue(formData, 'restaurant'))
-    if (!target) return { error: '식당을 선택해 주세요' }
+    if (!target) return { action: 'restaurant_paths_update', error: '식당을 선택해 주세요' }
 
     try {
       const paths = parseAdditionalPathsText(stringFormValue(formData, 'additionalPaths'))
       const restaurant = await service.setRestaurantAdditionalPaths(target, paths)
       return {
+        action: 'restaurant_paths_update',
         message: paths.length > 0 ? '추가 경로를 저장했습니다' : '추가 경로를 삭제했습니다',
         restaurantAdditionalPaths: {
           restaurant: restaurantFormValue(restaurant),
@@ -183,6 +188,7 @@ export const actions: Actions = {
       }
     } catch (error) {
       return {
+        action: 'restaurant_paths_update',
         error: error instanceof Error ? error.message : '추가 경로 저장에 실패했습니다',
         status: await service.getCacheStatus(),
         cachePage: await service.getCachePage('restaurants', 1, 20)

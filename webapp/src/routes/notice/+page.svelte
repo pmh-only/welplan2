@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from '$app/environment'
+  import { trackEvent } from '$lib/analytics'
 
   type NoticeSettings = {
     enabled: boolean
@@ -19,6 +20,7 @@
   }
 
   function closeNotice(): void {
+    trackEvent('Notice Closed')
     if (browser && window.history.length > 1) {
       window.history.back()
       return

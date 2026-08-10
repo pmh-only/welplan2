@@ -53,8 +53,14 @@
   let showSelectionDetail = $state(false)
   let selectionFloatDismissed = $state(false)
   let selectedMenuQuantities = $state<Record<string, number>>({})
-  const lightboxHistory = createDialogHistory(() => { lightboxSrc = null })
-  const selectionDetailHistory = createDialogHistory(() => { showSelectionDetail = false })
+  const lightboxHistory = createDialogHistory(() => {
+    if (lightboxSrc) trackEvent('Menu Image Closed', { source: enableSelection ? 'takeout' : 'menu_table' })
+    lightboxSrc = null
+  })
+  const selectionDetailHistory = createDialogHistory(() => {
+    if (showSelectionDetail) trackEvent('Takeout Nutrition Detail Closed', { selectedCount: selectedQuantityTotal })
+    showSelectionDetail = false
+  })
 
   onDestroy(() => {
     lightboxHistory.destroy()
@@ -639,7 +645,7 @@
         <BarChart3 class="float-title-icon" aria-hidden="true" />
         선택된 {selectedQuantityTotal}개 항목
       </h3>
-      <button type="button" class="float-close" onclick={() => { selectionFloatDismissed = true }} aria-label="요약 닫기">
+      <button type="button" class="float-close" onclick={() => { selectionFloatDismissed = true; trackEvent('Takeout Nutrition Summary Dismissed', { selectedCount: selectedQuantityTotal }) }} aria-label="요약 닫기">
         <X class="float-close-icon" aria-hidden="true" />
       </button>
     </div>
@@ -825,7 +831,7 @@
     <div class="lightbox-frame" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       {#if isImageAvailable(lightboxSrc)}
         <LiveImage imageClass="lightbox-img" src={lightboxSrc} alt={lightboxAlt} onerror={markImageBroken} />
-        <a class="lightbox-open-link" href={lightboxSrc} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+        <a class="lightbox-open-link" href={lightboxSrc} target="_blank" rel="noreferrer" onclick={(e) => { e.stopPropagation(); trackEvent('Menu Image Opened Externally', { source: enableSelection ? 'takeout' : 'menu_table' }) }}>
           더 크게 보기
         </a>
       {:else}

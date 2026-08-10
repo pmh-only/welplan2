@@ -59,7 +59,11 @@
   let reviewFeedback = $state('')
   let liveRefreshKey = ''
   let reviewQueryKey = ''
-  const zoomHistory = createDialogHistory(() => { zoomedMenu = null; detail = [] })
+  const zoomHistory = createDialogHistory(() => {
+    if (zoomedMenu) trackEvent('Gallery Menu Closed', { vendor: zoomedMenu.vendor, mealTimeId: zoomedMenu.mealTimeId })
+    zoomedMenu = null
+    detail = []
+  })
 
   onDestroy(() => zoomHistory.destroy())
   let expandedMealTimeIds = $state<string[]>(
@@ -216,6 +220,7 @@
       trackEvent('Gallery Menu Reviewed', { rating, mealTimeId: menu.mealTimeId, vendor: menu.vendor })
     } catch (error) {
       reviewFeedback = error instanceof Error ? error.message : '별점을 저장하지 못했습니다.'
+      trackEvent('Gallery Menu Review Failed', { rating, mealTimeId: menu.mealTimeId, vendor: menu.vendor })
     } finally {
       reviewSubmittingKey = null
     }
@@ -580,7 +585,7 @@
         {#if isImageAvailable(proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date))}
           <div class="lightbox-image-frame">
             <LiveImage imageClass="lightbox-img" src={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)!} alt={zoomedMenu.name} onerror={markImageBroken} />
-            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+            <a class="lightbox-open-link" href={proxyImg(zoomedMenu.imageUrl, imageRefreshKey, zoomedMenu.date)} target="_blank" rel="noreferrer" onclick={(e) => { e.stopPropagation(); trackEvent('Gallery Menu Image Opened Externally', { vendor: zoomedMenu!.vendor, mealTimeId: zoomedMenu!.mealTimeId }) }}>
               더 크게 보기
             </a>
           </div>

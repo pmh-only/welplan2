@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation'
   import { onMount, untrack } from 'svelte'
   import { Check, ChevronRight, FlaskConical, Plus, Search, Send, Trash2, Utensils } from '@lucide/svelte'
+  import { trackEvent } from '$lib/analytics'
   import { PRIVACY_VERSION, type TermsVersion } from '$lib/legal'
   import type { Restaurant } from '$lib/types'
   import {
@@ -161,56 +162,124 @@
       const response = await fetch(`/proxy/search?q=${encodeURIComponent(restaurantQuery.trim())}`)
       if (!response.ok) throw new Error()
       const result = await response.json() as Restaurant[]
-      if (sequence === searchSequence) restaurantResults = result
+      if (sequence === searchSequence) {
+        restaurantResults = result
+        if (restaurantQuery.trim()) {
+          trackEvent('Webhook Restaurant Search', { queryLength: restaurantQuery.trim().length, resultCount: result.length })
+        }
+      }
     } catch {
-      if (sequence === searchSequence) feedback = { kind: 'error', text: '식당 검색에 실패했습니다.' }
+      if (sequence === searchSequence) {
+        feedback = { kind: 'error', text: '식당 검색에 실패했습니다.' }
+        if (restaurantQuery.trim()) trackEvent('Webhook Restaurant Search Failed', { queryLength: restaurantQuery.trim().length })
+      }
     } finally {
       if (sequence === searchSequence) searching = false
     }
   }
 
   function selectPlatform(platform: WebhookPlatform) {
-    if (editingId) return
+    if (editingId || draft.platform === platform) return
     draft.platform = platform
     draft.name = `${WEBHOOK_PLATFORM_LABELS[platform]} 메뉴 알림`
     showGuide = false
+    trackEvent('Webhook Platform Changed', { platform })
+  }
+
+  function toggleGuide() {
+    showGuide = !showGuide
+    trackEvent('Webhook Guide Toggled', { platform: draft.platform, expanded: showGuide ? 1 : 0 })
   }
 
   function addRestaurant(restaurant: Restaurant) {
     if (selectedRestaurants.length >= 20) {
       feedback = { kind: 'error', text: '식당은 최대 20개까지 선택할 수 있습니다.' }
+      trackEvent('Webhook Restaurant Limit Reached', { limit: 20 })
       return
     }
-    if (!selectedIds.has(restaurant.id)) selectedRestaurants = [...selectedRestaurants, restaurant]
+    if (!selectedIds.has(restaurant.id)) {
+      selectedRestaurants = [...selectedRestaurants, restaurant]
+      trackEvent('Webhook Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, selectedCount: selectedRestaurants.length })
+    }
   }
 
   function removeRestaurant(restaurantId: string) {
+    const restaurant = selectedRestaurants.find((item) => item.id === restaurantId)
     selectedRestaurants = selectedRestaurants.filter((restaurant) => restaurant.id !== restaurantId)
+    if (restaurant) trackEvent('Webhook Restaurant Removed', { vendor: restaurant.vendor, restaurantId, selectedCount: selectedRestaurants.length })
   }
 
   function toggleWeekday(day: number) {
+    const enabled = !draft.weekdays.includes(day)
     draft.weekdays = draft.weekdays.includes(day)
       ? draft.weekdays.filter((value) => value !== day)
       : [...draft.weekdays, day].sort()
+    trackEvent('Webhook Weekday Toggled', { weekday: day, enabled: enabled ? 1 : 0 })
+  }
+
+  function webhookContext() {
+    return {
+      mode: editingId ? 'edit' : 'create',
+      platform: draft.platform,
+      restaurantCount: selectedRestaurants.length,
+      weekdayCount: draft.weekdays.length,
+      scheduleMode: draft.scheduleMode
+    }
+  }
+
+  function trackDestinationChanged(value: string) {
+    trackEvent('Webhook Destination Changed', { platform: draft.platform, configured: value.trim() ? 1 : 0 })
+  }
+
+  function trackDeliveryOptionChanged(option: string, enabled: boolean) {
+    trackEvent('Webhook Delivery Option Changed', { option, enabled: enabled ? 1 : 0 })
+  }
+
+  function trackScheduleModeChanged(mode: string) {
+    trackEvent('Webhook Schedule Mode Changed', { mode })
+  }
+
+  function trackScheduleTimeChanged(schedule: string, time: string) {
+    trackEvent('Webhook Schedule Time Changed', { schedule, time })
+  }
+
+  function trackMealScheduleToggled(meal: string, enabled: boolean) {
+    trackEvent('Webhook Meal Schedule Toggled', { meal, enabled: enabled ? 1 : 0 })
+  }
+
+  function trackContentOptionChanged(option: string, enabled: boolean) {
+    trackEvent('Webhook Content Option Changed', { option, enabled: enabled ? 1 : 0 })
+  }
+
+  function trackMenuLimitChanged(value: number) {
+    trackEvent('Webhook Menu Limit Changed', { maxMenusPerMealTime: Number.isFinite(value) ? value : 'unset' })
+  }
+
+  function trackLegalAcceptanceChanged(accepted: boolean) {
+    trackEvent('Webhook Legal Acceptance Changed', { accepted: accepted ? 1 : 0, termsVersion, privacyVersion: PRIVACY_VERSION })
   }
 
   async function saveSubscription(event: SubmitEvent) {
     event.preventDefault()
     if (selectedRestaurants.length === 0) {
       feedback = { kind: 'error', text: '메뉴를 받을 식당을 하나 이상 선택해 주세요.' }
+      trackEvent('Webhook Validation Failed', { ...webhookContext(), reason: 'restaurants' })
       return
     }
     if (draft.weekdays.length === 0 || (
       draft.scheduleMode === 'per-meal' && !draft.mealSchedules.some((schedule) => schedule.enabled)
     )) {
       feedback = { kind: 'error', text: '요일과 식사 시간을 하나 이상 선택해 주세요.' }
+      trackEvent('Webhook Validation Failed', { ...webhookContext(), reason: 'schedule' })
       return
     }
     if (!editingId && !legalAccepted) {
       feedback = { kind: 'error', text: '서비스 이용약관에 동의하고 개인정보 처리방침을 확인해 주세요.' }
+      trackEvent('Webhook Validation Failed', { ...webhookContext(), reason: 'legal_acceptance' })
       return
     }
 
+    trackEvent('Webhook Save Attempted', webhookContext())
     saving = true
     feedback = null
     const body = {
@@ -235,6 +304,7 @@
         const updated = await response.json() as WebhookSubscription
         currentSubscription = updated
         feedback = { kind: 'success', text: '웹훅 설정을 저장했습니다.' }
+        trackEvent('Webhook Updated', webhookContext())
       } else {
         const response = await fetch('/api/webhooks/subscriptions/v2', {
           method: 'POST',
@@ -243,10 +313,12 @@
         })
         if (!response.ok) throw new Error(await apiError(response))
         const created = await response.json() as WebhookSubscriptionCreated
+        trackEvent('Webhook Created', webhookContext())
         await goto(`/webhooks/${created.subscription.id}?test=sent`)
       }
     } catch (error) {
       feedback = { kind: 'error', text: error instanceof Error ? error.message : '저장에 실패했습니다.' }
+      trackEvent('Webhook Save Failed', webhookContext())
     } finally {
       saving = false
     }
@@ -270,35 +342,48 @@
 
   async function testSubscription() {
     if (!editingId) return
+    trackEvent('Webhook Test Requested', webhookContext())
     testingId = editingId
     feedback = null
     try {
-      feedback = (await requestTestDelivery(editingId)).feedback
+      const result = await requestTestDelivery(editingId)
+      feedback = result.feedback
+      trackEvent('Webhook Test Completed', { ...webhookContext(), status: result.status })
     } finally {
       testingId = null
     }
   }
 
   async function deleteSubscription() {
-    if (!editingId || !window.confirm(`'${draft.name}' 웹훅을 삭제할까요?`)) return
+    if (!editingId) return
+    if (!window.confirm(`'${draft.name}' 웹훅을 삭제할까요?`)) {
+      trackEvent('Webhook Delete Cancelled', webhookContext())
+      return
+    }
+    trackEvent('Webhook Delete Requested', webhookContext())
     try {
       const response = await fetch(`/api/webhooks/subscriptions/${editingId}`, { method: 'DELETE' })
       if (!response.ok) {
         feedback = { kind: 'error', text: await apiError(response) }
+        trackEvent('Webhook Delete Failed', webhookContext())
         return
       }
+      trackEvent('Webhook Deleted', webhookContext())
       await goto('/webhooks')
     } catch {
       feedback = { kind: 'error', text: '네트워크 오류로 웹훅 설정을 삭제하지 못했습니다.' }
+      trackEvent('Webhook Delete Failed', webhookContext())
     }
   }
 
   onMount(() => {
     if (data.slackOAuth?.error) {
       feedback = { kind: 'error', text: data.slackOAuth.error }
+      trackEvent('Webhook Slack Connection Completed', { status: 'failed' })
     } else if (data.slackOAuth?.webhookUrl) {
       const destination = [data.slackOAuth.teamName, data.slackOAuth.channel].filter(Boolean).join(' · ')
       feedback = { kind: 'success', text: `Slack 채널을 연결했습니다.${destination ? ` (${destination})` : ''}` }
+      trackEvent('Webhook Slack Connection Completed', { status: 'success' })
     }
     if (editingId) void loadSubscription()
     void searchRestaurants()
@@ -353,13 +438,13 @@
       </div>
       <div class="field-grid">
         <div class="wide-field webhook-url-field">
-          <div class="field-label"><label for="webhook-url">{draft.platform === 'slack' ? 'Slack 채널' : 'Webhook URL'}</label><button type="button" aria-expanded={showGuide} aria-controls="webhook-setup-guide" onclick={() => { showGuide = !showGuide }}>만드는 방법 <ChevronRight class={showGuide ? 'guide-open' : ''} size={12} /></button></div>
+          <div class="field-label"><label for="webhook-url">{draft.platform === 'slack' ? 'Slack 채널' : 'Webhook URL'}</label><button type="button" aria-expanded={showGuide} aria-controls="webhook-setup-guide" onclick={toggleGuide}>만드는 방법 <ChevronRight class={showGuide ? 'guide-open' : ''} size={12} /></button></div>
           {#if draft.platform === 'slack'}
             <div class="slack-connect-row">
               {#if editingId}
                 <span class="connection-status"><Check size={14} /> Slack Webhook 연결됨</span>
               {:else if data.slackOAuth?.configured}
-                <a class="slack-connect-btn" href={slackInstallPath}>{draft.webhookUrl ? '다른 Slack 채널 연결' : 'Slack에 연결'}</a>
+                <a class="slack-connect-btn" href={slackInstallPath} onclick={() => trackEvent('Webhook Slack Connection Started', { reconnecting: draft.webhookUrl ? 1 : 0 })}>{draft.webhookUrl ? '다른 Slack 채널 연결' : 'Slack에 연결'}</a>
               {:else}
                 <button class="slack-connect-btn" type="button" disabled>Slack에 연결</button>
               {/if}
@@ -367,7 +452,7 @@
             </div>
             {#if !editingId && !data.slackOAuth?.configured}<small>서버에 Slack OAuth 앱 설정이 필요합니다.</small>{/if}
           {:else}
-            <input id="webhook-url" type="url" required readonly={Boolean(editingId)} maxlength="4096" autocomplete="off" placeholder={selectedPlatform.hint} bind:value={draft.webhookUrl} />
+            <input id="webhook-url" type="url" required readonly={Boolean(editingId)} maxlength="4096" autocomplete="off" placeholder={selectedPlatform.hint} bind:value={draft.webhookUrl} onchange={(event) => trackDestinationChanged(event.currentTarget.value)} />
             {#if draft.platform === 'microsoft-teams'}<small>Workflows의 “Teams 웹훅 요청을 받았을 때” URL을 입력하고 호출 권한을 “누구나”로 설정하세요.</small>{/if}
           {/if}
           {#if editingId}<small>등록 후에는 협업 도구와 전송 채널을 변경할 수 없습니다.</small>{/if}
@@ -417,13 +502,13 @@
       </div>
       <label class="switch-row">
         <span><strong>여러 식당 합쳐 보내기</strong><small>끄면 식당마다 별도 메시지로 전송합니다.</small></span>
-        <input type="checkbox" bind:checked={draft.combineRestaurants} /><i></i>
+        <input type="checkbox" bind:checked={draft.combineRestaurants} onchange={(event) => trackDeliveryOptionChanged('combine_restaurants', event.currentTarget.checked)} /><i></i>
       </label>
     </section>
 
     <section class="form-section schedule-section">
       <div class="form-section-title"><span>03</span><div><h3>전송 스케줄</h3><p>세 끼를 한 번에 보내거나 식사별 시간에 나누어 보냅니다.</p></div></div>
-      <div class="choice-block schedule-mode"><span class="choice-label">전송 방식</span><div class="segmented"><label><input type="radio" value="combined" bind:group={draft.scheduleMode} /><span>한꺼번에</span></label><label><input type="radio" value="per-meal" bind:group={draft.scheduleMode} /><span>식사별로</span></label></div></div>
+      <div class="choice-block schedule-mode"><span class="choice-label">전송 방식</span><div class="segmented"><label><input type="radio" value="combined" bind:group={draft.scheduleMode} onchange={(event) => trackScheduleModeChanged(event.currentTarget.value)} /><span>한꺼번에</span></label><label><input type="radio" value="per-meal" bind:group={draft.scheduleMode} onchange={(event) => trackScheduleModeChanged(event.currentTarget.value)} /><span>식사별로</span></label></div></div>
       <div class="schedule-controls">
         <div class="schedule-field">
           <span>전송 요일</span>
@@ -434,7 +519,7 @@
           </div>
         </div>
         {#if draft.scheduleMode === 'combined'}
-          <label class="schedule-field combined-time"><span>전송 시간</span><input type="time" required bind:value={draft.sendTime} /></label>
+          <label class="schedule-field combined-time"><span>전송 시간</span><input type="time" required bind:value={draft.sendTime} onchange={(event) => trackScheduleTimeChanged('combined', event.currentTarget.value)} /></label>
         {:else}
           <div class="schedule-field">
             <span>식사별 전송 시간</span>
@@ -442,8 +527,8 @@
               {#each draft.mealSchedules as schedule (schedule.id)}
                 {#if schedule.id === 'breakfast' || schedule.id === 'lunch' || schedule.id === 'dinner'}
                   <label class="meal-schedule" class:disabled={!schedule.enabled}>
-                    <span><input type="checkbox" bind:checked={schedule.enabled} />{scheduledMealLabels[schedule.id]}</span>
-                    <input type="time" required={schedule.enabled} disabled={!schedule.enabled} bind:value={schedule.sendTime} />
+                    <span><input type="checkbox" bind:checked={schedule.enabled} onchange={(event) => trackMealScheduleToggled(schedule.id, event.currentTarget.checked)} />{scheduledMealLabels[schedule.id]}</span>
+                    <input type="time" required={schedule.enabled} disabled={!schedule.enabled} bind:value={schedule.sendTime} onchange={(event) => trackScheduleTimeChanged(schedule.id, event.currentTarget.value)} />
                   </label>
                 {/if}
               {/each}
@@ -456,21 +541,21 @@
     <section class="form-section">
       <div class="form-section-title"><span>04</span><div><h3>메뉴 내용</h3><p>테이크인 메뉴만 전송하며 메시지에 표시할 내용을 조정합니다.</p></div></div>
       <div class="option-grid">
-        <label class="check-option"><input type="checkbox" bind:checked={draft.includeCalories} /><span><strong>칼로리</strong><small>제공되는 열량을 표시</small></span></label>
-        <label class="check-option"><input type="checkbox" bind:checked={draft.includeLinks} /><span><strong>메뉴 링크</strong><small>Welplan 상세 페이지 연결</small></span></label>
-        <label class="check-option"><input type="checkbox" bind:checked={draft.includeEmptyRestaurants} /><span><strong>빈 식당 표시</strong><small>메뉴가 없어도 식당 이름 표시</small></span></label>
-        <label class="check-option"><input type="checkbox" bind:checked={draft.sendIfNoMenus} /><span><strong>빈 알림 전송</strong><small>전체 메뉴가 없어도 안내 전송</small></span></label>
-        <label class="number-option"><span><strong>식사별 최대 메뉴</strong><small>1~30개</small></span><input type="number" min="1" max="30" bind:value={draft.maxMenusPerMealTime} /></label>
+        <label class="check-option"><input type="checkbox" bind:checked={draft.includeCalories} onchange={(event) => trackContentOptionChanged('include_calories', event.currentTarget.checked)} /><span><strong>칼로리</strong><small>제공되는 열량을 표시</small></span></label>
+        <label class="check-option"><input type="checkbox" bind:checked={draft.includeLinks} onchange={(event) => trackContentOptionChanged('include_links', event.currentTarget.checked)} /><span><strong>메뉴 링크</strong><small>Welplan 상세 페이지 연결</small></span></label>
+        <label class="check-option"><input type="checkbox" bind:checked={draft.includeEmptyRestaurants} onchange={(event) => trackContentOptionChanged('include_empty_restaurants', event.currentTarget.checked)} /><span><strong>빈 식당 표시</strong><small>메뉴가 없어도 식당 이름 표시</small></span></label>
+        <label class="check-option"><input type="checkbox" bind:checked={draft.sendIfNoMenus} onchange={(event) => trackContentOptionChanged('send_if_no_menus', event.currentTarget.checked)} /><span><strong>빈 알림 전송</strong><small>전체 메뉴가 없어도 안내 전송</small></span></label>
+        <label class="number-option"><span><strong>식사별 최대 메뉴</strong><small>1~30개</small></span><input type="number" min="1" max="30" bind:value={draft.maxMenusPerMealTime} onchange={(event) => trackMenuLimitChanged(event.currentTarget.valueAsNumber)} /></label>
       </div>
     </section>
 
     <div class="form-footer">
       {#if !editingId}
         <div class="legal-consent">
-          <input id="legal-acceptance" type="checkbox" required bind:checked={legalAccepted} />
+          <input id="legal-acceptance" type="checkbox" required bind:checked={legalAccepted} onchange={(event) => trackLegalAcceptanceChanged(event.currentTarget.checked)} />
           <label for="legal-acceptance">
-            <a href={termsPath} target="_blank" rel="noreferrer">서비스 이용약관</a>에 동의하고
-            <a href="/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a>을 확인했습니다.
+            <a href={termsPath} target="_blank" rel="noreferrer" onclick={() => trackEvent('Webhook Legal Document Opened', { document: 'terms', version: termsVersion })}>서비스 이용약관</a>에 동의하고
+            <a href="/privacy" target="_blank" rel="noreferrer" onclick={() => trackEvent('Webhook Legal Document Opened', { document: 'privacy', version: PRIVACY_VERSION })}>개인정보 처리방침</a>을 확인했습니다.
           </label>
         </div>
       {/if}

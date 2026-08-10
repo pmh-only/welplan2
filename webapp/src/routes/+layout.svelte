@@ -1005,6 +1005,7 @@
     } catch (error) {
       restaurantSearchError = `검색 중 오류가 발생했습니다: ${error instanceof Error ? error.message : error}`
       restaurantSearchResults = []
+      trackEvent('Restaurant Search Failed', { queryLength: query.length, source: 'first_visit_dialog' })
     } finally {
       restaurantSearching = false
     }
@@ -1130,6 +1131,7 @@
               untrustedContentHint: tool.untrustedContentHint
             },
             execute: async (input: Record<string, unknown>) => {
+              trackEvent('WebMCP Tool Called', { tool: tool.name })
               switch (tool.name) {
                 case 'welplan.search-restaurants': {
                   const query = typeof input.query === 'string' ? input.query.trim() : ''
