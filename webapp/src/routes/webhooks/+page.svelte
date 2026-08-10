@@ -17,7 +17,7 @@
 
   type CreationTestStatus = 'sent' | 'skipped' | 'failed'
   type SlackOAuthResult = { configured: boolean; webhookUrl?: string; channel?: string; teamName?: string; error?: string }
-  type PageData = { restaurants?: Restaurant[]; internalId?: string; creationTest?: CreationTestStatus; slackOAuth?: SlackOAuthResult; termsVersion: TermsVersion }
+  type PageData = { restaurants?: Restaurant[]; internalId?: string; creationTest?: CreationTestStatus; slackOAuth?: SlackOAuthResult; termsVersion: TermsVersion; registrationCounts?: Record<WebhookPlatform, number> }
   type Feedback = { kind: 'success' | 'error' | 'info'; text: string }
 
   const weekdays = [
@@ -322,6 +322,9 @@
           <div class="hero-platform">
             <span class="brand-icon"><img src={platformMeta[platform].icon} alt="" aria-hidden="true" /></span>
             <strong>{WEBHOOK_PLATFORM_LABELS[platform]}</strong>
+            <span class="registration-count" aria-label={`${data.registrationCounts?.[platform] ?? 0}개 등록됨`}>
+              {data.registrationCounts?.[platform] ?? 0}
+            </span>
           </div>
         {/each}
       </div>
@@ -501,6 +504,7 @@
   .brand-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; overflow: hidden; border: 1px solid rgba(148,163,184,.28); border-radius: 8px; background: var(--card); box-shadow: 0 1px 2px rgba(15,23,42,.12); }
   .brand-icon img { display: block; width: 21px; height: 21px; object-fit: contain; }
   .hero-platform strong { font-size: 12px; font-weight: 600; }
+  .registration-count { margin-left: auto; padding: 1px 6px; border-radius: 99px; color: #a7f3d0; background: rgba(16,185,129,.16); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .feedback { padding: 12px 15px; border: 1px solid; border-radius: 9px; font-size: 13px; }
   .feedback-success { color: var(--success-text); border-color: #6ee7b7; background: var(--success-bg); }
   .feedback-error { color: var(--danger-text); border-color: #fca5a5; background: var(--danger-bg); }
