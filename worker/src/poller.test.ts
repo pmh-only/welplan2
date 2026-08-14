@@ -26,6 +26,31 @@ test('full prefetch scans every restaurant returned by the catalog', async () =>
   assert.deepEqual(new Set(scannedRestaurantIds), new Set(restaurants.map((restaurant) => restaurant.id)))
 })
 
+test('full prefetch skips closed and placeholder restaurant names', async () => {
+  const restaurants: Restaurant[] = [
+    { id: 'active', name: 'Xylophone 식당', vendor: 'welstory' },
+    { id: 'closed', name: '스마트(운영종료)', vendor: 'welstory' },
+    { id: 'closed-spaced', name: '운영 종료 식당', vendor: 'welstory' },
+    { id: 'test-ko', name: '신규 테스트 식당', vendor: 'welstory' },
+    { id: 'test-en', name: 'Test Restaurant', vendor: 'welstory' },
+    { id: 'placeholder', name: ' x ', vendor: 'welstory' }
+  ]
+  const scannedRestaurantIds: string[] = []
+  const service = {
+    getRestaurants: async () => restaurants,
+    getMealTimes: async (restaurantId: string) => {
+      scannedRestaurantIds.push(restaurantId)
+      return []
+    },
+    getMenus: async () => [],
+    getWorkerProblemAlertSettings: async () => ({ enabled: false, discordWebhookUrl: '', discordRoleId: '' })
+  } as unknown as CafeteriaService
+
+  await prefetchAllAvailability(service)
+
+  assert.deepEqual(scannedRestaurantIds, ['active'])
+})
+
 test('does not alert when a restaurant successfully has no meal times', async () => {
   let settingsRead = false
   const service = {

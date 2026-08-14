@@ -192,8 +192,9 @@ export class CafeteriaService {
     return this.normalizeSearchText(value).replace(/\s+/g, '')
   }
 
-  private isClosedRestaurant(restaurant: Restaurant): boolean {
-    return this.normalizeSearchText(restaurant.name).includes('(운영종료)')
+  private isHiddenRestaurant(restaurant: Restaurant): boolean {
+    const name = this.compactSearchText(restaurant.name)
+    return name === 'x' || /운영종료|테스트|test/i.test(name)
   }
 
   private collectSearchValues(value: unknown, values: Set<string>): void {
@@ -1784,16 +1785,17 @@ export class CafeteriaService {
     const searchCacheKey = normalizedQuery ? redisKeys.restaurantSearch(normalizedQuery) : null
     const cachedSearch = searchCacheKey ? await getRedisJson<RedisCacheEntry<Restaurant[]>>(searchCacheKey) : null
     if (cachedSearch) {
+      const visibleRestaurants = cachedSearch.data.filter((restaurant) => !this.isHiddenRestaurant(restaurant))
       syncLog.info('restaurant search cache hit', {
         query,
         cachedAt: cachedSearch.cachedAt,
-        resultCount: cachedSearch.data.length
+        resultCount: visibleRestaurants.length
       })
-      return cachedSearch.data
+      return visibleRestaurants
     }
 
     const fromCache = (await this.readRestaurants()).filter(
-      (restaurant) => !this.isClosedRestaurant(restaurant)
+      (restaurant) => !this.isHiddenRestaurant(restaurant)
     )
     syncLog.info('restaurant search started', { query, cachedRestaurantCount: fromCache.length })
 
@@ -1819,7 +1821,7 @@ export class CafeteriaService {
               typeof r.id === 'string' &&
               r.id.length > 0 &&
               typeof r.name === 'string' &&
-              !this.isClosedRestaurant(r) &&
+              !this.isHiddenRestaurant(r) &&
               typeof r.vendor === 'string'
           )
         )

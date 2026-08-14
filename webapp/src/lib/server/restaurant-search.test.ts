@@ -31,7 +31,12 @@ const restaurants: Restaurant[] = [
   { id: 'ALIAS001', name: '모바일 연구소', vendor: 'welstory', path: ['수원', 'R5'] },
   { id: 'REST000008', name: 'R5 B2F', vendor: 'welstory', path: ['수원'] },
   { id: 'REST000007', name: 'R5 B1F', vendor: 'welstory', path: ['수원'] },
-  { id: 'rest000007', name: 'r5 b1f', vendor: 'welstory', path: ['수원'] }
+  { id: 'rest000007', name: 'r5 b1f', vendor: 'welstory', path: ['수원'] },
+  { id: 'REST000101', name: 'R5 (운영종료)', vendor: 'welstory', path: ['수원'] },
+  { id: 'REST000102', name: 'R5 운영 종료', vendor: 'welstory', path: ['수원'] },
+  { id: 'REST000103', name: 'R5 테스트', vendor: 'welstory', path: ['수원'] },
+  { id: 'REST000104', name: 'R5 Test', vendor: 'welstory', path: ['수원'] },
+  { id: 'REST000105', name: ' x ', vendor: 'welstory', path: ['수원'] }
 ]
 
 test('uses relevance instead of recent selections when a search query is present', async () => {
@@ -53,9 +58,9 @@ test('uses relevance instead of recent selections when a search query is present
   assert.equal(recencyReads(), 0)
 })
 
-test('keeps recent selection order when the search query is empty', async () => {
+test('keeps recent selection order and hides excluded names when the search query is empty', async () => {
   process.env.REDIS_CACHE_DISABLED = 'true'
-  const { service, recencyReads } = searchService(restaurants.slice(0, 4), new Map([
+  const { service, recencyReads } = searchService(restaurants.filter((restaurant) => restaurant.id !== 'rest000007'), new Map([
     ['REST000005', 100],
     ['ALIAS001', 300],
     ['REST000008', 200]

@@ -19,6 +19,7 @@ const IMAGE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 const ACTIVE_PREFETCH_DAYS = 2
 const ALL_MEAL_TIME_ID = 'all'
 const syncLog = createServerLogger('sync')
+const NON_CRAWLABLE_RESTAURANT_NAME = /운영종료|테스트|test/i
 
 type PollerOptions = {
   activePollerIntervalMs?: number
@@ -33,6 +34,11 @@ const yield_ = () => new Promise<void>((resolve) => setImmediate(resolve))
 
 function uniqueRestaurants(restaurants: Restaurant[]): Restaurant[] {
   return [...new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])).values()]
+}
+
+function isCrawlableRestaurant(restaurant: Restaurant): boolean {
+  const name = restaurant.name.normalize('NFKC').replace(/\s+/g, '').trim()
+  return name.toLowerCase() !== 'x' && !NON_CRAWLABLE_RESTAURANT_NAME.test(name)
 }
 
 function normalizeIntervalMs(value: string | undefined, fallback: number): number {
@@ -75,7 +81,7 @@ async function prefetchActiveRestaurants(service: CafeteriaService, activePrefet
 
   try {
     const defaultRestaurants = await service.hydrateRestaurants(DEFAULT_RESTAURANTS).catch(() => DEFAULT_RESTAURANTS)
-    const restaurants = uniqueRestaurants(defaultRestaurants)
+    const restaurants = uniqueRestaurants(defaultRestaurants).filter(isCrawlableRestaurant)
     const dates = menuScanDates(todayStr(), activePrefetchDays)
     let menuBatches = 0
     let details = 0
@@ -174,8 +180,8 @@ export async function prefetchAllAvailability(service: CafeteriaService): Promis
   const startedAt = Date.now()
 
   try {
-    const restaurants = uniqueRestaurants(await service.getRestaurants())
-    if (restaurants.length === 0) {
+    const catalogRestaurants = uniqueRestaurants(await service.getRestaurants())
+    if (catalogRestaurants.length === 0) {
       syncLog.info('full prefetch skipped because no restaurants are cached')
       await notifyWorkerProblem(service, {
         summary: '전체 식당 데이터 수집을 시작할 수 없습니다. 캐시된 식당이 없습니다.',
@@ -183,6 +189,7 @@ export async function prefetchAllAvailability(service: CafeteriaService): Promis
       })
       return
     }
+    const restaurants = catalogRestaurants.filter(isCrawlableRestaurant)
 
     const dates = menuScanDates()
     let fetched = 0
