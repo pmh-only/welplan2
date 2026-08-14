@@ -31,7 +31,7 @@ const MAX_ADDITIONAL_PATH_PARTS = 12
 const MAX_ADDITIONAL_PATH_PART_LENGTH = 80
 const redisKeys = {
   restaurants: 'restaurants:all',
-  restaurantSearch: (query: string) => `restaurant-search:v2:${encodeURIComponent(query)}`,
+  restaurantSearch: (query: string) => `restaurant-search:v3:${encodeURIComponent(query)}`,
   restaurant: (id: string) => `restaurant:${id}`,
   mealTimes: (restaurantId: string) => `meal-times:${restaurantId}`,
   menus: (key: string) => `menus:${key}`,
@@ -272,6 +272,10 @@ export class CafeteriaService {
     return score
   }
 
+  private restaurantVendorRank(restaurant: Restaurant): number {
+    return restaurant.vendor === 'welstory' ? 0 : 1
+  }
+
   private mergeSearchResults(query: string, ...groups: Restaurant[][]): Restaurant[] {
     const merged = new Map<string, { restaurant: Restaurant; score: number }>()
 
@@ -289,7 +293,11 @@ export class CafeteriaService {
     }
 
     return [...merged.values()]
-      .sort((a, b) => b.score - a.score || a.restaurant.name.localeCompare(b.restaurant.name, 'ko'))
+      .sort((a, b) =>
+        this.restaurantVendorRank(a.restaurant) - this.restaurantVendorRank(b.restaurant) ||
+        b.score - a.score ||
+        a.restaurant.name.localeCompare(b.restaurant.name, 'ko')
+      )
       .map((entry) => entry.restaurant)
   }
 
@@ -301,6 +309,9 @@ export class CafeteriaService {
 
   private sortRestaurantsByGlobalSelectionRecency(restaurants: Restaurant[], recency: Map<string, number>): Restaurant[] {
     return [...restaurants].sort((a, b) => {
+      const vendorRank = this.restaurantVendorRank(a) - this.restaurantVendorRank(b)
+      if (vendorRank !== 0) return vendorRank
+
       const aSelectedAt = recency.get(a.id) ?? 0
       const bSelectedAt = recency.get(b.id) ?? 0
       if (aSelectedAt !== bSelectedAt) return bSelectedAt - aSelectedAt

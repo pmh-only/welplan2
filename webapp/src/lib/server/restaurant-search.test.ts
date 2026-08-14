@@ -36,7 +36,8 @@ const restaurants: Restaurant[] = [
   { id: 'REST000102', name: 'R5 운영 종료', vendor: 'welstory', path: ['수원'] },
   { id: 'REST000103', name: 'R5 테스트', vendor: 'welstory', path: ['수원'] },
   { id: 'REST000104', name: 'R5 Test', vendor: 'welstory', path: ['수원'] },
-  { id: 'REST000105', name: ' x ', vendor: 'welstory', path: ['수원'] }
+  { id: 'REST000105', name: ' x ', vendor: 'welstory', path: ['수원'] },
+  { id: 'CAF01', name: 'R5', vendor: 'shinsegae', path: ['수원'] }
 ]
 
 test('uses relevance instead of recent selections when a search query is present', async () => {
@@ -53,7 +54,8 @@ test('uses relevance instead of recent selections when a search query is present
   assert.deepEqual(results.map((restaurant) => restaurant.name), [
     'R5 B1F',
     'R5 B2F',
-    '모바일 연구소'
+    '모바일 연구소',
+    'R5'
   ])
   assert.equal(recencyReads(), 0)
 })
@@ -63,7 +65,8 @@ test('keeps recent selection order and hides excluded names when the search quer
   const { service, recencyReads } = searchService(restaurants.filter((restaurant) => restaurant.id !== 'rest000007'), new Map([
     ['REST000005', 100],
     ['ALIAS001', 300],
-    ['REST000008', 200]
+    ['REST000008', 200],
+    ['CAF01', 1_000]
   ]))
 
   const results = await service.searchRestaurants('')
@@ -72,7 +75,8 @@ test('keeps recent selection order and hides excluded names when the search quer
     'ALIAS001',
     'REST000008',
     'REST000005',
-    'REST000007'
+    'REST000007',
+    'CAF01'
   ])
   assert.equal(recencyReads(), 1)
 })
