@@ -945,17 +945,17 @@
     }
   }
 
-  async function persistDialogRestaurants (next: Restaurant[]) {
+  async function persistDialogRestaurants (next: Restaurant[], selectedRestaurant?: Restaurant) {
     dialogRestaurants = next
     saveRestaurantSelection(next)
+    void recordRestaurantSelection(next, selectedRestaurant).catch(() => undefined)
     await invalidateAll()
   }
 
   function addDialogRestaurant (restaurant: Restaurant) {
     if (dialogRestaurantIds.has(restaurantKey(restaurant))) return
     trackEvent('Restaurant Added', { vendor: restaurant.vendor, restaurantId: restaurant.id, source: 'first_visit_dialog' })
-    void persistDialogRestaurants([...dialogRestaurants, restaurant])
-    void recordRestaurantSelection(restaurant).catch(() => undefined)
+    void persistDialogRestaurants([...dialogRestaurants, restaurant], restaurant)
   }
 
   function removeDialogRestaurant (restaurant: Restaurant) {
@@ -1232,7 +1232,7 @@
       restaurantId: restaurantMeta.id,
       source: 'restaurant_detail'
     })
-    void recordRestaurantSelection(restaurantMeta).catch(() => undefined)
+    void recordRestaurantSelection(next, restaurantMeta).catch(() => undefined)
     void invalidateAll()
   })
 

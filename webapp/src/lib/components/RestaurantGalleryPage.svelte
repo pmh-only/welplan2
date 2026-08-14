@@ -268,8 +268,9 @@
       !(selected.vendor === data.restaurant.vendor && selected.id === data.restaurant.id) &&
       !(selected.vendor === restaurant.vendor && selected.id === restaurant.id)
     )
-    saveRestaurantSelection([...next, restaurant])
-    void recordRestaurantSelection(restaurant).catch(() => undefined)
+    const selection = [...next, restaurant]
+    saveRestaurantSelection(selection)
+    void recordRestaurantSelection(selection, restaurant).catch(() => undefined)
     await restaurantSearchHistory.close()
     await goto(restaurantDatedPath(restaurant, selectedDate))
     await invalidateAll()

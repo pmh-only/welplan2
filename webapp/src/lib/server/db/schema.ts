@@ -11,6 +11,14 @@ export const restaurantSelectionRecency = pgTable('restaurant_selection_recency'
   selectedAt: bigint('selected_at', { mode: 'number' }).notNull()
 })
 
+export const restaurantSelectionCombinations = pgTable('restaurant_selection_combinations', {
+  combinationKey: text('combination_key').primaryKey(),
+  restaurants: text('restaurants').notNull(),
+  selectionCount: bigint('selection_count', { mode: 'number' }).notNull(),
+  firstSelectedAt: bigint('first_selected_at', { mode: 'number' }).notNull(),
+  lastSelectedAt: bigint('last_selected_at', { mode: 'number' }).notNull()
+})
+
 export const mealTimesCache = pgTable('meal_times_cache', {
   restaurantId: text('restaurant_id').primaryKey(),
   data: text('data').notNull(), // JSON: MealTime[]

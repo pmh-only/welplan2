@@ -9,6 +9,7 @@ import { deleteRedisPrefix, getRedisJson, setRedisJson } from './redis-cache.js'
 import {
   restaurants as restaurantsTable,
   restaurantSelectionRecency,
+  restaurantSelectionCombinations,
   mealTimesCache,
   menusCache,
   menuDetailCache,
@@ -17,6 +18,7 @@ import {
   imageCache,
   appSettings
 } from './db/schema.js'
+import { canonicalRestaurantCombination } from './restaurant-combination.js'
 import { desc, eq, sql } from 'drizzle-orm'
 
 const syncLog = createServerLogger('sync')
@@ -1768,24 +1770,49 @@ export class CafeteriaService {
     return updatedRestaurant
   }
 
-  async recordRestaurantSelection(restaurant: Restaurant): Promise<void> {
-    await this.registerRestaurant(restaurant)
+  async recordRestaurantSelection(restaurants: Restaurant[], selectedRestaurant?: Restaurant): Promise<void> {
+    const combination = canonicalRestaurantCombination(restaurants)
+    await Promise.all(combination.restaurants.map((restaurant) => this.registerRestaurant(restaurant)))
     const selectedAt = this.now()
 
-    await db
-      .insert(restaurantSelectionRecency)
-      .values({ restaurantId: restaurant.id, selectedAt })
-      .onConflictDoUpdate({
-        target: restaurantSelectionRecency.restaurantId,
-        set: { selectedAt }
-      })
-      .execute()
-    await deleteRedisPrefix('restaurant-search:')
+    if (combination.restaurants.length > 0) {
+      await db
+        .insert(restaurantSelectionCombinations)
+        .values({
+          combinationKey: combination.key,
+          restaurants: combination.data,
+          selectionCount: 1,
+          firstSelectedAt: selectedAt,
+          lastSelectedAt: selectedAt
+        })
+        .onConflictDoUpdate({
+          target: restaurantSelectionCombinations.combinationKey,
+          set: {
+            restaurants: combination.data,
+            selectionCount: sql`${restaurantSelectionCombinations.selectionCount} + 1`,
+            lastSelectedAt: selectedAt
+          }
+        })
+        .execute()
+    }
+
+    if (selectedRestaurant) {
+      await db
+        .insert(restaurantSelectionRecency)
+        .values({ restaurantId: selectedRestaurant.id, selectedAt })
+        .onConflictDoUpdate({
+          target: restaurantSelectionRecency.restaurantId,
+          set: { selectedAt }
+        })
+        .execute()
+      await deleteRedisPrefix('restaurant-search:')
+    }
 
     syncLog.info('recorded restaurant selection', {
-      restaurantId: restaurant.id,
-      vendor: restaurant.vendor,
-      restaurantName: restaurant.name,
+      restaurantId: selectedRestaurant?.id,
+      vendor: selectedRestaurant?.vendor,
+      restaurantName: selectedRestaurant?.name,
+      combinationSize: combination.restaurants.length,
       selectedAt
     })
   }

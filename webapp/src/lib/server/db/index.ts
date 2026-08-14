@@ -32,6 +32,13 @@ const createSchemaSql = `
     restaurant_id TEXT PRIMARY KEY,
     selected_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS restaurant_selection_combinations (
+    combination_key TEXT PRIMARY KEY,
+    restaurants TEXT NOT NULL,
+    selection_count BIGINT NOT NULL,
+    first_selected_at BIGINT NOT NULL,
+    last_selected_at BIGINT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS meal_times_cache (
     restaurant_id TEXT PRIMARY KEY,
     data TEXT NOT NULL,
