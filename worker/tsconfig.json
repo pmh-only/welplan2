@@ -37,6 +37,7 @@
     "../webapp/src/lib/types.ts",
     "../webapp/src/lib/utils.ts"
   ],
+  "include": ["../webapp/src/lib/server/restaurant-combination.ts"],
   "references": [
     { "path": "../model" },
     { "path": "../impl/welstory_plus" },
