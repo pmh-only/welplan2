@@ -6,8 +6,10 @@ import {
   APP_NAME,
   APP_VERSION,
   CONTENT_SIGNAL,
+  MCP_ENDPOINT_PATH,
   MCP_SERVER_CARD_PATH,
   OPENAPI_PATH,
+  STREAMABLE_HTTP_MCP_TOOLS,
   WEB_MCP_TOOLS
 } from '$lib/agent'
 
@@ -51,10 +53,13 @@ Where:
 - slug is the restaurant name lowercased with spaces replaced by hyphens
 - date is YYYYMMDD (omit for today's menu)
 
-## WebMCP
+## MCP
 
-If WebMCP is available use welplan.search-restaurants for a structured JSON response,
-then welplan.open-restaurant to navigate directly to the menu page.
+Connect a Streamable HTTP MCP client to /mcp, then call search_restaurants for a
+structured result and get_restaurant_menu for the menus on a specific date.
+
+Browser-based WebMCP remains available through welplan.search-restaurants and
+welplan.open-restaurant.
 `
   },
   {
@@ -266,11 +271,11 @@ export function getMcpServerCard(origin: string) {
     title: APP_NAME,
     description: 'Search cafeteria restaurants and browse their daily menus with photos and calorie info.',
     transport: {
-      type: 'webmcp',
-      endpoint: `${origin}/`
+      type: 'streamable-http',
+      endpoint: `${origin}${MCP_ENDPOINT_PATH}`
     },
     capabilities: {
-      tools: WEB_MCP_TOOLS.map((tool) => ({
+      tools: STREAMABLE_HTTP_MCP_TOOLS.map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
@@ -284,6 +289,10 @@ export function getMcpServerCard(origin: string) {
       },
       agentSkills: {
         endpoint: `${origin}${AGENT_SKILLS_INDEX_PATH}`
+      },
+      webMcp: {
+        endpoint: `${origin}/`,
+        tools: WEB_MCP_TOOLS.map((tool) => tool.name)
       }
     }
   }
@@ -298,6 +307,7 @@ export function buildDiscoveryLinkHeader(pathnameAndSearch: string): string {
     `</api/health>; rel="status"; type="application/json"; title="${APP_NAME} service health"`,
     `<${AGENT_SKILLS_INDEX_PATH}>; rel="describedby"; type="application/json"; title="${APP_NAME} agent skills index"`,
     `<${MCP_SERVER_CARD_PATH}>; rel="describedby"; type="application/json"; title="${APP_NAME} MCP server card"`,
+    `<${MCP_ENDPOINT_PATH}>; rel="service"; type="application/json"; title="${APP_NAME} Streamable HTTP MCP endpoint"`,
     `</llms.txt>; rel="describedby"; type="text/plain"; title="${APP_NAME} LLM usage guide"`
   ].join(', ')
 }

@@ -19,6 +19,7 @@ The repository contains a SvelteKit web app, shared TypeScript models, and vendo
 ## Features
 
 - Aggregates restaurant and meal-time data from Welstory Plus and PlanEAT Choice.
+- Exposes an unauthenticated Streamable HTTP MCP server at `/mcp` for restaurant search and date-specific menus.
 - Supports gallery, take-in, and take-out menu views.
 - Displays calories and detailed nutrition in the web UI.
 - Caches restaurants, meal times, menus, and menu details in PostgreSQL.
@@ -177,6 +178,8 @@ pnpm --filter @pmh-only/welplan2-webapp start
 - `/terms`: service terms, non-commercial-use limits, menu-image redistribution restriction, availability disclaimer, and independence notice.
 - `/api/cache/status`: inspect cache counts.
 - `/api/cache/clear`: clear cached data.
+- `/mcp`: stateless Streamable HTTP MCP endpoint supporting `initialize`, `tools/list`, and `tools/call`.
+- `/.well-known/mcp/server-card.json`: MCP server card advertising the public `/mcp` endpoint.
 - `/.well-known/assetlinks.json`: Android Digital Asset Links for Trusted Web Activity verification when TWA env vars are configured.
 
 ## Package Usage

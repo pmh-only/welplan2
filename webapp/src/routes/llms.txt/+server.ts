@@ -43,6 +43,7 @@ Returns RSS 2.0. Each item covers one meal time and lists dishes as an HTML \`<u
 - API catalog (RFC 9727): ${origin}/.well-known/api-catalog
 - Agent skills index: ${origin}/.well-known/agent-skills/index.json
 - MCP server card: ${origin}/.well-known/mcp/server-card.json
+- Streamable HTTP MCP endpoint (no authentication): ${origin}/mcp
 - Sitemap: ${origin}/sitemap.xml
 - RSS (all restaurants, 7 days): ${origin}/rss.xml
 

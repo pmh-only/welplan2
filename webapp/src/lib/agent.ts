@@ -7,6 +7,7 @@ export const API_DOC_PATH = '/docs/api'
 export const OPENAPI_PATH = '/openapi.json'
 export const AGENT_SKILLS_INDEX_PATH = '/.well-known/agent-skills/index.json'
 export const MCP_SERVER_CARD_PATH = '/.well-known/mcp/server-card.json'
+export const MCP_ENDPOINT_PATH = '/mcp'
 
 export type WebMcpToolDefinition = {
   name: string
@@ -80,6 +81,66 @@ export const WEB_MCP_TOOLS: WebMcpToolDefinition[] = [
     description: 'Return a structured summary of the currently visible Welplan page.',
     inputSchema: {
       type: 'object',
+      additionalProperties: false
+    },
+    readOnlyHint: true,
+    untrustedContentHint: true
+  }
+]
+
+export const STREAMABLE_HTTP_MCP_TOOLS: WebMcpToolDefinition[] = [
+  {
+    name: 'search_restaurants',
+    title: '식당 검색',
+    description: 'Search Welstory and Shinsegae Food cafeteria restaurants by name, location, or keyword.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 100,
+          description: 'Restaurant name, location, or keyword.'
+        },
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 20,
+          default: 10,
+          description: 'Maximum number of matches to return.'
+        }
+      },
+      required: ['query'],
+      additionalProperties: false
+    },
+    readOnlyHint: true,
+    untrustedContentHint: true
+  },
+  {
+    name: 'get_restaurant_menu',
+    title: '날짜별 식당 메뉴 조회',
+    description: 'Get every meal period and menu for a restaurant on a date. Use search_restaurants first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        vendor: {
+          type: 'string',
+          enum: ['welstory', 'shinsegae'],
+          description: 'Restaurant vendor returned by search_restaurants.'
+        },
+        restaurantId: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 256,
+          description: 'Restaurant identifier returned by search_restaurants.'
+        },
+        date: {
+          type: 'string',
+          pattern: '^(?:\\d{8}|\\d{4}-\\d{2}-\\d{2})$',
+          description: 'Menu date in YYYYMMDD or YYYY-MM-DD format.'
+        }
+      },
+      required: ['vendor', 'restaurantId', 'date'],
       additionalProperties: false
     },
     readOnlyHint: true,

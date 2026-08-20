@@ -2,8 +2,10 @@
   import {
     AGENT_SKILLS_INDEX_PATH,
     API_CATALOG_PATH,
+    MCP_ENDPOINT_PATH,
     MCP_SERVER_CARD_PATH,
     OPENAPI_PATH,
+    STREAMABLE_HTTP_MCP_TOOLS,
     WEB_MCP_TOOLS
   } from '$lib/agent'
 </script>
@@ -101,22 +103,17 @@
   <section class="section">
     <div class="section-head">
       <div class="section-head-left">
-        <h2>WebMCP Tools</h2>
+        <h2>Streamable HTTP MCP</h2>
       </div>
     </div>
     <div class="section-body">
-      <p class="lead">
-        브라우저 내 AI 어시스턴트가 WebMCP를 지원하면 아래 도구를
-        <code>document.modelContext</code>의
-        <a href="https://developer.chrome.com/docs/ai/webmcp/imperative-api" target="_blank" rel="noreferrer">Imperative API</a>로
-        직접 호출할 수 있습니다.
-      </p>
-      <p class="lead">
-        Chrome 149 이상에서는 Origin Trial 토큰을 <code>WEBMCP_ORIGIN_TRIAL_TOKEN</code>으로 설정하거나,
-        로컬 Chrome의 <code>chrome://flags/#enable-webmcp-testing</code>을 활성화해 테스트할 수 있습니다.
-      </p>
+      <p class="lead">표준 MCP 클라이언트에서 인증 없이 <code>https://welplan.pmh.codes{MCP_ENDPOINT_PATH}</code>에 연결할 수 있습니다. 전송 방식은 Streamable HTTP이며 JSON 응답과 CORS를 지원합니다.</p>
+      <pre><code>{`curl https://welplan.pmh.codes${MCP_ENDPOINT_PATH} \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/json, text/event-stream" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`}</code></pre>
       <ul class="tool-list">
-        {#each WEB_MCP_TOOLS as tool (tool.name)}
+        {#each STREAMABLE_HTTP_MCP_TOOLS as tool (tool.name)}
           <li class="tool-item">
             <div>
               <strong>{tool.title}</strong>
@@ -126,6 +123,11 @@
           </li>
         {/each}
       </ul>
+      <p class="lead">
+        기존 브라우저 WebMCP도 유지됩니다. 지원 브라우저에서는 <code>document.modelContext</code>의
+        <a href="https://developer.chrome.com/docs/ai/webmcp/imperative-api" target="_blank" rel="noreferrer">Imperative API</a>를 통해
+        {WEB_MCP_TOOLS.length}개 도구를 사용할 수 있습니다.
+      </p>
     </div>
   </section>
 
@@ -164,7 +166,7 @@
         <article class="doc-card">
           <h3>MCP Server Card</h3>
           <p><code>{MCP_SERVER_CARD_PATH}</code></p>
-          <p>WebMCP 도구 탐색용 서버 카드.</p>
+          <p>Streamable HTTP MCP 엔드포인트와 표준 도구 탐색용 서버 카드.</p>
         </article>
       </div>
     </div>
