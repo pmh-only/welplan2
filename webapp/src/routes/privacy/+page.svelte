@@ -100,8 +100,9 @@
       Welplan은 선택한 식당을 저장하기 위해 <code>welplan_restaurants</code> 쿠키와 로컬
       저장소를 사용합니다. 쿠키의 기본 보관 기간은 1년입니다. 테이크아웃 식당 선택은
       <code>welplan_takeout_restaurant</code> 로컬 저장소 항목에 저장될 수 있습니다.
-      메뉴 별점 기능은 서명된 익명 식별 토큰을 <code>welplan-review-session</code> 쿠키와
-      <code>welplan.review-session.v1</code> 로컬 저장소에 최대 1년 동안 저장합니다.
+      메뉴 별점 기능은 같은 메뉴에 별점을 다시 남기지 않도록 별점을 남긴 메뉴 정보를
+      <code>welplan-menu-ratings</code> 쿠키와 <code>welplan.menu-ratings.v1</code> 로컬 저장소에
+      최대 1년 동안 저장합니다.
     </p>
     <p>
       브라우저 설정에서 쿠키, 사이트 데이터, 로컬 저장소를 삭제하면 이 정보도 삭제됩니다.

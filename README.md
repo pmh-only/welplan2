@@ -77,7 +77,6 @@ You can also set `DOTENV_PATH` to point at a custom env file.
 | `ADMIN_OIDC_RESPONSE_MODE`     | No                       | `query`        | OIDC response mode. Keep `query` to avoid cross-site POST callbacks being blocked by SvelteKit CSRF checks.        |
 | `SLACK_CLIENT_ID`              | For Slack OAuth          | none           | Client ID of the Welplan Slack OAuth app with the `incoming-webhook` scope.                                        |
 | `SLACK_CLIENT_SECRET`          | For Slack OAuth          | none           | Client secret used only by the server for `oauth.v2.access`.                                                       |
-| `REVIEW_JWT_SECRET`            | For menu reviews         | none           | Secret of at least 32 characters used to sign anonymous browser review identities.                                |
 | `SLACK_OAUTH_REDIRECT_URI`     | No                       | request origin | Slack OAuth redirect URI; defaults to `<origin>/webhooks/slack/callback` and must match the Slack app configuration. |
 | `TWA_PACKAGE_NAME`             | For Android TWA          | none           | Android package name allowed to claim this web origin through Digital Asset Links.                                 |
 | `TWA_SHA256_CERT_FINGERPRINTS` | For Android TWA          | none           | Comma or whitespace separated SHA-256 signing certificate fingerprints served from `/.well-known/assetlinks.json`. |

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import { afterNavigate, goto } from '$app/navigation'
   import { trackEvent } from '$lib/analytics'
   import { createDialogHistory } from '$lib/dialog-history'
@@ -17,9 +17,12 @@
   type NutrientDef = { key: NutritionKey; label: string; unit: string }
   type GalleryMenu = Menu & { restaurantIds: string[] }
   type GallerySection = { mealTime: MealTime; menus: GalleryMenu[] }
-  type ReviewQueryResponse = { token?: string; summaries: Record<string, MenuReviewSummary> }
+  type ReviewQueryResponse = { summaries: Record<string, MenuReviewSummary> }
 
-  const REVIEW_STORAGE_KEY = 'welplan.review-session.v1'
+  const REVIEW_STORAGE_KEY = 'welplan.menu-ratings.v1'
+  const REVIEW_COOKIE_NAME = 'welplan-menu-ratings'
+  const REVIEW_COOKIE_MAX_AGE = 365 * 24 * 60 * 60
+  const REVIEW_COOKIE_MAX_ENTRIES = 200
 
   const nutrientDefs: NutrientDef[] = [
     { key: 'calories', label: '칼로리', unit: ' kcal' },
@@ -55,6 +58,7 @@
   let brokenImageSrcs = $state<string[]>([])
   let imageRefreshKey = $state('')
   let reviewSummaries = $state<Record<string, MenuReviewSummary>>({})
+  let storedReviewRatings = $state<Record<string, number>>({})
   let reviewSubmittingKey = $state<string | null>(null)
   let reviewFeedback = $state('')
   let liveRefreshKey = ''
@@ -66,6 +70,14 @@
   })
 
   onDestroy(() => zoomHistory.destroy())
+  onMount(() => {
+    storedReviewRatings = readStoredReviewRatings()
+    try {
+      localStorage.removeItem('welplan.review-session.v1')
+    } catch {
+      // Ignore unavailable local storage while removing the retired review token.
+    }
+  })
   let expandedMealTimeIds = $state<string[]>(
     untrack(() =>
       (data as typeof data & { time: string }).time === ALL_MEAL_TIME_ID
@@ -146,30 +158,70 @@
 
   function closeZoom () { zoomHistory.close() }
 
-  function storedReviewToken (): string {
-    try {
-      return localStorage.getItem(REVIEW_STORAGE_KEY) ?? ''
-    } catch {
-      return ''
+  function reviewStorageId (menuKey: string): string {
+    let hash = 14695981039346656037n
+    for (const character of menuKey) {
+      hash ^= BigInt(character.codePointAt(0)!)
+      hash = BigInt.asUintN(64, hash * 1099511628211n)
     }
+    return hash.toString(36)
   }
 
-  function storeReviewToken (token: string) {
-    try {
-      localStorage.setItem(REVIEW_STORAGE_KEY, token)
-    } catch {
-      // The HttpOnly cookie remains the source of truth when storage is unavailable.
+  function parseStoredReviewRatings (value: string): Map<string, number> {
+    const ratings = new Map<string, number>()
+    for (const entry of value.split(',')) {
+      const match = /^([a-z0-9]+)\.([1-5])$/.exec(entry)
+      if (match) ratings.set(match[1], Number(match[2]))
     }
+    return ratings
+  }
+
+  function serializedReviewRatings (ratings: Map<string, number>): string {
+    return [...ratings].map(([id, rating]) => `${id}.${rating}`).join(',')
+  }
+
+  function reviewCookieValue (): string {
+    const prefix = `${REVIEW_COOKIE_NAME}=`
+    return document.cookie.split('; ').find(cookie => cookie.startsWith(prefix))?.slice(prefix.length) ?? ''
+  }
+
+  function readStoredReviewRatings (): Record<string, number> {
+    const ratings = new Map<string, number>()
+    try {
+      for (const [id, rating] of parseStoredReviewRatings(localStorage.getItem(REVIEW_STORAGE_KEY) ?? '')) {
+        ratings.set(id, rating)
+      }
+    } catch {
+      // The cookie remains available when local storage is blocked.
+    }
+    for (const [id, rating] of parseStoredReviewRatings(reviewCookieValue())) ratings.set(id, rating)
+    return Object.fromEntries(ratings)
+  }
+
+  function storeReviewRating (menuKey: string, rating: number) {
+    const ratings = new Map(Object.entries(readStoredReviewRatings()))
+    const id = reviewStorageId(menuKey)
+    ratings.delete(id)
+    ratings.set(id, rating)
+    const serialized = serializedReviewRatings(ratings)
+    try {
+      localStorage.setItem(REVIEW_STORAGE_KEY, serialized)
+    } catch {
+      // The cookie remains available when local storage is blocked.
+    }
+    const cookieRatings = new Map([...ratings].slice(-REVIEW_COOKIE_MAX_ENTRIES))
+    document.cookie = `${REVIEW_COOKIE_NAME}=${serializedReviewRatings(cookieRatings)}; path=/; max-age=${REVIEW_COOKIE_MAX_AGE}; SameSite=Lax`
+    storedReviewRatings = Object.fromEntries(ratings)
+  }
+
+  function storedReviewRating (menuKey: string): number | undefined {
+    return storedReviewRatings[reviewStorageId(menuKey)]
   }
 
   async function reviewRequest (path: string, body: unknown): Promise<Response> {
-    const token = storedReviewToken()
     return fetch(path, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'X-Review-Session': token } : {})
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify(body)
     })
@@ -184,7 +236,6 @@
       const response = await reviewRequest('/api/menu-reviews/query', { menuKeys })
       if (!response.ok) throw new Error()
       const result = await response.json() as ReviewQueryResponse
-      if (result.token) storeReviewToken(result.token)
       reviewSummaries = result.summaries
     } catch {
       reviewQueryKey = ''
@@ -192,7 +243,11 @@
   }
 
   function reviewSummary (menu: GalleryMenu): MenuReviewSummary | undefined {
-    return reviewSummaries[menuReviewKey(menu)]
+    const menuKey = menuReviewKey(menu)
+    const summary = reviewSummaries[menuKey]
+    const userRating = storedReviewRating(menuKey)
+    if (!summary || userRating == null) return summary
+    return { ...summary, userRating }
   }
 
   function aggregateStarCount (menu: GalleryMenu): number {
@@ -209,11 +264,9 @@
     for (const menu of galleryMenus) {
       const key = menuReviewKey(menu)
       if (menuReviewNormalizedName(key) !== normalizedName) continue
-      const userRating = key === menuKey ? summary.userRating : next[key]?.userRating
       next[key] = {
         average: summary.average,
-        count: summary.count,
-        ...(userRating == null ? {} : { userRating })
+        count: summary.count
       }
     }
     reviewSummaries = next
@@ -221,7 +274,8 @@
 
   async function submitReview (menu: GalleryMenu, rating: number) {
     const menuKey = menuReviewKey(menu)
-    if (reviewSubmittingKey || reviewSummaries[menuKey]?.userRating) return
+    storedReviewRatings = readStoredReviewRatings()
+    if (reviewSubmittingKey || storedReviewRating(menuKey)) return
     reviewSubmittingKey = menuKey
     reviewFeedback = ''
     try {
@@ -232,9 +286,9 @@
         mealTimeId: menu.mealTimeId,
         rating
       })
-      const result = await response.json().catch(() => ({})) as { token?: string; summary?: MenuReviewSummary; error?: string }
-      if (!response.ok || !result.summary || !result.token) throw new Error(result.error ?? '별점을 저장하지 못했습니다.')
-      storeReviewToken(result.token)
+      const result = await response.json().catch(() => ({})) as { summary?: MenuReviewSummary; error?: string }
+      if (!response.ok || !result.summary) throw new Error(result.error ?? '별점을 저장하지 못했습니다.')
+      storeReviewRating(menuKey, rating)
       applyReviewSummary(menuKey, result.summary)
       reviewFeedback = '별점이 등록되었습니다.'
       trackEvent('Gallery Menu Reviewed', { rating, mealTimeId: menu.mealTimeId, vendor: menu.vendor })

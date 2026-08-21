@@ -196,22 +196,25 @@ const createSchemaSql = `
   );
   CREATE TABLE IF NOT EXISTS menu_reviews (
     menu_key TEXT NOT NULL,
-    session_id TEXT NOT NULL,
+    review_id TEXT NOT NULL,
     rating BIGINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     menu_name TEXT NOT NULL,
     menu_date TEXT NOT NULL,
     meal_time_id TEXT NOT NULL,
     created_at BIGINT NOT NULL,
-    PRIMARY KEY (menu_key, session_id)
+    PRIMARY KEY (menu_key, review_id)
   );
+  DO $$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'menu_reviews' AND column_name = 'session_id')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'menu_reviews' AND column_name = 'review_id') THEN
+      ALTER TABLE menu_reviews RENAME COLUMN session_id TO review_id;
+    END IF;
+  END $$;
   CREATE INDEX IF NOT EXISTS menu_reviews_menu_key_idx ON menu_reviews(menu_key);
   CREATE INDEX IF NOT EXISTS menu_reviews_normalized_name_idx
     ON menu_reviews(normalize_menu_occurrence_name(menu_name));
-  CREATE TABLE IF NOT EXISTS menu_review_identity_limits (
-    address_hash TEXT PRIMARY KEY,
-    window_started_at BIGINT NOT NULL,
-    attempts BIGINT NOT NULL
-  );
+  DROP TABLE IF EXISTS menu_review_identity_limits;
 `
 
 let initialized: Promise<void> | null = null

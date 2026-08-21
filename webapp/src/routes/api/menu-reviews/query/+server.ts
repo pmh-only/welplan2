@@ -1,6 +1,5 @@
 import type { RequestHandler } from './$types'
 import {
-  existingReviewIdentity,
   MenuReviewError,
   normalizeMenuKeys,
   reviewRequestIsSameOrigin,
@@ -16,11 +15,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     if (!reviewRequestIsSameOrigin(request, url.origin)) throw new MenuReviewError('리뷰 요청이 올바르지 않습니다.')
     const input = await request.json().catch(() => null) as { menuKeys?: unknown } | null
     const menuKeys = normalizeMenuKeys(input?.menuKeys)
-    const identity = existingReviewIdentity(request, cookies, url.protocol === 'https:')
-    return json({
-      ...(identity ? { token: identity.token } : {}),
-      summaries: await reviewSummaries(menuKeys, identity?.sessionId)
-    })
+    cookies.delete('welplan-review-session', { path: '/' })
+    return json({ summaries: await reviewSummaries(menuKeys) })
   } catch (error) {
     if (error instanceof MenuReviewError) return json({ error: error.message }, error.status)
     throw error
