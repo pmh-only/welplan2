@@ -1,6 +1,6 @@
 import type { Vendor, CafeteriaClient, MealTime, Menu, MenuComponent, Restaurant } from '@pmh-only/welplan2-model'
 import { hasTakeOutConditionTag, TAKE_OUT_ITEM_COUNT_THRESHOLD } from '@pmh-only/welplan2-model'
-import { WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
+import { isValidWelstoryRestaurantId, WelstoryPlusClient } from '@pmh-only/welplan2-welstory-plus'
 import { PlaneatChoiceClient } from '@pmh-only/welplan2-planeat-choice'
 import './env.js'
 import { db, ensureDbInitialized } from './db/index.js'
@@ -324,7 +324,11 @@ export class CafeteriaService {
   private async readRestaurants(): Promise<Restaurant[]> {
     await ensureDbInitialized()
     const redisCached = await getRedisJson<Restaurant[]>(redisKeys.restaurants)
-    if (redisCached) return this.applyAdditionalPathsToRestaurants(redisCached)
+    if (redisCached) {
+      return this.applyAdditionalPathsToRestaurants(redisCached.filter((restaurant) => (
+        restaurant.vendor !== 'welstory' || isValidWelstoryRestaurantId(restaurant.id)
+      )))
+    }
 
     const rows = await db.select().from(restaurantsTable).execute()
     const parsedRestaurants = rows
@@ -342,7 +346,8 @@ export class CafeteriaService {
               typeof restaurant.id === 'string' &&
               restaurant.id.length > 0 &&
               typeof restaurant.name === 'string' &&
-              typeof restaurant.vendor === 'string'
+              typeof restaurant.vendor === 'string' &&
+              (restaurant.vendor !== 'welstory' || isValidWelstoryRestaurantId(restaurant.id))
           )
       )
     const restaurants = await this.applyAdditionalPathsToRestaurants(parsedRestaurants)
@@ -1677,6 +1682,9 @@ export class CafeteriaService {
 
   async registerRestaurant(restaurant: Restaurant): Promise<void> {
     await ensureDbInitialized()
+    if (restaurant.vendor === 'welstory' && !isValidWelstoryRestaurantId(restaurant.id)) {
+      throw new Error(`Invalid Welstory restaurant ID '${restaurant.id}'`)
+    }
     const existing = await this.readOne(
       db.select().from(restaurantsTable).where(eq(restaurantsTable.id, restaurant.id))
     )

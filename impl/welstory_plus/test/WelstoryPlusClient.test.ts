@@ -149,3 +149,67 @@ test('logs in again after repeated empty responses', async () => {
     else process.env.WEBSHARE_API_TOKEN = originalWebshareToken
   }
 })
+
+test('rejects an invalid restaurant ID before sending a request', async () => {
+  const originalFetch = globalThis.fetch
+  let fetchCount = 0
+  globalThis.fetch = async () => {
+    fetchCount++
+    return Response.json({ data: { mealList: [] } })
+  }
+
+  try {
+    const client = new WelstoryPlusClient({
+      username: 'invalid-id-test',
+      password: 'password',
+      deviceId: 'invalid-id-device',
+      baseUrl: 'https://invalid-id.test'
+    })
+    const invalidRestaurant = {
+      ...restaurant,
+      id: "REST000001' OR PG_SLEEP(15)--"
+    }
+
+    await assert.rejects(() => client.getMenus(invalidRestaurant, '20260802', '2'), /Invalid Welstory restaurant ID/)
+    assert.equal(fetchCount, 0)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('filters invalid restaurant IDs returned by Welstory', async () => {
+  const originalFetch = globalThis.fetch
+  const originalWebshareToken = process.env.WEBSHARE_API_TOKEN
+  delete process.env.WEBSHARE_API_TOKEN
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith('/login')) {
+      return new Response('', { status: 200, headers: { Authorization: token() } })
+    }
+    return Response.json({
+      data: [
+        { restaurantId: 'rest000001', restaurantName: '정상 식당' },
+        { restaurantId: "REST000001' OR PG_SLEEP(15)--", restaurantName: '오염 식당' }
+      ]
+    })
+  }
+
+  try {
+    const client = new WelstoryPlusClient({
+      username: 'catalog-filter-test',
+      password: 'password',
+      deviceId: 'catalog-filter-device',
+      baseUrl: 'https://catalog-filter.test'
+    })
+
+    assert.deepEqual(await client.searchRestaurants(''), [{
+      id: 'REST000001',
+      name: '정상 식당',
+      vendor: 'welstory',
+      path: undefined
+    }])
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalWebshareToken === undefined) delete process.env.WEBSHARE_API_TOKEN
+    else process.env.WEBSHARE_API_TOKEN = originalWebshareToken
+  }
+})

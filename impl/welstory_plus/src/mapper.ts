@@ -38,11 +38,15 @@ function parseRestaurantPath(
 
 export function mapRestaurant(raw: WpRestaurant): Restaurant {
   return {
-    id: raw.restaurantId ?? raw.restaurantCode ?? '',
+    id: (raw.restaurantId ?? raw.restaurantCode ?? '').toUpperCase(),
     name: raw.restaurantName,
     vendor: 'welstory',
     path: parseRestaurantPath(raw.restaurantDesc, raw.restaurantName)
   }
+}
+
+export function isValidWelstoryRestaurantId(id: string): boolean {
+  return /^REST\d{6}$/i.test(id)
 }
 
 // Meal type codes verified from actual API response

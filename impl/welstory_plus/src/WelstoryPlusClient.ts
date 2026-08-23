@@ -23,7 +23,8 @@ import {
   mapMealTime,
   mapMenuDetails,
   mapMenuNutrients,
-  mapRestaurant
+  mapRestaurant,
+  isValidWelstoryRestaurantId
 } from './mapper.js'
 
 export class WelstoryPlusError extends Error {
@@ -127,6 +128,25 @@ function waitBeforeRetry(attempt: number): Promise<void> {
     30_000
   )
   return new Promise((resolve) => setTimeout(resolve, Math.min(baseDelayMs * attempt, 30_000)))
+}
+
+function restaurantIdForRequest(restaurant: Restaurant): string {
+  if (!isValidWelstoryRestaurantId(restaurant.id)) {
+    throw new WelstoryPlusError(`Invalid Welstory restaurant ID '${restaurant.id}'`)
+  }
+  return restaurant.id.toUpperCase()
+}
+
+function mapValidRestaurants(raw: WpRestaurant[]): Restaurant[] {
+  const restaurants = raw.map(mapRestaurant)
+  const valid = restaurants.filter((restaurant) => isValidWelstoryRestaurantId(restaurant.id))
+  if (valid.length !== restaurants.length) {
+    trafficLog.warn('invalid restaurant IDs discarded', {
+      restaurantCount: restaurants.length,
+      discardedCount: restaurants.length - valid.length
+    })
+  }
+  return valid
 }
 
 export class WelstoryPlusClient implements CafeteriaClient {
@@ -274,26 +294,28 @@ export class WelstoryPlusClient implements CafeteriaClient {
   // CafeteriaClient: returns selected restaurants (my-list)
   async getRestaurants(): Promise<Restaurant[]> {
     const raw = await this.request<unknown>('/api/mypage/rest-my-list')
-    return unwrap<WpRestaurant[]>(raw).map(mapRestaurant)
+    return mapValidRestaurants(unwrap<WpRestaurant[]>(raw))
   }
 
   async getMealTimes(restaurant: Restaurant): Promise<MealTime[]> {
+    const restaurantId = restaurantIdForRequest(restaurant)
     const raw = await this.request<unknown>('/api/menu/getMealTimeList', {
-      headers: { Cookie: `cafeteriaActiveId=${restaurant.id}` }
+      headers: { Cookie: `cafeteriaActiveId=${restaurantId}` }
     })
     return unwrap<WpMealTime[]>(raw).map(mapMealTime)
   }
 
   async getMenus(restaurant: Restaurant, date: string, mealTimeId: string): Promise<Menu[]> {
+    const restaurantId = restaurantIdForRequest(restaurant)
     const raw = await this.request<unknown>(
-      `/api/meal?menuDt=${date}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
+      `/api/meal?menuDt=${encodeURIComponent(date)}&menuMealType=${encodeURIComponent(mealTimeId)}&restaurantCode=${encodeURIComponent(restaurantId)}`
     )
     const wrapper = unwrap<WpMealListWrapper>(raw)
     if (wrapper === null || typeof wrapper !== 'object' || !Array.isArray(wrapper.mealList)) {
       throw new WelstoryPlusError('Invalid menu response')
     }
     const dishes: WpDish[] = wrapper.mealList
-    const menus = groupDishesToMenus(dishes, restaurant.id)
+    const menus = groupDishesToMenus(dishes, restaurantId)
 
     return menus
   }
@@ -305,8 +327,9 @@ export class WelstoryPlusClient implements CafeteriaClient {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
+    const restaurantId = restaurantIdForRequest(restaurant)
     const raw = await this.request<unknown>(
-      `/api/meal/detail?menuDt=${date}&hallNo=${hallNo}&menuCourseType=${courseType}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
+      `/api/meal/detail?menuDt=${encodeURIComponent(date)}&hallNo=${encodeURIComponent(hallNo)}&menuCourseType=${encodeURIComponent(courseType)}&menuMealType=${encodeURIComponent(mealTimeId)}&restaurantCode=${encodeURIComponent(restaurantId)}`
     )
     const details = unwrap<WpMenuDetail[]>(raw)
     return mapMenuDetails(details)
@@ -319,8 +342,9 @@ export class WelstoryPlusClient implements CafeteriaClient {
     hallNo: string,
     courseType: string
   ): Promise<MenuComponent[]> {
+    const restaurantId = restaurantIdForRequest(restaurant)
     const raw = await this.request<unknown>(
-      `/api/meal/detail/nutrient?menuDt=${date}&hallNo=${hallNo}&menuCourseType=${courseType}&menuMealType=${mealTimeId}&restaurantCode=${restaurant.id}`
+      `/api/meal/detail/nutrient?menuDt=${encodeURIComponent(date)}&hallNo=${encodeURIComponent(hallNo)}&menuCourseType=${encodeURIComponent(courseType)}&menuMealType=${encodeURIComponent(mealTimeId)}&restaurantCode=${encodeURIComponent(restaurantId)}`
     )
     const details = unwrap<WpMenuNutrient[]>(raw)
     return mapMenuNutrients(details)
@@ -332,17 +356,20 @@ export class WelstoryPlusClient implements CafeteriaClient {
     const raw = await this.request<unknown>(
       `/api/mypage/rest-list?restaurantName=${encodeURIComponent(query)}`
     )
-    return unwrap<WpRestaurant[]>(raw).map(mapRestaurant)
+    return mapValidRestaurants(unwrap<WpRestaurant[]>(raw))
   }
 
   async addRestaurant(restaurantId: string): Promise<void> {
+    if (!isValidWelstoryRestaurantId(restaurantId)) {
+      throw new WelstoryPlusError(`Invalid Welstory restaurant ID '${restaurantId}'`)
+    }
     await this.request('/api/mypage/rest-regi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify([
         {
           mainDiv: 'N',
-          restaurantId,
+          restaurantId: restaurantId.toUpperCase(),
           orderSeq: Math.floor(Math.random() * 10000)
         }
       ])
@@ -350,10 +377,13 @@ export class WelstoryPlusClient implements CafeteriaClient {
   }
 
   async removeRestaurant(restaurantId: string): Promise<void> {
+    if (!isValidWelstoryRestaurantId(restaurantId)) {
+      throw new WelstoryPlusError(`Invalid Welstory restaurant ID '${restaurantId}'`)
+    }
     await this.request('/api/mypage/rest-delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify([{ hcId: '', restaurantId }])
+      body: JSON.stringify([{ hcId: '', restaurantId: restaurantId.toUpperCase() }])
     })
   }
 }
