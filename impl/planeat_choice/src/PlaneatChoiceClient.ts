@@ -87,8 +87,23 @@ function unwrapList<T>(data: unknown): T[] {
   return []
 }
 
+export function isValidPcRestaurant(restaurant: Restaurant): restaurant is PcRestaurant {
+  const candidate = restaurant as Partial<PcRestaurant>
+  return (
+    restaurant.vendor === 'shinsegae' &&
+    typeof candidate.busiCd === 'string' && candidate.busiCd.length > 0 &&
+    typeof candidate.compCd === 'string' && candidate.compCd.length > 0 &&
+    typeof candidate.storCd === 'string' && candidate.storCd.length > 0 &&
+    typeof candidate.orgTreeId === 'string' && candidate.orgTreeId.length > 0 &&
+    restaurant.id === candidate.storCd
+  )
+}
+
 function asPcRestaurant(restaurant: Restaurant): PcRestaurant {
-  return restaurant as PcRestaurant
+  if (!isValidPcRestaurant(restaurant)) {
+    throw new PlaneatChoiceError(`Invalid PlanEAT restaurant '${restaurant.id}'`)
+  }
+  return restaurant
 }
 
 export class PlaneatChoiceClient implements CafeteriaClient {
@@ -158,9 +173,8 @@ export class PlaneatChoiceClient implements CafeteriaClient {
 
   async getMealTimes(restaurant: Restaurant): Promise<MealTime[]> {
     const { busiCd, compCd, storCd } = asPcRestaurant(restaurant)
-    const raw = await this.request<PcStorTimeResponse>(
-      `/storTime?busiCd=${busiCd}&compCd=${compCd}&storCd=${storCd}`
-    )
+    const qs = new URLSearchParams({ busiCd, compCd, storCd })
+    const raw = await this.request<PcStorTimeResponse>(`/storTime?${qs}`)
     return (raw.mealData ?? []).map(mapMealTime)
   }
 

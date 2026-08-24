@@ -1,4 +1,4 @@
-export { PlaneatChoiceClient, PlaneatChoiceError } from './PlaneatChoiceClient.js'
+export { PlaneatChoiceClient, PlaneatChoiceError, isValidPcRestaurant } from './PlaneatChoiceClient.js'
 export type {
   PlaneatChoiceClientOptions,
   PcRestaurant,
