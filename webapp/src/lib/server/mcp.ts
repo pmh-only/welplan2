@@ -1,4 +1,4 @@
-import type { MealTime, Menu, Restaurant, Vendor } from '@pmh-only/welplan2-model'
+import type { MealTime, Menu, MenuComponent, Restaurant, Vendor } from '@pmh-only/welplan2-model'
 import { APP_NAME, APP_VERSION, STREAMABLE_HTTP_MCP_TOOLS } from '../agent.js'
 import { restaurantDatedPath, restaurantDetailPath } from '../restaurant-routes.js'
 
@@ -25,6 +25,13 @@ export type McpService = {
   getRestaurant(id: string): Promise<Restaurant | null>
   getMealTimes(restaurantId: string): Promise<MealTime[]>
   getMenus(restaurantId: string, date: string, mealTimeId: string): Promise<Menu[]>
+  getMenuNutrientDetail(
+    restaurantId: string,
+    date: string,
+    mealTimeId: string,
+    hallNo: string,
+    courseType: string
+  ): Promise<MenuComponent[]>
 }
 
 type ToolResult = {
@@ -77,12 +84,23 @@ function normalizeDate(value: unknown): string | null {
     : null
 }
 
-function publicMenu(menu: Menu): Record<string, unknown> {
+async function publicMenu(menu: Menu, date: string, service: McpService): Promise<Record<string, unknown>> {
+  let components = menu.components
+  if (menu.vendor === 'welstory' && menu.hallNo && menu.courseType) {
+    components = await service.getMenuNutrientDetail(
+      menu.restaurantId,
+      date,
+      menu.mealTimeId,
+      menu.hallNo,
+      menu.courseType
+    ).catch(() => components)
+  }
+
   return {
     id: menu.id,
     name: menu.name,
     ...(menu.parentName ? { parentName: menu.parentName } : {}),
-    components: menu.components,
+    components,
     ...(menu.nutrition ? { nutrition: menu.nutrition } : {}),
     isTakeOut: menu.isTakeOut,
     ...(menu.imageUrl ? { imageUrl: menu.imageUrl } : {})
@@ -127,12 +145,15 @@ async function getRestaurantMenu(args: unknown, service: McpService, origin: str
   }
 
   const mealTimes = await service.getMealTimes(restaurant.id)
-  const meals = await Promise.all(mealTimes.map(async (mealTime) => ({
-    id: mealTime.id,
-    name: mealTime.name,
-    ...(mealTime.type ? { type: mealTime.type } : {}),
-    menus: (await service.getMenus(restaurant.id, date, mealTime.id)).map(publicMenu)
-  })))
+  const meals = await Promise.all(mealTimes.map(async (mealTime) => {
+    const menus = await service.getMenus(restaurant.id, date, mealTime.id)
+    return {
+      id: mealTime.id,
+      name: mealTime.name,
+      ...(mealTime.type ? { type: mealTime.type } : {}),
+      menus: await Promise.all(menus.map((menu) => publicMenu(menu, date, service)))
+    }
+  }))
   const structuredContent = {
     restaurant: { id: restaurant.id, name: restaurant.name, vendor: restaurant.vendor },
     date,

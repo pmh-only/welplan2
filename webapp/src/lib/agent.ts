@@ -119,7 +119,7 @@ export const STREAMABLE_HTTP_MCP_TOOLS: WebMcpToolDefinition[] = [
   {
     name: 'get_restaurant_menu',
     title: '날짜별 식당 메뉴 조회',
-    description: 'Get every meal period and menu for a restaurant on a date. Use search_restaurants first.',
+    description: 'Get every meal period and course for a restaurant on a date, including each course representative menu, aggregate nutrition, and the full rice, soup, and side-dish composition with per-item nutrients. Use search_restaurants first.',
     inputSchema: {
       type: 'object',
       properties: {

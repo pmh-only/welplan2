@@ -3,6 +3,7 @@ import type { Handle } from '@sveltejs/kit'
 import { API_DOC_PATH } from '$lib/agent'
 import { createServerLogger } from '$lib/server/log'
 import { adminOidcConfigured, getAdminUser, redirectResponse } from '$lib/server/admin-auth'
+import { applyGetApiCors } from '$lib/server/api-cors'
 import {
   appendVaryValue,
   applyContentSignal,
@@ -155,6 +156,8 @@ export const handle: Handle = async ({ event, resolve }) => {
         headers
       })
     }
+
+    finalResponse = applyGetApiCors(event.request.method, event.url.pathname, finalResponse)
 
     trafficLog.info('request completed', {
       requestId,

@@ -14,14 +14,23 @@ const menu: Menu = {
   vendor: restaurant.vendor,
   components: [{ name: 'Rice' }],
   nutrition: { calories: 650 },
-  isTakeOut: false
+  isTakeOut: false,
+  hallNo: 'hall-1',
+  courseType: 'course-1'
 }
+
+const menuDetail: Menu['components'] = [
+  { name: 'Rice', nutrition: { calories: 300, carbohydrates: 65 } },
+  { name: 'Soup', nutrition: { calories: 50, sodium: 400 } },
+  { name: 'Kimchi', nutrition: { calories: 20, sodium: 150 } }
+]
 
 const service: McpService = {
   searchRestaurants: async () => [restaurant],
   getRestaurant: async (id) => id === restaurant.id ? restaurant : null,
   getMealTimes: async () => [mealTime],
-  getMenus: async () => [menu]
+  getMenus: async () => [menu],
+  getMenuNutrientDetail: async () => menuDetail
 }
 
 function mcpRequest(body: unknown, headers: Record<string, string> = {}): Request {
@@ -81,8 +90,11 @@ test('calls search and menu tools with structured data', async () => {
     }
   }), service, 'https://welplan.example')
   const menuResult = await menuResponse.json()
+  const returnedMenu = menuResult.result.structuredContent.meals[0].menus[0]
   assert.equal(menuResult.result.structuredContent.date, '20260820')
-  assert.equal(menuResult.result.structuredContent.meals[0].menus[0].name, menu.name)
+  assert.equal(returnedMenu.name, menu.name)
+  assert.deepEqual(returnedMenu.nutrition, menu.nutrition)
+  assert.deepEqual(returnedMenu.components, menuDetail)
 })
 
 test('handles notifications, CORS, and content negotiation', async () => {
