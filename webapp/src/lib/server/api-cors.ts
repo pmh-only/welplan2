@@ -1,4 +1,5 @@
 const API_PATH = '/api'
+const PROXY_PATH = '/proxy'
 const WEBHOOK_API_PATH = '/api/webhooks'
 
 function isPathOrDescendant(pathname: string, path: string): boolean {
@@ -6,7 +7,8 @@ function isPathOrDescendant(pathname: string, path: string): boolean {
 }
 
 export function applyGetApiCors(method: string, pathname: string, response: Response): Response {
-  if (method !== 'GET' || !isPathOrDescendant(pathname, API_PATH) || isPathOrDescendant(pathname, WEBHOOK_API_PATH)) {
+  const isPublicApi = isPathOrDescendant(pathname, API_PATH) || isPathOrDescendant(pathname, PROXY_PATH)
+  if (method !== 'GET' || !isPublicApi || isPathOrDescendant(pathname, WEBHOOK_API_PATH)) {
     return response
   }
 
